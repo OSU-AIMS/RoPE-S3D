@@ -3,6 +3,8 @@ import json
 import numpy as np
 import cv2
 import pyrealsense2 as rs
+from tqdm import tqdm
+import pickle
 
 def readJsonData(json_path = "C:\\Users\\exley\\Desktop\\CDME\\RobotPose\\data\\json"):
     data = []
@@ -83,3 +85,63 @@ def makeIntrinsics(resolution = (640,480), pp= (320.503,237.288), f=(611.528,611
     a.fx = f[0]
     a.fy = f[1]
     a.coeffs = coeffs
+    return a
+
+
+
+
+def parsePLYasPoints(path):
+    # Read file
+    with open(path, 'r') as file:
+        lines = file.readlines()
+
+    # Read through header
+    in_data = False
+    while not in_data:
+
+        if 'element vertex' in lines[0]:
+            verticies = int(lines[0].replace('element vertex',''))
+
+        if 'end_header' in lines[0]:
+            in_data = True
+        lines.pop(0)
+
+    # Copy camera intrinisics
+    intrin = makeIntrinsics()
+
+    # Extract vertex info
+    vert = []
+    while len(vert) < verticies:
+        string = lines.pop(0)
+        data = list(map(float, string.split(' ')[:-1]))
+        x, y = rs.rs2_project_point_to_pixel(intrin, data)
+        dictionary = {
+            'Px':x,
+            'Py':y,
+            'X': data[0],
+            'Y': data[1],
+            'Z': data[2]
+        }
+        vert.append(dictionary)
+        lines.pop(0)
+        lines.pop(0)
+    
+    return vert
+
+            
+def parsePLYs(path_to_ply, save_path):
+    plys = []
+    for file in tqdm(os.listdir(path_to_ply)):
+        plys.append(parsePLYasPoints(os.path.join(path_to_ply,file)))
+    
+    if '.pyc' not in save_path:
+        save_path = os.path.join(save_path,'ply_data.pyc')
+
+    with open(save_path,'wb') as file:
+        pickle.dump(plys,file)
+
+def readBin(path):
+    with open(path, 'rb') as f:
+        return pickle.load(f)
+
+
