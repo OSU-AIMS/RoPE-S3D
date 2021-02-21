@@ -45,22 +45,17 @@ while ret:
     over = np.zeros((480,640,3),dtype=np.uint8)
     coord_dict = pred_dict_xyz[i]
 
-    viz_points(ply_data[i], over)
+    #viz_points(ply_data[i], over)
     
     # Predict L
-    L_pred_ang = vecXZang(coord_dict['L'], coord_dict['U'])
+    L_pred_ang = vecXZangNew(coord_dict['L'], coord_dict['U'])
 
     # Predict U
-    LU = vecXZang(coord_dict['L'], coord_dict['U'])
-    BR = vecXZang(coord_dict['B'], coord_dict['R'])
+    U_pred_ang = vecXZangNew(coord_dict['L'], coord_dict['U']) - vecXZangNew(coord_dict['B'], coord_dict['R'],(.5,-10))
 
-    if BR > LU:
-        U_pred_ang = vecXZang(coord_dict['B'], coord_dict['R']) - vecXZang(coord_dict['L'], coord_dict['U']) + np.pi
-    else:
-        U_pred_ang = vecXZang(coord_dict['L'], coord_dict['U']) - vecXZang(coord_dict['B'], coord_dict['R'])
 
     # Predict B
-    B_pred_ang = vecXZang(coord_dict['T'], coord_dict['B']) - vecXZang(coord_dict['B'], coord_dict['R'])
+    B_pred_ang = vecXZangNew(coord_dict['T'], coord_dict['B'],(1,-10)) - vecXZangNew(coord_dict['B'], coord_dict['R'],(.5,-10))
 
     # Append to lists
     L_pred.append(L_pred_ang)
@@ -83,6 +78,11 @@ while ret:
 cv2.destroyAllWindows()
 cap.release()
 out.release()
+
+
+"""
+Plotting
+"""
 
 fig, axs = plt.subplots(3,3)
 axs[0,0].plot(toDeg(L_angles))
@@ -114,5 +114,18 @@ axs[1,2].set_title('Offset U Err')
 axs[2,2].plot(toDeg(np.multiply(toDeg(L_angles),0)))
 axs[2,2].plot(toDeg(np.subtract(B_angles,np.add(np.mean(np.subtract(B_angles,B_pred)),B_pred))))
 axs[2,2].set_title('Offset B Err')
+
+# Determine average errors
+avg_L_err = toDeg(np.mean(np.abs(np.subtract(L_angles,np.add(np.mean(np.subtract(L_angles,L_pred)),L_pred)))))
+avg_U_err = toDeg(np.mean(np.abs(np.subtract(U_angles,np.add(np.mean(np.subtract(U_angles,U_pred)),U_pred)))))
+avg_B_err = toDeg(np.mean(np.abs(np.subtract(B_angles,np.add(np.mean(np.subtract(B_angles,B_pred)),B_pred)))))
+L_err_std = toDeg(np.std(np.abs(np.subtract(L_angles,np.add(np.mean(np.subtract(L_angles,L_pred)),L_pred)))))
+U_err_std = toDeg(np.std(np.abs(np.subtract(U_angles,np.add(np.mean(np.subtract(U_angles,U_pred)),U_pred)))))
+B_err_std = toDeg(np.std(np.abs(np.subtract(B_angles,np.add(np.mean(np.subtract(B_angles,B_pred)),B_pred)))))
+
+print("Average error in degrees (after an offset is applied):")
+print(f"\tL: {avg_L_err}\n\tU: {avg_U_err}\n\tB: {avg_B_err}")
+print("Stdev of error in degrees (after an offset is applied):")
+print(f"\tL: {L_err_std}\n\tU: {U_err_std}\n\tB: {B_err_std}")
 
 plt.show()

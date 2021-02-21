@@ -194,6 +194,16 @@ def vecXZang(start, end, x_correct = True, y_correct = True):
 
     return ang
 
+
+def vecXZangNew(start, end, lims = None):
+    # Find vector and unit vector
+    vec = np.subtract(end, start)
+
+    rotated_y = vec[1]
+    rotated_x = np.sqrt(vec[0] ** 2 + vec[2] ** 2) * abs(vec[0]) / vec[0]
+
+    return angle(rotated_x, rotated_y, lims)
+
 def dictPixToXYZ(dict_list, ply_data):
     ply_data = np.asarray(ply_data)
     out = []
