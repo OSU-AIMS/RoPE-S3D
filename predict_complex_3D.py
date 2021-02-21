@@ -50,15 +50,14 @@ while ret:
     # Predict L
     L_pred_ang = vecXZang(coord_dict['L'], coord_dict['U'])
 
-    # if i < 62:
-    #     L_pred_ang = np.pi - L_pred_ang
-
     # Predict U
-    U_pred_ang =  vecXZang(coord_dict['L'], coord_dict['U']) - vecXZang(coord_dict['B'], coord_dict['R'])
+    LU = vecXZang(coord_dict['L'], coord_dict['U'])
+    BR = vecXZang(coord_dict['B'], coord_dict['R'])
 
-    # if i > 64:
-    #     U_pred_ang = -1*np.pi+U_pred_ang
-
+    if BR > LU:
+        U_pred_ang = vecXZang(coord_dict['B'], coord_dict['R']) - vecXZang(coord_dict['L'], coord_dict['U']) + np.pi
+    else:
+        U_pred_ang = vecXZang(coord_dict['L'], coord_dict['U']) - vecXZang(coord_dict['B'], coord_dict['R'])
 
     # Predict B
     B_pred_ang = vecXZang(coord_dict['T'], coord_dict['B']) - vecXZang(coord_dict['B'], coord_dict['R'])

@@ -174,7 +174,7 @@ def unit_vector(vec):
     return vec / np.linalg.norm(vec)
 
 
-def vecXZang(start, end):
+def vecXZang(start, end, x_correct = True, y_correct = True):
     # Find vector and unit vector
     vec = np.subtract(end, start)
     unit = unit_vector(vec)
@@ -186,11 +186,11 @@ def vecXZang(start, end):
     # Find angle
     ang = np.arccos(np.clip(np.dot(unit, plane), -1, 1))
 
-    if vec[0] < 0:
+    if vec[0] < 0 and x_correct:
         ang = np.pi - ang
 
-    # if vec[1] < 0:
-    #     ang = 2*np.pi - ang
+    if vec[1] < 0 and y_correct:
+        ang = 2*np.pi - ang
 
     return ang
 
