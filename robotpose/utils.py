@@ -5,8 +5,9 @@ import cv2
 import pyrealsense2 as rs
 from tqdm import tqdm
 import pickle
+from robotpose import paths as p
 
-def readJsonData(json_path = "C:\\Users\\exley\\Desktop\\CDME\\RobotPose\\data\\json"):
+def readJsonData(json_path = p.json):
     data = []
 
     for file in os.listdir(json_path):
@@ -114,6 +115,7 @@ def parsePLYasPoints(path):
     while len(vert) < verticies:
         string = lines.pop(0)
         data = list(map(float, string.split(' ')[:-1]))
+        data[0] *= -1
         x, y = rs.rs2_project_point_to_pixel(intrin, data)
         dictionary = {
             'Px':x,
@@ -129,9 +131,9 @@ def parsePLYasPoints(path):
     return vert
 
             
-def parsePLYs(path_to_ply, save_path):
+def parsePLYs(path_to_ply = p.ply, save_path = p.ply_data):
     plys = []
-    for file in tqdm(os.listdir(path_to_ply)):
+    for file in tqdm(os.listdir(path_to_ply),desc="Reading PLY data"):
         plys.append(parsePLYasPoints(os.path.join(path_to_ply,file)))
     
     if '.pyc' not in save_path:
@@ -140,8 +142,82 @@ def parsePLYs(path_to_ply, save_path):
     with open(save_path,'wb') as file:
         pickle.dump(plys,file)
 
+
+
+
 def readBin(path):
     with open(path, 'rb') as f:
         return pickle.load(f)
 
 
+def readBinToArrs(path):
+    with open(path, 'rb') as f:
+        data = pickle.load(f)
+
+    out = []
+
+    for frame in tqdm(data,desc="Reading Frame 3D Data"):
+        frame_data = np.zeros((len(frame),5))
+        for point, idx in zip(frame, range(len(frame))):
+            frame_data[idx, 0] = point['Px']
+            frame_data[idx, 1] = point['Py']
+            frame_data[idx, 2] = point['X']
+            frame_data[idx, 3] = point['Y']
+            frame_data[idx, 4] = point['Z']
+        out.append(frame_data)
+    
+    return out
+
+
+
+def unit_vector(vec):
+    return vec / np.linalg.norm(vec)
+
+
+def vecXZang(start, end):
+    # Find vector and unit vector
+    vec = np.subtract(end, start)
+    unit = unit_vector(vec)
+    # Plane represented by unit vector with no Y component
+    pl_vec = vec
+    pl_vec[1] = 0
+    plane = unit_vector(pl_vec)
+
+    # Find angle
+    ang = np.arccos(np.clip(np.dot(unit, plane), -1, 1))
+
+    if vec[0] < 0:
+        ang = np.pi - ang
+
+    # if vec[1] < 0:
+    #     ang = 2*np.pi - ang
+
+    return ang
+
+def dictPixToXYZ(dict_list, ply_data):
+    ply_data = np.asarray(ply_data)
+    out = []
+    for d, idx in tqdm(zip(dict_list,range(len(dict_list)))):
+        data = ply_data[idx]
+        x_list = data[:,0]
+        y_list = data[:,1]
+        out_dict = {}
+        for key, value in zip(d.keys(), d.values()):
+            px = value[0]
+            py = value[1]
+            dist = np.sqrt( np.square( x_list - px ) + np.square( y_list - py ) )
+            min_idx = dist.argmin()
+            out_dict[key] = tuple(data[min_idx,2:5])
+        
+        out.append(out_dict)
+
+    return out
+
+def viz_points(ply_frame_data, image):
+    intrin = makeIntrinsics()
+
+    for pt in ply_frame_data:
+        x, y = rs.rs2_project_point_to_pixel(intrin, pt[2:5])
+        x = int(x)
+        y = int(y)
+        image = cv2.circle(image, (x,y), radius=0, color=(0, 255, 0), thickness=-1)
