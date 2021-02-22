@@ -1,0 +1,4 @@
+deepposekit >= 0.3.9
+imgaug == 0.4.0
+open3d == 0.12.0
+opencv-python == 4.5.1.48
