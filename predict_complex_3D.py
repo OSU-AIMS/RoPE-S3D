@@ -47,8 +47,14 @@ while ret:
     over = np.zeros((480,640,3),dtype=np.uint8)
     coord_dict = pred_dict_xyz[i]
     
-    # Predict S using the B joint position
-    S_pred_ang = XYangle(coord_dict['B'][0]-coord_dict['R'][0], coord_dict['B'][2]-coord_dict['R'][2],(1,6))
+    # Predict S using the B joint position in reference to the R and U joints
+    S_pred_ang_BR = XYangle(coord_dict['B'][0]-coord_dict['R'][0], coord_dict['B'][2]-coord_dict['R'][2],(1,6))
+    S_pred_ang_LU = XYangle(coord_dict['B'][0]-coord_dict['U'][0], coord_dict['B'][2]-coord_dict['U'][2],(-1,5))
+
+    # Take average of both angles (one tends to overshoot, one tends to undershoot)
+    # Likely will need to be changed when we get actual S angles
+    S_pred_ang = np.mean([S_pred_ang_BR,S_pred_ang_LU])
+
 
     # Predict L
     L_pred_ang = XYZangle(coord_dict['L'], coord_dict['U'])
@@ -67,7 +73,7 @@ while ret:
     B_pred.append(B_pred_ang)
 
     # Put depth info on overlay
-    #vizDepth(ply_data[i], over)
+    vizDepth(ply_data[i], over)
     #Visualize lines
     viz(image, over, predictions[i])
 
