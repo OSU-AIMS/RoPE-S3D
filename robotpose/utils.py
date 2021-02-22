@@ -8,6 +8,9 @@ import pickle
 from robotpose import paths as p
 
 def readJsonData(json_path = p.json):
+    """
+    Reads angle data from all JSON files and returns as list of dicts 
+    """
     data = []
 
     for file in os.listdir(json_path):
@@ -23,6 +26,9 @@ def readJsonData(json_path = p.json):
 
 
 def readLinkXData(link):
+    """
+    Reads JSON files and returns an array of the values for a specific joint
+    """
     data = readJsonData()
     angles = []
     for entry in data:
@@ -32,15 +38,19 @@ def readLinkXData(link):
     return angles
 
 
-def toDeg(arr):
-    return np.multiply(arr, 180/np.pi)
 
-
-def angle(x, y, lims=None):
+def XYangle(x, y, lims=None):
+    """
+    Returns the angle between the input point and the +x axis 
+    """
+    # Get angle
     ang = np.arctan(y/x)
+
+    # If in Quad II/III, make the angle obtuse 
     if x < 0:
         ang += np.pi
 
+    # Apply any custom limits to the angle
     if lims is not None:
         if ang > max(lims):
             ang -= 2 * np.pi
@@ -51,6 +61,9 @@ def angle(x, y, lims=None):
 
 
 def predToDictList(preds):
+    """
+    Takes predictions from DeepPoseKit as list and translates into a dictionary of points
+    """
     out = []
     for p in preds:
         out.append({'L':p[0],
@@ -63,6 +76,9 @@ def predToDictList(preds):
     
 
 def viz(image, over, frame_data):
+    """
+    Draws a pose overlay on the image given prediction point data
+    """
     last = None
     for p in frame_data:
         x = int(p[0])
@@ -78,6 +94,9 @@ def viz(image, over, frame_data):
 
 
 def makeIntrinsics(resolution = (640,480), pp= (320.503,237.288), f=(611.528,611.528), coeffs=[0,0,0,0,0]):
+    """
+    Makes psuedo-intrinsics for the realsense camera used.
+    """
     a = rs.intrinsics()
     a.width = max(resolution)
     a.height = min(resolution)
@@ -170,39 +189,16 @@ def readBinToArrs(path):
 
 
 
-def unit_vector(vec):
-    return vec / np.linalg.norm(vec)
-
-
-def vecXZang(start, end, x_correct = True, y_correct = True):
-    # Find vector and unit vector
-    vec = np.subtract(end, start)
-    unit = unit_vector(vec)
-    # Plane represented by unit vector with no Y component
-    pl_vec = vec
-    pl_vec[1] = 0
-    plane = unit_vector(pl_vec)
-
-    # Find angle
-    ang = np.arccos(np.clip(np.dot(unit, plane), -1, 1))
-
-    if vec[0] < 0 and x_correct:
-        ang = np.pi - ang
-
-    if vec[1] < 0 and y_correct:
-        ang = 2*np.pi - ang
-
-    return ang
-
-
-def vecXZangNew(start, end, lims = None):
-    # Find vector and unit vector
+def XYZangle(start, end, lims = None):
+    # Find link vector from start and end points
     vec = np.subtract(end, start)
 
+    # Rotate the reference XY plane to contain the vector
     rotated_y = vec[1]
     rotated_x = np.sqrt(vec[0] ** 2 + vec[2] ** 2) * abs(vec[0]) / vec[0]
 
-    return angle(rotated_x, rotated_y, lims)
+    # Find 2D angle to X axis
+    return XYangle(rotated_x, rotated_y, lims)
 
 def dictPixToXYZ(dict_list, ply_data):
     ply_data = np.asarray(ply_data)
@@ -223,11 +219,15 @@ def dictPixToXYZ(dict_list, ply_data):
 
     return out
 
-def viz_points(ply_frame_data, image):
+def vizDepth(ply_frame_data, image):
+    """
+    Overlays the depth information given on an image
+    """
     intrin = makeIntrinsics()
-
     for pt in ply_frame_data:
         x, y = rs.rs2_project_point_to_pixel(intrin, pt[2:5])
         x = int(x)
         y = int(y)
-        image = cv2.circle(image, (x,y), radius=0, color=(0, 255, 0), thickness=-1)
+        g = int(np.interp(pt[4],[-1.3,-.9],[0,255]))
+        r = 255-2*g
+        image = cv2.circle(image, (x,y), radius=0, color=(0,g,r), thickness=-1)

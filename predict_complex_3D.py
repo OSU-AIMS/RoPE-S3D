@@ -18,6 +18,7 @@ ply_data = readBinToArrs(p.ply_data)
 
 
 # Read in Actual angles from JSONs to compare predicted angles to
+S_angles = readLinkXData(0)
 L_angles = readLinkXData(1)
 U_angles = readLinkXData(2)
 B_angles = readLinkXData(4)
@@ -35,6 +36,7 @@ fourcc = cv2.VideoWriter_fourcc(*'XVID')
 out = cv2.VideoWriter(p.video.replace(".avi","_overlay.avi"),fourcc, 12.5, (640*2,480))
 
 # Init predicted angle lists
+S_pred = []
 L_pred = []
 U_pred = []
 B_pred = []
@@ -45,25 +47,29 @@ while ret:
     over = np.zeros((480,640,3),dtype=np.uint8)
     coord_dict = pred_dict_xyz[i]
     
-    # Predict L
-    L_pred_ang = vecXZangNew(coord_dict['L'], coord_dict['U'])
+    # Predict S using the B joint position
+    S_pred_ang = XYangle(coord_dict['B'][0]-coord_dict['R'][0], coord_dict['B'][2]-coord_dict['R'][2],(1,6))
 
-    BR_ang = vecXZangNew(coord_dict['B'], coord_dict['R'],(.5,-10))
+    # Predict L
+    L_pred_ang = XYZangle(coord_dict['L'], coord_dict['U'])
+
+    BR_ang = XYZangle(coord_dict['B'], coord_dict['R'],(.5,-10))
 
     # Predict U
     U_pred_ang = L_pred_ang - BR_ang
     # Predict B
-    B_pred_ang = vecXZangNew(coord_dict['T'], coord_dict['B'],(1,-10)) - BR_ang
+    B_pred_ang = XYZangle(coord_dict['T'], coord_dict['B'],(1,-10)) - BR_ang
 
     # Append to lists
+    S_pred.append(S_pred_ang)
     L_pred.append(L_pred_ang)
     U_pred.append(U_pred_ang)
     B_pred.append(B_pred_ang)
 
+    # Put depth info on overlay
+    #vizDepth(ply_data[i], over)
     #Visualize lines
     viz(image, over, predictions[i])
-    # Put depth info on overlay
-    viz_points(ply_data[i], over)
 
     dual = np.zeros((480,640*2,3),dtype=np.uint8)
     dual[:,0:640] = image
@@ -84,77 +90,62 @@ out.release()
 Plotting Angles
 """
 
-fig, axs = plt.subplots(3,3)
+# Convert everything from radians to degrees
+S_act = L_act = U_act = B_act = None
+for a, b in zip(["S_act","L_act","U_act","B_act","S_pred","L_pred","U_pred","B_pred"],["S_angles","L_angles","U_angles","B_angles","S_pred","L_pred","U_pred","B_pred"]):
+    globals()[a] = np.degrees(globals()[b])
 
-# Convert Radians to degrees
-L_act = toDeg(L_angles)
-U_act = toDeg(U_angles)
-B_act = toDeg(B_angles)
 
-L_pred = toDeg(L_pred)
-U_pred = toDeg(U_pred)
-B_pred = toDeg(B_pred)
+# Make Subplots
+fig, axs = plt.subplots(4,3)
 
-# Raw Angles
-axs[0,0].set_title('Raw L Angle')
-axs[0,0].plot(L_act)
-axs[0,0].plot(L_pred)
-
-axs[1,0].set_title('Raw U Angle')
-axs[1,0].plot(U_act)
-axs[1,0].plot(U_pred)
-
-axs[2,0].set_title('Raw B Angle')
-axs[2,0].plot(B_act)
-axs[2,0].plot(B_pred)
+# Plot Raw Angles
+for idx, act, pred, label in zip(range(4),["S_act","L_act","U_act","B_act"],["S_pred","L_pred","U_pred","B_pred"],["S","L","U","B"]):
+    axs[idx,0].set_title(f'Raw {label} Angle')
+    axs[idx,0].plot(globals()[act])
+    axs[idx,0].plot(globals()[pred])
 
 
 # Offset Angles
+S_offset = np.add(np.mean(np.subtract(S_act,S_pred)),S_pred)
 L_offset = np.add(np.mean(np.subtract(L_act,L_pred)),L_pred)
 U_offset = np.add(np.mean(np.subtract(U_act,U_pred)),U_pred)
 B_offset = np.add(np.mean(np.subtract(B_act,B_pred)),B_pred)
 
-axs[0,1].set_title('Offset L Angle')
-axs[0,1].plot(L_act)
-axs[0,1].plot(L_offset)
+for idx, act, offset, label in zip(range(4),["S_act","L_act","U_act","B_act"],["S_offset","L_offset","U_offset","B_offset"],["S","L","U","B"]):
+    axs[idx,1].set_title(f'Offset {label} Angle')
+    axs[idx,1].plot(globals()[act])
+    axs[idx,1].plot(globals()[offset])
 
-axs[1,1].set_title('Offset U Angle')
-axs[1,1].plot(U_act)
-axs[1,1].plot(U_offset)
 
-axs[2,1].set_title('Offset B Angle')
-axs[2,1].plot(B_act)
-axs[2,1].plot(B_offset)
 
 #Residuals
+S_err = np.subtract(S_offset, S_act)
 L_err = np.subtract(L_offset, L_act)
 U_err = np.subtract(U_offset, U_act)
 B_err = np.subtract(B_offset, B_act)
 
-axs[0,2].set_title('Offset L Err')
-axs[0,2].plot(np.zeros(L_act.shape))
-axs[0,2].plot(L_err)
+zeros_err = np.zeros(L_act.shape)
 
-axs[1,2].set_title('Offset U Err')
-axs[1,2].plot(np.zeros(U_act.shape))
-axs[1,2].plot(U_err)
-
-axs[2,2].set_title('Offset B Err')
-axs[2,2].plot(np.zeros(B_act.shape))
-axs[2,2].plot(B_err)
+for idx, err, label in zip(range(4),["S_err","L_err","U_err","B_err"],["S","L","U","B"]):
+    axs[idx,2].set_title(f'Angle {label} Error')
+    axs[idx,2].plot(zeros_err)
+    axs[idx,2].plot(globals()[err])
 
 
 # Determine average errors
+avg_S_err = np.mean(np.abs(S_err))
 avg_L_err = np.mean(np.abs(L_err))
 avg_U_err = np.mean(np.abs(U_err))
 avg_B_err = np.mean(np.abs(B_err))
+S_err_std = np.std(np.abs(S_err))
 L_err_std = np.std(np.abs(L_err))
 U_err_std = np.std(np.abs(U_err))
 B_err_std = np.std(np.abs(B_err))
 
 print("Average error in degrees (after an offset is applied):")
-print(f"\tL: {avg_L_err}\n\tU: {avg_U_err}\n\tB: {avg_B_err}")
+print(f"\tS: {avg_S_err}\n\tL: {avg_L_err}\n\tU: {avg_U_err}\n\tB: {avg_B_err}")
 print("Stdev of error in degrees (after an offset is applied):")
-print(f"\tL: {L_err_std}\n\tU: {U_err_std}\n\tB: {B_err_std}")
+print(f"\tS: {S_err_std}\n\tL: {L_err_std}\n\tU: {U_err_std}\n\tB: {B_err_std}")
 
 plt.show()

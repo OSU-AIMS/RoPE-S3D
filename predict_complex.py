@@ -40,17 +40,17 @@ while ret:
     # Predict L
     Lx = coord_dict['U'][0] - coord_dict['L'][0]
     Ly = coord_dict['U'][1] - coord_dict['L'][1]
-    L_pred_ang = angle(Lx, Ly, (.5,-100))
+    L_pred_ang = XYangle(Lx, Ly, (.5,-100))
 
     # Predict U
     Ux = coord_dict['R'][0] - coord_dict['B'][0]
     Uy = coord_dict['R'][1] - coord_dict['B'][1]
-    U_pred_ang = L_pred_ang - angle(Ux,Uy)
+    U_pred_ang = L_pred_ang - XYangle(Ux,Uy)
 
     # Predict B
     Bx = coord_dict['B'][0] - coord_dict['T'][0]
     By = coord_dict['B'][1] - coord_dict['T'][1]
-    B_pred_ang = angle(Bx,By) - angle(Ux,Uy)
+    B_pred_ang = XYangle(Bx,By) - XYangle(Ux,Uy)
 
     # Append to lists
     L_pred.append(L_pred_ang)
@@ -75,26 +75,26 @@ cap.release()
 out.release()
 
 fig, axs = plt.subplots(3,3)
-axs[0,0].plot(toDeg(L_angles))
-axs[0,0].plot(toDeg(L_pred))
-axs[1,0].plot(toDeg(U_angles))
-axs[1,0].plot(toDeg(U_pred))
-axs[2,0].plot(toDeg(B_angles))
-axs[2,0].plot(toDeg(B_pred))
+axs[0,0].plot(np.degrees(L_angles))
+axs[0,0].plot(np.degrees(L_pred))
+axs[1,0].plot(np.degrees(U_angles))
+axs[1,0].plot(np.degrees(U_pred))
+axs[2,0].plot(np.degrees(B_angles))
+axs[2,0].plot(np.degrees(B_pred))
 
-axs[0,1].plot(toDeg(L_angles))
-axs[0,1].plot(toDeg(np.add(np.mean(np.subtract(L_angles,L_pred)),L_pred)))
-axs[1,1].plot(toDeg(U_angles))
-axs[1,1].plot(toDeg(np.add(np.mean(np.subtract(U_angles,U_pred)),U_pred)))
-axs[2,1].plot(toDeg(B_angles))
-axs[2,1].plot(toDeg(np.add(np.mean(np.subtract(B_angles,B_pred)),B_pred)))
+axs[0,1].plot(np.degrees(L_angles))
+axs[0,1].plot(np.degrees(np.add(np.mean(np.subtract(L_angles,L_pred)),L_pred)))
+axs[1,1].plot(np.degrees(U_angles))
+axs[1,1].plot(np.degrees(np.add(np.mean(np.subtract(U_angles,U_pred)),U_pred)))
+axs[2,1].plot(np.degrees(B_angles))
+axs[2,1].plot(np.degrees(np.add(np.mean(np.subtract(B_angles,B_pred)),B_pred)))
 
-axs[0,2].plot(np.multiply(toDeg(L_angles),0))
-axs[0,2].plot(toDeg(np.subtract(L_angles,np.add(np.mean(np.subtract(L_angles,L_pred)),L_pred))))
-axs[1,2].plot(toDeg(np.multiply(toDeg(L_angles),0)))
-axs[1,2].plot(toDeg(np.subtract(U_angles,np.add(np.mean(np.subtract(U_angles,U_pred)),U_pred))))
-axs[2,2].plot(toDeg(np.multiply(toDeg(L_angles),0)))
-axs[2,2].plot(toDeg(np.subtract(B_angles,np.add(np.mean(np.subtract(B_angles,B_pred)),B_pred))))
+axs[0,2].plot(np.multiply(np.degrees(L_angles),0))
+axs[0,2].plot(np.degrees(np.subtract(L_angles,np.add(np.mean(np.subtract(L_angles,L_pred)),L_pred))))
+axs[1,2].plot(np.degrees(np.multiply(np.degrees(L_angles),0)))
+axs[1,2].plot(np.degrees(np.subtract(U_angles,np.add(np.mean(np.subtract(U_angles,U_pred)),U_pred))))
+axs[2,2].plot(np.degrees(np.multiply(np.degrees(L_angles),0)))
+axs[2,2].plot(np.degrees(np.subtract(B_angles,np.add(np.mean(np.subtract(B_angles,B_pred)),B_pred))))
 
 
 plt.show()
