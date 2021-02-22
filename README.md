@@ -1,7 +1,8 @@
 # You have just found DeepPoseKit. Kinda.
 <p align="center">
-<img src="https://github.com/jgraving/jgraving.github.io/blob/master/files/images/Figure1video1.gif" height="128px">
+<img src="https://github.com/AdamExley/DeepPoseRobot/blob/main/assets/video_overlay_rebound.gif" height="200px">
 </p>
+
 This is an adaptation of [DeepPoseKit](deepposekit.org) to predict robot joint angles.
 
 ## For more details on DeepPoseKit:
