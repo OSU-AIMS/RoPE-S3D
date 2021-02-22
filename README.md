@@ -1,4 +1,4 @@
-# You have just found DeepPoseKit. Kinda.
+# DeepPoseRobot, an implementation of DeepPoseKit
 <p align="center">
 <img src="https://github.com/AdamExley/DeepPoseRobot/blob/main/assets/video_overlay_rebound.gif" height="200px">
 </p>
