@@ -19,35 +19,18 @@ DeepPoseKit requires [Tensorflow](https://github.com/tensorflow/tensorflow) for 
 - Any Tensorflow version >=1.13.0 should be compatible (including 2.0).
     - Tensorflow-gpu 1.13.1 is currently the only tested version.
 
-Install requirements with pip:
-```bash
-pip install --update --r requirements.txt
-```
-
 ## Installing with Anaconda on Windows
 
 To install DeepPoseKit on Windows, you must first manually install `Shapely`, one of the dependencies for the [imgaug package](https://github.com/aleju/imgaug):
 ```bash
 conda install -c conda-forge shapely
 ```
-We also recommend installing DeepPoseKit from within Python rather than using the command line, either from within Jupyter or another IDE, to ensure it is installed in the correct working environment:
-```python
-import sys
-!{sys.executable} -m pip install --update deepposekit
+
+Install requirements with pip:
+```bash
+pip install --update --r requirements.txt
 ```
-# Contributors and Development  
-   
-DeepPoseKit was developed by [Jake Graving](https://github.com/jgraving) and [Daniel Chae](https://github.com/dchaebae), and is still being actively developed. .
 
-We welcome community involvement and public contributions to the toolkit. If you wish to contribute, please [fork the repository](https://help.github.com/en/articles/fork-a-repo) to make your modifications and [submit a pull request](https://help.github.com/en/articles/creating-a-pull-request-from-a-fork).
-
-If you'd like to get involved with developing DeepPoseKit, get in touch (jgraving@gmail.com) and check out [our development roadmap](https://github.com/jgraving/DeepPoseKit/blob/master/DEVELOPMENT.md) to see future plans for the package.  
-
-# Issues  
- 
-Please submit bugs or feature requests to the [GitHub issue tracker](https://github.com/jgraving/deepposekit/issues/new). Please limit reported issues to the DeepPoseKit codebase and provide as much detail as you can with a minimal working example if possible.
-
-If you experience problems with [Tensorflow](https://github.com/tensorflow/tensorflow), such as installing CUDA or cuDNN dependencies, then please direct issues to those development teams.
 
 # License
 
@@ -72,13 +55,4 @@ You can also read [our open-access preprint](http://preprint.deepposekit.org).
 
 If you use the [imgaug package](https://github.com/aleju/imgaug) for data augmentation, please also consider [citing it](https://github.com/aleju/imgaug/blob/master/README.md#citation).
 
-If you [use data](https://github.com/jgraving/DeepPoseKit#i-already-have-annotated-data) that was annotated with the DeepLabCut package (http://deeplabcut.org) for your research, be sure to [cite it](https://github.com/AlexEMG/DeepLabCut/blob/master/README.md#references).
-
 Please also consider citing the relevant references for the pose estimation model(s) used in your research, which can be found in the documentation (i.e., [`StackedDenseNet`](http://jakegraving.com/DeepPoseKit/html/deepposekit/models/StackedDenseNet.html#references), [`StackedHourglass`](http://jakegraving.com/DeepPoseKit/html/deepposekit/models/StackedHourglass.html#references), [`DeepLabCut`](http://jakegraving.com/DeepPoseKit/html/deepposekit/models/DeepLabCut.html#references), [`LEAP`](http://jakegraving.com/DeepPoseKit/html/deepposekit/models/LEAP.html#references)).
-
-# News
-- **October 2019:** Our paper describing DeepPoseKit is published at eLife! (http://paper.deepposekit.org)
-- **September 2019**: 
-    - Nature News covers DeepPoseKit: [Deep learning powers a motion-tracking revolution](http://doi.org/10.1038/d41586-019-02942-5)
-    - v0.3.0 is released. See [the release notes](https://github.com/jgraving/DeepPoseKit/releases/tag/v0.3.0).
-- **April 2019:** The DeepPoseKit preprint is on biorxiv (http://preprint.deepposekit.org)
