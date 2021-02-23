@@ -60,6 +60,22 @@ def XYangle(x, y, lims=None):
     return ang
 
 
+def XYZangle(start, end, lims = None):
+    """
+    Rotates vector from start to end into the XY plane and uses XY angle to calculate angle
+    """
+    # Find link vector from start and end points
+    vec = np.subtract(end, start)
+
+    # Rotate the reference XY plane to contain the vector
+    rotated_y = vec[1]
+    rotated_x = np.sqrt(vec[0] ** 2 + vec[2] ** 2) * abs(vec[0]) / vec[0]
+
+    # Find 2D angle to X axis
+    return XYangle(rotated_x, rotated_y, lims)
+
+
+
 def predToDictList(preds):
     """
     Takes predictions from DeepPoseKit as list and translates into a dictionary of points
@@ -111,6 +127,10 @@ def makeIntrinsics(resolution = (640,480), pp= (320.503,237.288), f=(611.528,611
 
 
 def parsePLYasPoints(path):
+    """
+    Reads in data from a PLY file, extracting only the verticies
+    Returns data as a dictionary
+    """
     # Read file
     with open(path, 'r') as file:
         lines = file.readlines()
@@ -136,6 +156,7 @@ def parsePLYasPoints(path):
         data = list(map(float, string.split(' ')[:-1]))
         data[0] *= -1
         x, y = rs.rs2_project_point_to_pixel(intrin, data)
+        # Make dictionary of data
         dictionary = {
             'Px':x,
             'Py':y,
@@ -151,6 +172,9 @@ def parsePLYasPoints(path):
 
             
 def parsePLYs(path_to_ply = p.ply, save_path = p.ply_data):
+    """
+    Parses a folder of PLY files into a single pickled file
+    """
     plys = []
     for file in tqdm(os.listdir(path_to_ply),desc="Reading PLY data"):
         plys.append(parsePLYasPoints(os.path.join(path_to_ply,file)))
@@ -164,12 +188,10 @@ def parsePLYs(path_to_ply = p.ply, save_path = p.ply_data):
 
 
 
-def readBin(path):
-    with open(path, 'rb') as f:
-        return pickle.load(f)
-
-
 def readBinToArrs(path):
+    """
+    Reads pickled PLY files into numpy arrays that can be efficently modified
+    """
     with open(path, 'rb') as f:
         data = pickle.load(f)
 
@@ -189,18 +211,11 @@ def readBinToArrs(path):
 
 
 
-def XYZangle(start, end, lims = None):
-    # Find link vector from start and end points
-    vec = np.subtract(end, start)
-
-    # Rotate the reference XY plane to contain the vector
-    rotated_y = vec[1]
-    rotated_x = np.sqrt(vec[0] ** 2 + vec[2] ** 2) * abs(vec[0]) / vec[0]
-
-    # Find 2D angle to X axis
-    return XYangle(rotated_x, rotated_y, lims)
 
 def dictPixToXYZ(dict_list, ply_data):
+    """
+    Using the complete list of dictionaries and 3D data, find the XYZ coords of each keypoint 
+    """
     ply_data = np.asarray(ply_data)
     out = []
     for d, idx in tqdm(zip(dict_list,range(len(dict_list)))):
