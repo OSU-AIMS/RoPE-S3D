@@ -13,7 +13,9 @@ def readJsonData(json_path = p.json):
     """
     data = []
 
-    for file in os.listdir(json_path):
+    jsons = [x for x in os.listdir(json_path) if x.endswith('.json')]
+
+    for file in jsons:
         file_path = os.path.join(json_path,file)
         with open(file_path) as f:
             d = json.load(f)
@@ -36,6 +38,30 @@ def readLinkXData(link):
         angles.append(ang)
 
     return angles
+
+
+def makeVideo(image_path = p.image, vid_path = p.video):
+    """
+    Combines folder of images into a video
+    """
+    writer = None
+
+    images = [x for x in os.listdir(image_path) if x.endswith('.jpg')]
+    images += [x for x in os.listdir(image_path) if x.endswith('.png')]
+
+    for file in os.listdir(image_path):
+        img = cv2.imread(os.path.join(image_path,file))
+
+        if writer is None:
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            writer = cv2.VideoWriter(vid_path,fourcc, 20.0, (img.shape[1],img.shape[0]))
+
+        
+        writer.write(img)
+
+    writer.release()
+
+
 
 
 
@@ -176,7 +202,10 @@ def parsePLYs(path_to_ply = p.ply, save_path = p.ply_data):
     Parses a folder of PLY files into a single pickled file
     """
     plys = []
-    for file in tqdm(os.listdir(path_to_ply),desc="Reading PLY data"):
+
+    ply_files = [x for x in os.listdir(path_to_ply) if x.endswith('.ply')]
+
+    for file in tqdm(ply_files,desc="Reading PLY data"):
         plys.append(parsePLYasPoints(os.path.join(path_to_ply,file)))
     
     if '.pyc' not in save_path:
