@@ -7,30 +7,32 @@ import pyrealsense2 as rs
 from robotpose.utils import *
 import pickle
 from robotpose import paths as p
-from robotpose.dataset import Dataset
 
 
-# Load dataset
-ds = Dataset('set2')
-print(ds.resolution)
+# Compile PLY data if not already complied
+if not os.path.isfile(p.ply_data):
+    parsePLYs()
+
+# Read ply data
+ply_data = readBinToArrs(p.ply_data)
 
 # Read in Actual angles from JSONs to compare predicted angles to
-S_angles = ds.angles[:,0]
-L_angles = ds.angles[:,1]
-U_angles = ds.angles[:,2]
-B_angles = ds.angles[:,4]
+S_angles = readLinkXData(0)
+L_angles = readLinkXData(1)
+U_angles = readLinkXData(2)
+B_angles = readLinkXData(4)
 
 # Load model, make predictions
 model = load_model(p.model_mult)
-reader = VideoReader(ds.rm_vid_path)
+reader = VideoReader(p.video)
 predictions = model.predict(reader)
 pred_dict = predToDictList(predictions)
-pred_dict_xyz = predToXYZ(pred_dict, ds.ply)
+pred_dict_xyz = predToXYZ(pred_dict, ply_data)
 
 # Load video capture and make output
-cap = ds.rm_vid
+cap = cv2.VideoCapture(p.video)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out = cv2.VideoWriter(p.video.replace(".avi","_overlay.avi"),fourcc, 12.5, (ds.resolution[1]*2,ds.resolution[0]))
+out = cv2.VideoWriter(p.video.replace(".avi","_overlay.avi"),fourcc, 12.5, (640*2,480))
 
 # Init predicted angle lists
 S_pred = []
@@ -45,7 +47,7 @@ frame_width = image.shape[1]
 
 i = 0
 while ret:
-    over = np.zeros((ds.resolution[0],ds.resolution[1],3),dtype=np.uint8)
+    over = np.zeros((480,640,3),dtype=np.uint8)
     coord_dict = pred_dict_xyz[i]
     
     # Predict S using the B joint position in reference to the R and U joints
@@ -74,7 +76,7 @@ while ret:
     B_pred.append(B_pred_ang)
 
     # Put depth info on overlay
-    vizDepth(ds.ply[i], over)
+    vizDepth(ply_data[i], over)
     #Visualize lines
     viz(image, over, predictions[i])
 

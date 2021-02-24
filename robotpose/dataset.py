@@ -1,5 +1,6 @@
 import os
 import cv2
+from numpy.lib.format import descr_to_dtype
 import robotpose.utils as utils
 import numpy as np
 from tqdm import tqdm
@@ -184,10 +185,20 @@ class Dataset():
         ds_found = False
         for ds, nm in zip(datasets, names):
             if name in nm:
-                self.path = ds
-                self.name = nm
-                ds_found = True
-                break
+                if self.validate(ds):
+                    self.path = ds
+                    self.name = nm
+                    ds_found = True
+                    break
+                else:
+                    print("\nDataset Incomplete.")
+                    print(f"Recompiling:\n")
+                    self.build(os.path.join(os.path.join(p.datasets,'raw'),nm))
+                    self.path = ds
+                    self.name = nm
+                    ds_found = True
+                    break
+
 
         # If no dataset was found, try to find one to build
         if not ds_found:
@@ -205,8 +216,20 @@ class Dataset():
         
         # Make sure a dataset was found
         assert ds_found, f"No matching dataset found for '{name}'"
+
         # Load dataset
         self.load()
+
+        # Set paths
+        self.rm_vid_path = os.path.join(self.path, 'rm_vid.avi')
+        self.og_vid_path = os.path.join(self.path, 'og_vid.avi')
+
+        # Set resolution
+        if self.use_rm:
+            self.resolution = self.rm_img.shape[1:3]
+        if self.use_og:
+            self.resolution = self.og_img.shape[1:3]
+
 
 
     def load(self):
@@ -237,6 +260,18 @@ class Dataset():
         # Make sure points are as numpy arrays
         for idx in range(self.length):
             self.ply[idx] = np.asarray(self.ply[idx])
+
+
+    def validate(self, path):
+        ang = os.path.isfile(os.path.join(path,'ang.npy'))
+        ds = os.path.isfile(os.path.join(path,'ds.json'))
+        ply = os.path.isfile(os.path.join(path,'ply.pyc'))
+        rm_img = os.path.isfile(os.path.join(path,'rm_img.npy'))
+        og_img = os.path.isfile(os.path.join(path,'og_img.npy'))
+        rm_vid = os.path.isfile(os.path.join(path,'rm_vid.avi'))
+        og_vid = os.path.isfile(os.path.join(path,'og_vid.avi'))
+
+        return ang and ds and ply and ((rm_img and rm_vid) or (og_img and og_vid))
 
 
     def __len__(self):

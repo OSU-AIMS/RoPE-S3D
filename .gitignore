@@ -1,8 +1,8 @@
 # Raw data
 data/raw/*/
 data/*/
-.vscode/*
-.github/*
+.vscode
+.github
 
 
 
