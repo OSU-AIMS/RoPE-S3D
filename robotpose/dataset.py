@@ -7,9 +7,14 @@ import json
 import pyrealsense2 as rs
 import open3d as o3d
 import pickle
+from robotpose import paths as p
 
 
-def build(data_path, dest_path):
+def build(data_path, dest_path = None):
+
+    if dest_path is None:
+        name = os.path.basename(os.path.normpath(data_path))
+        dest_path = os.path.join(p.datasets, name)
 
     # Make dataset folder if it does not already exist
     if not os.path.isdir(dest_path):
@@ -169,3 +174,85 @@ def build(data_path, dest_path):
 
     with open(os.path.join(dest_path,'ds.json'),'w') as file:
         json.dump(info, file)
+
+
+class Dataset():
+    def __init__(self, name):
+        # Search for dataset with correct name
+        datasets = [ f.path for f in os.scandir(p.datasets) if f.is_dir() ]
+        names = [ os.path.basename(os.path.normpath(x)) for x in datasets ]
+        ds_found = False
+        for ds, nm in zip(datasets, names):
+            if name in nm:
+                self.path = ds
+                self.name = nm
+                ds_found = True
+                break
+
+        # If no dataset was found, try to find one to build
+        if not ds_found:
+            datasets = [ f.path for f in os.scandir(os.path.join(p.datasets,'raw')) if f.is_dir() ]
+            names = [ os.path.basename(os.path.normpath(x)) for x in datasets ]
+            for ds, nm in zip(datasets, names):
+                if name in nm:
+                    print("\nNo matching compiled dataset found.")
+                    print(f"Compiling from {ds}:\n")
+                    self.build(ds)
+                    self.path = os.path.join(p.datasets, nm)
+                    self.name = nm
+                    ds_found = True
+                    break
+        
+        # Make sure a dataset was found
+        assert ds_found, f"No matching dataset found for '{name}'"
+        # Load dataset
+        self.load()
+
+
+    def load(self):
+        # Read into JSON to get dataset settings
+        with open(os.path.join(self.path, 'ds.json'), 'r') as f:
+            d = json.load(f)
+
+        self.length = d['frames']
+        self.use_og = d['use_orig']
+        self.use_rm = d['use_rm']
+
+        # Read in og images
+        if self.use_og:
+            self.og_img = np.load(os.path.join(self.path, 'og_img.npy'))
+            self.og_vid = cv2.VideoCapture(os.path.join(self.path, 'og_vid.avi'))
+
+        # Read in rm images
+        if self.use_rm:
+            self.rm_img = np.load(os.path.join(self.path, 'rm_img.npy'))
+            self.rm_vid = cv2.VideoCapture(os.path.join(self.path, 'rm_vid.avi'))
+
+        # Read angles
+        self.angles = np.load(os.path.join(self.path, 'ang.npy'))
+
+        # Read in point data
+        with open(os.path.join(self.path, 'ply.pyc'), 'rb') as f:
+            self.ply = pickle.load(f)
+        # Make sure points are as numpy arrays
+        for idx in range(self.length):
+            self.ply[idx] = np.asarray(self.ply[idx])
+
+
+    def __len__(self):
+        if self.length is None:
+            return 0
+        else:
+            return self.length
+
+    def __repr__(self):
+        return f"RobotPose dataset of {self.length} frames"
+
+    def og(self):
+        return self.use_og
+
+    def rm(self):
+        return self.use_rm
+
+    def build(self,data_path):
+        build(data_path)

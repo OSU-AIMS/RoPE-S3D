@@ -7,3 +7,5 @@ ply_data = r'C:\Users\exley\OneDrive\Documents\GitHub\DeepPoseRobot\robotpose\pl
 skeleton_mult = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\mult_skeleton.csv'
 model_mult = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\model_LEAP_mult.h5'
 ds_mult = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\mult_ds.h5'
+
+datasets = r'data/'

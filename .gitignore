@@ -1,6 +1,6 @@
 # Raw data
-data/raw/
-data/test/
+data/raw/*/
+data/*/
 
 
 
