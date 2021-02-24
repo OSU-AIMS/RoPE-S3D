@@ -1,3 +1,13 @@
+# Raw data
+dataset/raw/
+
+
+
+
+
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -61,8 +71,5 @@ target/
 
 examples/\.ipynb_checkpoints/
 
-tmp\.txt
-
-tmp2\.txt
 
 examples/deepposekit-data
