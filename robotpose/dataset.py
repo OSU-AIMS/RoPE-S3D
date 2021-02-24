@@ -66,6 +66,13 @@ def build(data_path, dest_path):
         # Save array
         np.save(os.path.join(dest_path, 'og_img.npy'), orig_img_arr)
 
+        # Save as a video
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter(os.path.join(dest_path,"og_vid.avi"),fourcc, 15, (img_width,img_height))
+        for idx in range(length):
+            out.write(orig_img_arr[idx])
+        out.release()
+
 
     # Read in rm images if provided
     if use_rm:
@@ -87,6 +94,13 @@ def build(data_path, dest_path):
 
         # Save array
         np.save(os.path.join(dest_path, 'rm_img.npy'), rm_img_arr)
+
+        # Save as a video
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter(os.path.join(dest_path,"rm_vid.avi"),fourcc, 15, (img_width,img_height))
+        for idx in range(length):
+            out.write(rm_img_arr[idx])
+        out.release()
 
 
     """
