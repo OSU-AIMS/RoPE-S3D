@@ -178,7 +178,7 @@ def build(data_path, dest_path = None):
 
 
 class Dataset():
-    def __init__(self, name):
+    def __init__(self, name, skeleton=None):
         # Search for dataset with correct name
         datasets = [ f.path for f in os.scandir(p.datasets) if f.is_dir() ]
         names = [ os.path.basename(os.path.normpath(x)) for x in datasets ]
@@ -218,9 +218,7 @@ class Dataset():
         assert ds_found, f"No matching dataset found for '{name}'"
 
         # Load dataset
-        self.load()
-
-        self.deepposeds_path = os.path.join(self.path,'deeppose.h5')
+        self.load(skeleton)
 
         # Set paths
         self.rm_vid_path = os.path.join(self.path, 'rm_vid.avi')
@@ -263,6 +261,9 @@ class Dataset():
         for idx in range(self.length):
             self.ply[idx] = np.asarray(self.ply[idx])
 
+        # Set deeppose dataset path
+        self.deepposeds_path = os.path.join(self.path,'deeppose.h5')
+
         # If a skeleton is set, change paths accordingly
         if skeleton is not None:
             self.setSkeleton(skeleton)
@@ -285,10 +286,10 @@ class Dataset():
         if self.length is None:
             return 0
         else:
-            return self.length
+            return self.length  
 
     def __repr__(self):
-        return f"RobotPose dataset of {self.length} frames"
+        return f"RobotPose dataset of {self.length} frames. Using skeleton {self.skeleton}"
 
     def og(self):
         return self.use_og
@@ -300,7 +301,8 @@ class Dataset():
         build(data_path)
 
     def setSkeleton(self,skeleton_name):
-        for file in os.listdir(p.skeletons):
+        for file in [x for x in os.listdir(p.skeletons) if x.endswith('.csv')]:
             if skeleton_name in os.path.splitext(file)[0]:
+                self.skeleton = os.path.splitext(file)[0]
                 self.skeleton_path = os.path.join(p.skeletons, file)
-                self.deepposeds_path = self.deepposeds_path.replace('.h5',os.path.splitext(file)[0]+'.h5')
+                self.deepposeds_path = self.deepposeds_path.replace('.h5','_'+os.path.splitext(file)[0]+'.h5')
