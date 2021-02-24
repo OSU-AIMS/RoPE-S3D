@@ -1,0 +1,7 @@
+name,parent,swap
+L,,
+midL,L,
+U,midL,
+R,U,
+B,R,
+T,B,

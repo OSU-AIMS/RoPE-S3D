@@ -220,6 +220,8 @@ class Dataset():
         # Load dataset
         self.load()
 
+        self.deepposeds_path = os.path.join(self.path,'deeppose.h5')
+
         # Set paths
         self.rm_vid_path = os.path.join(self.path, 'rm_vid.avi')
         self.og_vid_path = os.path.join(self.path, 'og_vid.avi')

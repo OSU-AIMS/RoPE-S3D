@@ -9,11 +9,6 @@ from robotpose import paths as p
 import open3d as o3d
 
 
-
-
-
-
-
 def XYangle(x, y, lims=None):
     """
     Returns the angle between the input point and the +x axis 
@@ -100,7 +95,7 @@ def makeIntrinsics(resolution = (640,480), pp= (320.503,237.288), f=(611.528,611
 
 
 
-def dictPixToXYZ(dict_list, ply_data):
+def predToXYZ(dict_list, ply_data):
     """
     Using the complete list of dictionaries and 3D data, find the XYZ coords of each keypoint 
     """
@@ -134,6 +129,8 @@ def vizDepth(ply_frame_data, image):
         g = int(np.interp(pt[4],[-1.3,-.9],[0,255]))
         r = 255-2*g
         image = cv2.circle(image, (x,y), radius=0, color=(0,g,r), thickness=-1)
+
+
 
 
 
@@ -291,3 +288,9 @@ def makeVideo(image_path = p.image, vid_path = p.video):
         writer.write(img)
 
     writer.release()
+
+
+def renamePNG(path):
+    imgs = [x for x in os.listdir(path) if x.endswith('.png')]
+    for img in imgs:
+        os.rename(os.path.join(path,img),os.path.join(path,img.replace('.png','_rm.png')))
