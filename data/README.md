@@ -4,7 +4,7 @@ Raw and compiled data is stored here.
 
 Place raw data in /data/raw/ before compiling.
 
-To compile a dataset, use the following function:
+To compile a dataset manually, use the following function:
 ```python
 from robotpose.dataset import build
 build(raw_data_path, compiled_data_path)
