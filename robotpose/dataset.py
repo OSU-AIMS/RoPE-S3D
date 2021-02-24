@@ -234,7 +234,7 @@ class Dataset():
 
 
 
-    def load(self):
+    def load(self, skeleton=None):
         # Read into JSON to get dataset settings
         with open(os.path.join(self.path, 'ds.json'), 'r') as f:
             d = json.load(f)
@@ -262,6 +262,11 @@ class Dataset():
         # Make sure points are as numpy arrays
         for idx in range(self.length):
             self.ply[idx] = np.asarray(self.ply[idx])
+
+        # If a skeleton is set, change paths accordingly
+        if skeleton is not None:
+            self.setSkeleton(skeleton)
+
 
 
     def validate(self, path):
@@ -293,3 +298,9 @@ class Dataset():
 
     def build(self,data_path):
         build(data_path)
+
+    def setSkeleton(self,skeleton_name):
+        for file in os.listdir(p.skeletons):
+            if skeleton_name in os.path.splitext(file)[0]:
+                self.skeleton_path = os.path.join(p.skeletons, file)
+                self.deepposeds_path = self.deepposeds_path.replace('.h5',os.path.splitext(file)[0]+'.h5')

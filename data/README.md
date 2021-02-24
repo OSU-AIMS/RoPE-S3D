@@ -42,6 +42,12 @@ Data should be arranged as follows:
 |   |   |── rm_vid.avi
 |   |   |── ply.pyc
 |   |   └── 
+|   |   
+|   |── skeletons                   # Created by user
+|   |   |── A.csv
+|   |   |── B.csv
+|   |   └── ...
+|   |   
 |   └── ...
 └── ...
 ```

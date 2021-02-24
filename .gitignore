@@ -2,6 +2,7 @@
 data/raw/*/
 data/*/
 !data/raw/
+!data/skeletons/
 .vscode
 .github
 

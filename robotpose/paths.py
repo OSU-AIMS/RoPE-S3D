@@ -9,3 +9,4 @@ model_mult = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPos
 ds_mult = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\mult_ds.h5'
 
 datasets = r'data/'
+skeletons = r'data/skeletons'
