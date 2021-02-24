@@ -8,59 +8,7 @@ import pickle
 from robotpose import paths as p
 import open3d as o3d
 
-def readJsonData(json_path = p.json):
-    """
-    Reads angle data from all JSON files and returns as list of dicts 
-    """
-    data = []
 
-    jsons = [x for x in os.listdir(json_path) if x.endswith('.json')]
-
-    for file in jsons:
-        file_path = os.path.join(json_path,file)
-        with open(file_path) as f:
-            d = json.load(f)
-
-        d = d['objects'][0]['joint_angles']
-
-        data.append(d)
-
-    return data
-
-
-def readLinkXData(link):
-    """
-    Reads JSON files and returns an array of the values for a specific joint
-    """
-    data = readJsonData()
-    angles = []
-    for entry in data:
-        ang = entry[link]['angle']
-        angles.append(ang)
-
-    return angles
-
-
-def makeVideo(image_path = p.image, vid_path = p.video):
-    """
-    Combines folder of images into a video
-    """
-    writer = None
-
-    images = [x for x in os.listdir(image_path) if x.endswith('.jpg')]
-    images += [x for x in os.listdir(image_path) if x.endswith('.png')]
-
-    for file in os.listdir(image_path):
-        img = cv2.imread(os.path.join(image_path,file))
-
-        if writer is None:
-            fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            writer = cv2.VideoWriter(vid_path,fourcc, 20.0, (img.shape[1],img.shape[0]))
-
-        
-        writer.write(img)
-
-    writer.release()
 
 
 
@@ -152,6 +100,56 @@ def makeIntrinsics(resolution = (640,480), pp= (320.503,237.288), f=(611.528,611
 
 
 
+def dictPixToXYZ(dict_list, ply_data):
+    """
+    Using the complete list of dictionaries and 3D data, find the XYZ coords of each keypoint 
+    """
+    ply_data = np.asarray(ply_data)
+    out = []
+    for d, idx in tqdm(zip(dict_list,range(len(dict_list)))):
+        data = ply_data[idx]
+        x_list = data[:,0]
+        y_list = data[:,1]
+        out_dict = {}
+        for key, value in zip(d.keys(), d.values()):
+            px = value[0]
+            py = value[1]
+            dist = np.sqrt( np.square( x_list - px ) + np.square( y_list - py ) )
+            min_idx = dist.argmin()
+            out_dict[key] = tuple(data[min_idx,2:5])
+        
+        out.append(out_dict)
+
+    return out
+
+def vizDepth(ply_frame_data, image):
+    """
+    Overlays the depth information given on an image
+    """
+    intrin = makeIntrinsics()
+    for pt in ply_frame_data:
+        x, y = rs.rs2_project_point_to_pixel(intrin, pt[2:5])
+        x = int(x)
+        y = int(y)
+        g = int(np.interp(pt[4],[-1.3,-.9],[0,255]))
+        r = 255-2*g
+        image = cv2.circle(image, (x,y), radius=0, color=(0,g,r), thickness=-1)
+
+
+
+
+
+
+
+"""
+DEPRECATED FUNCTIONS
+These functions are in the process of being replaced by the dataset class
+"""
+
+
+
+
+
 
 def parsePLYasPoints(path):
     """
@@ -240,39 +238,56 @@ def readBinToArrs(path):
     return out
 
 
+def readJsonData(json_path = p.json):
+    """
+    Reads angle data from all JSON files and returns as list of dicts 
+    """
+    data = []
+
+    jsons = [x for x in os.listdir(json_path) if x.endswith('.json')]
+
+    for file in jsons:
+        file_path = os.path.join(json_path,file)
+        with open(file_path) as f:
+            d = json.load(f)
+
+        d = d['objects'][0]['joint_angles']
+
+        data.append(d)
+
+    return data
 
 
-def dictPixToXYZ(dict_list, ply_data):
+def readLinkXData(link):
     """
-    Using the complete list of dictionaries and 3D data, find the XYZ coords of each keypoint 
+    Reads JSON files and returns an array of the values for a specific joint
     """
-    ply_data = np.asarray(ply_data)
-    out = []
-    for d, idx in tqdm(zip(dict_list,range(len(dict_list)))):
-        data = ply_data[idx]
-        x_list = data[:,0]
-        y_list = data[:,1]
-        out_dict = {}
-        for key, value in zip(d.keys(), d.values()):
-            px = value[0]
-            py = value[1]
-            dist = np.sqrt( np.square( x_list - px ) + np.square( y_list - py ) )
-            min_idx = dist.argmin()
-            out_dict[key] = tuple(data[min_idx,2:5])
+    data = readJsonData()
+    angles = []
+    for entry in data:
+        ang = entry[link]['angle']
+        angles.append(ang)
+
+    return angles
+
+
+def makeVideo(image_path = p.image, vid_path = p.video):
+    """
+    Combines folder of images into a video
+    """
+    writer = None
+
+    images = [x for x in os.listdir(image_path) if x.endswith('.jpg')]
+    images += [x for x in os.listdir(image_path) if x.endswith('.png')]
+
+    for file in os.listdir(image_path):
+        img = cv2.imread(os.path.join(image_path,file))
+
+        if writer is None:
+            fourcc = cv2.VideoWriter_fourcc(*'XVID')
+            writer = cv2.VideoWriter(vid_path,fourcc, 20.0, (img.shape[1],img.shape[0]))
+
         
-        out.append(out_dict)
+        writer.write(img)
 
-    return out
-
-def vizDepth(ply_frame_data, image):
-    """
-    Overlays the depth information given on an image
-    """
-    intrin = makeIntrinsics()
-    for pt in ply_frame_data:
-        x, y = rs.rs2_project_point_to_pixel(intrin, pt[2:5])
-        x = int(x)
-        y = int(y)
-        g = int(np.interp(pt[4],[-1.3,-.9],[0,255]))
-        r = 255-2*g
-        image = cv2.circle(image, (x,y), radius=0, color=(0,g,r), thickness=-1)
+    writer.release()
