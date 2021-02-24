@@ -16,7 +16,6 @@ if not os.path.isfile(p.ply_data):
 # Read ply data
 ply_data = readBinToArrs(p.ply_data)
 
-
 # Read in Actual angles from JSONs to compare predicted angles to
 S_angles = readLinkXData(0)
 L_angles = readLinkXData(1)
@@ -42,6 +41,10 @@ U_pred = []
 B_pred = []
 
 ret, image = cap.read()
+
+frame_height = image.shape[0]
+frame_width = image.shape[1]
+
 i = 0
 while ret:
     over = np.zeros((480,640,3),dtype=np.uint8)
@@ -77,9 +80,9 @@ while ret:
     #Visualize lines
     viz(image, over, predictions[i])
 
-    dual = np.zeros((480,640*2,3),dtype=np.uint8)
-    dual[:,0:640] = image
-    dual[:,640:640*2] = over
+    dual = np.zeros((frame_height,frame_width*2,3),dtype=np.uint8)
+    dual[:,0:frame_width] = image
+    dual[:,frame_width:frame_width*2] = over
 
     out.write(dual)
     cv2.imshow("test",dual)

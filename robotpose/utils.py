@@ -6,6 +6,7 @@ import pyrealsense2 as rs
 from tqdm import tqdm
 import pickle
 from robotpose import paths as p
+import open3d as o3d
 
 def readJsonData(json_path = p.json):
     """
@@ -205,7 +206,7 @@ def parsePLYs(path_to_ply = p.ply, save_path = p.ply_data):
 
     ply_files = [x for x in os.listdir(path_to_ply) if x.endswith('.ply')]
 
-    for file in tqdm(ply_files,desc="Reading PLY data"):
+    for file in tqdm(ply_files,desc="Parsing PLY data"):
         plys.append(parsePLYasPoints(os.path.join(path_to_ply,file)))
     
     if '.pyc' not in save_path:
