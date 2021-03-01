@@ -1,7 +1,9 @@
 name,parent,swap
-L,,
+base,,
+L,base,
 midL,L,
 U,midL,
-R,U,
+preR,U,
+R,preR,
 B,R,
 T,B,

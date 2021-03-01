@@ -11,7 +11,7 @@ from robotpose.dataset import Dataset
 
 
 # Load dataset
-ds = Dataset('set2')
+ds = Dataset('set3','B')
 print(ds.resolution)
 
 # Read in Actual angles from JSONs to compare predicted angles to
@@ -21,7 +21,7 @@ U_angles = ds.angles[:,2]
 B_angles = ds.angles[:,4]
 
 # Load model, make predictions
-model = load_model(p.model_mult)
+model = load_model(r'C:\Users\exley\OneDrive\Documents\GitHub\DeepPoseRobot\models\deeppose_B_LEAP.h5')
 reader = VideoReader(ds.rm_vid_path)
 predictions = model.predict(reader)
 pred_dict = predToDictList(predictions)

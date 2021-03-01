@@ -178,7 +178,7 @@ def build(data_path, dest_path = None):
 
 
 class Dataset():
-    def __init__(self, name, skeleton=None):
+    def __init__(self, name, skeleton=None, no_data = False, primary = "rm"):
         # Search for dataset with correct name
         datasets = [ f.path for f in os.scandir(p.datasets) if f.is_dir() ]
         names = [ os.path.basename(os.path.normpath(x)) for x in datasets ]
@@ -229,6 +229,35 @@ class Dataset():
             self.resolution = self.rm_img.shape[1:3]
         if self.use_og:
             self.resolution = self.og_img.shape[1:3]
+
+        # Set primary image and video types
+        if self.use_rm and not self.use_og:
+            primary = "rm"
+        if self.use_og and not self.use_rm:
+            primary = "og"
+
+        if primary == "og":
+            self.img = self.og_img
+            self.vid = self.og_vid
+            self.vid_path = self.og_vid_path
+        else:
+            self.img = self.rm_img
+            self.vid = self.rm_vid
+            self.vid_path = self.rm_vid_path
+            if primary != "rm":
+                print("Invalid primary media type selected.\nUsing rm.")
+
+
+
+        # If specified, remove all data from object to save space (only obtain paths)
+        if no_data:
+            if self.use_og:
+                del self.og_img, self.og_vid
+            if self.use_rm:
+                del self.rm_img, self.rm_vid
+            del self.angles, self.ply
+
+
 
 
 

@@ -1,4 +1,4 @@
-video = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\video.avi'
+#video = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\video.avi'
 image = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\2d'
 ply = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\ply'
 json = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\json'
@@ -10,3 +10,5 @@ ds_mult = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\d
 
 datasets = r'data/'
 skeletons = r'data/skeletons'
+models = r'models/'
+video = r'output/video.avi'
