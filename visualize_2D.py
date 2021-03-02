@@ -9,6 +9,7 @@ import pickle
 from robotpose import paths as p
 from robotpose.dataset import Dataset
 
+limitMemory()
 
 # Load dataset
 ds = Dataset('set5','B',primary="rm")

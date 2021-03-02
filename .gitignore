@@ -5,7 +5,8 @@ data/*/
 !data/skeletons/
 .vscode
 .github
-
+segementation/models/*.h5
+segementation/models/old/*.h5
 
 
 
