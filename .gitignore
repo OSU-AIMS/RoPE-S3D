@@ -5,8 +5,8 @@ data/*/
 !data/skeletons/
 .vscode
 .github
-segementation/mask_rnn_models/*.h5
-segementation/mas_rcnn_models/old/*.h5
+segmentation/mask_rnn_models/*.h5
+segmentation/mas_rcnn_models/old/*.h5
 
 
 
