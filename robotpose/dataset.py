@@ -1,6 +1,5 @@
 import os
 import cv2
-from numpy.lib.format import descr_to_dtype
 import robotpose.utils as utils
 import numpy as np
 from tqdm import tqdm
@@ -258,9 +257,6 @@ class Dataset():
             del self.angles, self.ply
 
 
-
-
-
     def load(self, skeleton=None):
         # Read into JSON to get dataset settings
         with open(os.path.join(self.path, 'ds.json'), 'r') as f:
@@ -298,7 +294,6 @@ class Dataset():
             self.setSkeleton(skeleton)
 
 
-
     def validate(self, path):
         ang = os.path.isfile(os.path.join(path,'ang.npy'))
         ds = os.path.isfile(os.path.join(path,'ds.json'))
@@ -309,6 +304,17 @@ class Dataset():
         og_vid = os.path.isfile(os.path.join(path,'og_vid.avi'))
 
         return ang and ds and ply and ((rm_img and rm_vid) or (og_img and og_vid))
+
+
+    def build(self,data_path):
+        build(data_path)
+
+    def setSkeleton(self,skeleton_name):
+        for file in [x for x in os.listdir(p.skeletons) if x.endswith('.csv')]:
+            if skeleton_name in os.path.splitext(file)[0]:
+                self.skeleton = os.path.splitext(file)[0]
+                self.skeleton_path = os.path.join(p.skeletons, file)
+                self.deepposeds_path = self.deepposeds_path.replace('.h5','_'+os.path.splitext(file)[0]+'.h5')
 
 
     def __len__(self):
@@ -325,13 +331,3 @@ class Dataset():
 
     def rm(self):
         return self.use_rm
-
-    def build(self,data_path):
-        build(data_path)
-
-    def setSkeleton(self,skeleton_name):
-        for file in [x for x in os.listdir(p.skeletons) if x.endswith('.csv')]:
-            if skeleton_name in os.path.splitext(file)[0]:
-                self.skeleton = os.path.splitext(file)[0]
-                self.skeleton_path = os.path.join(p.skeletons, file)
-                self.deepposeds_path = self.deepposeds_path.replace('.h5','_'+os.path.splitext(file)[0]+'.h5')
