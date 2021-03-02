@@ -17,8 +17,8 @@ This is an adaptation of [DeepPoseKit](deepposekit.org) to predict robot joint a
 DeepPoseKit requires [Tensorflow](https://github.com/tensorflow/tensorflow) for training and using pose estimation models. [Tensorflow](https://github.com/tensorflow/tensorflow) should be manually installed, along with dependencies such as CUDA and cuDNN, before installing DeepPoseKit:
 
 - [Tensorflow Installation Instructions](https://www.tensorflow.org/install)
-- Any Tensorflow version >=1.13.0 should be compatible (including 2.0).
-    - Tensorflow-gpu 1.13.1 is currently the only tested version.
+- Any Tensorflow version >=2.0.0 should be compatible.
+    - Tensorflow-gpu 2.0.0 is currently the only tested version.
 
 ## Installing with Anaconda on Windows
 
