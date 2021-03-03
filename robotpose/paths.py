@@ -11,4 +11,5 @@ ds_mult = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\d
 datasets = r'data/'
 skeletons = r'data/skeletons'
 models = r'models/'
+seg_models = r'models/segmentation'
 video = r'output/video.avi'

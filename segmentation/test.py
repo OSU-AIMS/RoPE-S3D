@@ -2,6 +2,7 @@ import pixellib
 from pixellib.instance import custom_segmentation, instance_segmentation
 import cv2
 import numpy as np
+import os
 
 
 segment_image = custom_segmentation()

@@ -92,7 +92,17 @@ def viz(image, over, frame_data):
         last = (x,y)
 
 
-def makeIntrinsics(resolution = (640,480), pp= (320.503,237.288), f=(611.528,611.528), coeffs=[0,0,0,0,0]):
+def makeIntrinsics(res = 1280):
+    if res == 1280:
+        return intrin(resolution = (1280,720), pp= (638.391,361.493), f=(905.23, 904.858), coeffs=[0,0,0,0,0])
+    elif res == 640:
+        return intrin(resolution = (640,480), pp= (320.503,237.288), f=(611.528,611.528), coeffs=[0,0,0,0,0])
+    elif res == 1281:
+        return intrin(resolution = (1280,720), pp= (639.459,359.856), f=(635.956, 635.956), coeffs=[0,0,0,0,0])
+
+
+
+def intrin(resolution = (640,480), pp= (320.503,237.288), f=(611.528,611.528), coeffs=[0,0,0,0,0]):
     """
     Makes psuedo-intrinsics for the realsense camera used.
     """
