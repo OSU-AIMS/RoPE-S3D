@@ -92,17 +92,28 @@ def viz(image, over, frame_data):
         last = (x,y)
 
 
-def makeIntrinsics(res = 1280):
-    if res == 1280:
-        return intrin(resolution = (1280,720), pp= (638.391,361.493), f=(905.23, 904.858), coeffs=[0,0,0,0,0])
-    elif res == 640:
-        return intrin(resolution = (640,480), pp= (320.503,237.288), f=(611.528,611.528), coeffs=[0,0,0,0,0])
-    elif res == 1281:
-        return intrin(resolution = (1280,720), pp= (639.459,359.856), f=(635.956, 635.956), coeffs=[0,0,0,0,0])
+def makeIntrinsics(preset = '1280_720_depth'):
+    """
+    Make Realsense Intrinsics from presets
+    """
+
+    valid = ['1280_720_color', '1280_720_depth','640_480_color','640_480_depth']
+    if preset not in valid:
+        raise ValueError(f"Res must be one of: {valid}")
+
+    if preset == '1280_720_color':
+        return intrin((1280,720), (638.391,361.493), (905.23, 904.858), rs.distortion.inverse_brown_conrady, [0,0,0,0,0])
+    elif preset == '1280_720_depth':
+        return intrin((1280,720), (639.459,359.856), (635.956, 635.956),rs.distortion.brown_conrady, [0,0,0,0,0])
+    elif preset == '640_480_color':
+        return intrin((640,480), (320.503,237.288), (611.528,611.528),rs.distortion.brown_conrady, [0,0,0,0,0])
+    elif preset == '640_480_depth':
+        return intrin((640,480), (321.635,241.618), (385.134,385.134),rs.distortion.brown_conrady, [0,0,0,0,0])
 
 
 
-def intrin(resolution = (640,480), pp= (320.503,237.288), f=(611.528,611.528), coeffs=[0,0,0,0,0]):
+
+def intrin(resolution, pp, f, model, coeffs):
     """
     Makes psuedo-intrinsics for the realsense camera used.
     """
@@ -114,6 +125,7 @@ def intrin(resolution = (640,480), pp= (320.503,237.288), f=(611.528,611.528), c
     a.fx = f[0]
     a.fy = f[1]
     a.coeffs = coeffs
+    a.model = model
     return a
 
 
@@ -155,6 +167,10 @@ def vizDepth(ply_frame_data, image):
 
 
 
+
+
+def proj_point_to_pixel(intrinsics, points):
+    pix = np.zeros()
 
 
 

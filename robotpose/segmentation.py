@@ -8,6 +8,7 @@ import pyrealsense2 as rs
 from .utils import makeIntrinsics
 from tqdm import tqdm
 from . import paths as p
+import time
 
 
 class RobotSegmenter():
@@ -17,7 +18,7 @@ class RobotSegmenter():
         self.master.inferConfig(num_classes= 1, class_names= ["BG", "mh5"])
         self.master.load_model(model_path)
         self.crop_resolution = resolution
-        self.intrinsics = makeIntrinsics(res = 1281)
+        self.intrinsics = makeIntrinsics()
 
     def segment(self, img, ply_path):
         # Load image if given path
@@ -37,7 +38,7 @@ class RobotSegmenter():
         mask = mask[:,:,0]
         roi = r['rois'][0] # Y1,X1,Y2,X2
 
-        init_roi_width = roi[3] - roi[1]
+        init_roi = np.asarray(roi)
 
         """
         Get ROI to be the same as the crop size
@@ -98,7 +99,7 @@ class RobotSegmenter():
                     mask[image.shape[0]-look_up_dist:image.shape[0]-look_up_dist+to_go,col] = True
 
 
-
+        
 
         """
         Crop out PLY data
@@ -111,24 +112,50 @@ class RobotSegmenter():
         # Invert x Coords
         points[:,0] = points[:,0] * -1
 
-        ply_data = np.zeros((points.shape[0], 5))
-        ply_data[:,2:5] = points
+        ply_data = np.zeros((points.shape[0], 3))
+        ply_data[:,:] = points
 
         crop_ply_data = []
-        pix_data = []
 
-        # Get pixel location of each pointpoint
-        for row in tqdm(range(points.shape[0])):
-            pix = rs.rs2_project_point_to_pixel(self.intrinsics, ply_data[row,2:5])
-            pix = [round(x) for x in pix] # round to ints
-
+        """
+        Ended up increasing exe time
+        """
+        # Determine XY search area of image
+        # rs.rs2_deproject_pixel_to_point(intrin, (x,y)(px), depth (meters))
+        # define_search_area = False
+        # search_depth = 10
+        # if define_search_area:
+        #     # Take Xmin as roi[1] projected at midpoint of image
+        #     # Take Xmax as roi[3] projected at midpoint of image
+        #     X_search = (rs.rs2_deproject_pixel_to_point(self.intrinsics, (init_roi[1],image.shape[0]/2), search_depth),rs.rs2_deproject_pixel_to_point(self.intrinsics, (init_roi[3],image.shape[0]/2), search_depth))
+        #     # Take Ymin as roi[0] projected at midpoint of image
+        #     # Take Ymax as roi[2] projected at midpoint of image
+        #     Y_search = (rs.rs2_deproject_pixel_to_point(self.intrinsics, (image.shape[1]/2,init_roi[0]), search_depth),rs.rs2_deproject_pixel_to_point(self.intrinsics, (image.shape[2]/2,init_roi[0]), search_depth))
+        #     X_min = np.min(X_search)
+        #     X_max = np.max(X_search)
+        #     Y_min = np.min(Y_search)
+        #     Y_max = np.max(Y_search)
+        start_time = time.time()
+        """
+        """
+        # Get pixel location of each point
+        for row in range(points.shape[0]):
+            # if define_search_area:
+            #     if ply_data[row,0] < X_min or ply_data[row,0] > X_max or ply_data[row,1] < Y_min or ply_data[row,1] > Y_max:
+            #         continue
+            
+            x,y = rs.rs2_project_point_to_pixel(self.intrinsics, ply_data[row,:])
             # If point is in mask, add to data
-            if mask[pix[1],pix[0]]:
-                crop_ply_data.append(np.append(pix, ply_data[row, 2:5]))
+            if mask[round(y),round(x)]:
+                crop_ply_data.append(np.append([x,y], ply_data[row,:]))
 
+ 
+        """
+        """
         # Store as numpy array
         crop_ply_data = np.asarray(crop_ply_data)
 
+        print(f"{time.time()-start_time}")
 
         # ply_viz = np.zeros((720,1280,3),dtype=np.uint8)
         # for row in range(crop_ply_data.shape[0]):
