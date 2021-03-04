@@ -117,27 +117,7 @@ class RobotSegmenter():
 
         crop_ply_data = []
 
-        """
-        Ended up increasing exe time
-        """
-        # Determine XY search area of image
-        # rs.rs2_deproject_pixel_to_point(intrin, (x,y)(px), depth (meters))
-        # define_search_area = False
-        # search_depth = 10
-        # if define_search_area:
-        #     # Take Xmin as roi[1] projected at midpoint of image
-        #     # Take Xmax as roi[3] projected at midpoint of image
-        #     X_search = (rs.rs2_deproject_pixel_to_point(self.intrinsics, (init_roi[1],image.shape[0]/2), search_depth),rs.rs2_deproject_pixel_to_point(self.intrinsics, (init_roi[3],image.shape[0]/2), search_depth))
-        #     # Take Ymin as roi[0] projected at midpoint of image
-        #     # Take Ymax as roi[2] projected at midpoint of image
-        #     Y_search = (rs.rs2_deproject_pixel_to_point(self.intrinsics, (image.shape[1]/2,init_roi[0]), search_depth),rs.rs2_deproject_pixel_to_point(self.intrinsics, (image.shape[2]/2,init_roi[0]), search_depth))
-        #     X_min = np.min(X_search)
-        #     X_max = np.max(X_search)
-        #     Y_min = np.min(Y_search)
-        #     Y_max = np.max(Y_search)
-        start_time = time.time()
-        """
-        """
+
         # Get pixel location of each point
         for row in range(points.shape[0]):
             # if define_search_area:
@@ -150,12 +130,9 @@ class RobotSegmenter():
                 crop_ply_data.append(np.append([x,y], ply_data[row,:]))
 
  
-        """
-        """
         # Store as numpy array
         crop_ply_data = np.asarray(crop_ply_data)
 
-        print(f"{time.time()-start_time}")
 
         # ply_viz = np.zeros((720,1280,3),dtype=np.uint8)
         # for row in range(crop_ply_data.shape[0]):
