@@ -77,7 +77,7 @@ class RobotSegmenter():
 
         """
         Mask Modifications
-        
+
         Usually doesn't segment ~20 pix from bottom
         """
 
@@ -115,6 +115,7 @@ class RobotSegmenter():
         ply_data[:,2:5] = points
 
         crop_ply_data = []
+        pix_data = []
 
         # Get pixel location of each pointpoint
         for row in tqdm(range(points.shape[0])):
@@ -128,6 +129,19 @@ class RobotSegmenter():
         # Store as numpy array
         crop_ply_data = np.asarray(crop_ply_data)
 
+
+        # ply_viz = np.zeros((720,1280,3),dtype=np.uint8)
+        # for row in range(crop_ply_data.shape[0]):
+        #     pix = rs.rs2_project_point_to_pixel(self.intrinsics, crop_ply_data[row,2:5])
+        #     pix = [round(x) for x in pix] # round to ints
+
+        #     z = round(crop_ply_data[row,4] * -100)
+        #     ply_viz[pix[1],pix[0]] = (30,z,30)
+
+        # cv2.imshow("PLY VIZ", ply_viz)
+        # cv2.waitKey(0)
+
+
         """
         Get segmented image out
         """
@@ -140,12 +154,4 @@ class RobotSegmenter():
         #cv2.imshow("img",output_image)
         #cv2.waitKey(0)
         return output_image
-
-
-
-
-
-if __name__ == "__main__":
-    a = RobotSegmenter()
-    a.segment(r'C:\Users\exley\OneDrive\Documents\GitHub\DeepPoseRobot\data\raw\set6_slu\2021030200001_og.png',r'C:\Users\exley\OneDrive\Documents\GitHub\DeepPoseRobot\data\raw\set6_slu\2021030200001_full.ply')
 
