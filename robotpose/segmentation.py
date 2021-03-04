@@ -37,6 +37,8 @@ class RobotSegmenter():
         mask = mask[:,:,0]
         roi = r['rois'][0] # Y1,X1,Y2,X2
 
+        init_roi_width = roi[3] - roi[1]
+
         """
         Get ROI to be the same as the crop size
         """
@@ -72,6 +74,32 @@ class RobotSegmenter():
         assert roi[3] - roi[1] == self.crop_resolution[1], "ROI Crop Width Incorrect"
         assert roi[2] - roi[0] == self.crop_resolution[0], "ROI Crop Height Incorrect"
 
+
+        """
+        Mask Modifications
+        
+        Usually doesn't segment ~20 pix from bottom
+        """
+
+        # Base how far it goes down on how many are around it in an x-pixel radius
+        look_up_dist = 25
+        look_side_dist = 10 # one way
+
+        for col in range(mask.shape[1]):
+                if mask[image.shape[0]-look_up_dist,col]:
+                    # Find how many are each side
+                    down = np.sum(mask[image.shape[0]-look_up_dist,col-look_side_dist:col+look_side_dist])
+                    # Arbitrary calc
+                    to_go = round(look_up_dist * down**2 / (look_side_dist*1.5)**2)
+                    # Truncate
+                    if to_go > look_up_dist:
+                        to_go = look_up_dist
+                    # Go down so many from row
+                    mask[image.shape[0]-look_up_dist:image.shape[0]-look_up_dist+to_go,col] = True
+
+
+
+
         """
         Crop out PLY data
         """
@@ -103,21 +131,21 @@ class RobotSegmenter():
         """
         Get segmented image out
         """
-        #######################################
-        # Insert any mask modifications here  #
-        #######################################
         mask_img = np.zeros((mask.shape[0],mask.shape[1],3))
         for idx in range(3):
             mask_img[:,:,idx] = mask
         output_image = np.multiply(image, mask_img).astype(np.uint8)
         output_image = output_image[roi[0]:roi[2],roi[1]:roi[3]]
-        print(output_image.shape)
-        cv2.imshow("img",output_image)
-        cv2.waitKey(0)
+        #print(output_image.shape)
+        #cv2.imshow("img",output_image)
+        #cv2.waitKey(0)
+        return output_image
 
 
 
 
 
-
+if __name__ == "__main__":
+    a = RobotSegmenter()
+    a.segment(r'C:\Users\exley\OneDrive\Documents\GitHub\DeepPoseRobot\data\raw\set6_slu\2021030200001_og.png',r'C:\Users\exley\OneDrive\Documents\GitHub\DeepPoseRobot\data\raw\set6_slu\2021030200001_full.ply')
 
