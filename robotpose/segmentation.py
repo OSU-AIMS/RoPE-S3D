@@ -20,7 +20,12 @@ class RobotSegmenter():
         self.crop_resolution = resolution
         self.intrinsics = makeIntrinsics()
 
-    def segment(self, img, ply_path):
+    def height(self):
+        return self.crop_resolution[0]
+    def width(self):
+        return self.crop_resolution[1]
+
+    def segmentImage(self, img, ply_path):
         # Load image if given path
         if type(img) is str:
             image = cv2.imread(img)
@@ -83,7 +88,7 @@ class RobotSegmenter():
         """
 
         # Base how far it goes down on how many are around it in an x-pixel radius
-        look_up_dist = 25
+        look_up_dist = 27
         look_side_dist = 10 # one way
 
         for col in range(mask.shape[1]):
@@ -129,10 +134,6 @@ class RobotSegmenter():
             if mask[round(y),round(x)]:
                 crop_ply_data.append(np.append([x,y], ply_data[row,:]))
 
- 
-        # Store as numpy array
-        crop_ply_data = np.asarray(crop_ply_data)
-
 
         # ply_viz = np.zeros((720,1280,3),dtype=np.uint8)
         # for row in range(crop_ply_data.shape[0]):
@@ -157,5 +158,5 @@ class RobotSegmenter():
         #print(output_image.shape)
         #cv2.imshow("img",output_image)
         #cv2.waitKey(0)
-        return output_image
+        return output_image, crop_ply_data
 

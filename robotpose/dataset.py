@@ -8,9 +8,14 @@ import pyrealsense2 as rs
 import open3d as o3d
 import pickle
 from robotpose import paths as p
+from .segmentation import RobotSegmenter
+import time
+import datetime
 
 
 def build(data_path, dest_path = None):
+
+    build_start_time = time.time()
 
     if dest_path is None:
         name = os.path.basename(os.path.normpath(data_path))
@@ -22,90 +27,85 @@ def build(data_path, dest_path = None):
 
     # Build lists of files
     jsons = [x for x in os.listdir(data_path) if x.endswith('.json')]
-    plys = [x for x in os.listdir(data_path) if x.endswith('.ply')]
-    orig_img = [x for x in os.listdir(data_path) if x.endswith('og.png')]
-    rm_img = [x for x in os.listdir(data_path) if x.endswith('rm.png')]
-
-
-    # Determine if orig/rm images are being used
-    use_orig = use_rm = True
-    if len(orig_img) == 0:
-        use_orig = False
-
-    if len(rm_img) == 0:
-        use_rm = False
-
-    # Check that 2D images were provided
-    assert use_orig or use_rm, "No images provided."
-
-    # Make sure number of rm and orig images is the same, if applicable
-    if use_rm and use_orig:
-        assert len(orig_img) == len(rm_img), "Unequal number of removed and original images."
+    plys = [x for x in os.listdir(data_path) if x.endswith('full.ply')]
+    imgs = [x for x in os.listdir(data_path) if x.endswith('og.png')]
 
     # Make sure overall dataset length is the same for each file type
-    length = max(len(rm_img), len(orig_img))
+    length = len(imgs)
     assert len(jsons) == len(plys) == length, "Unequal number of images, jsons, or plys"
 
 
     """
     Parse Images
     """
-    # Read in orig images if provided
-    if use_orig:
 
-        # Get image dims
-        img = cv2.imread(os.path.join(data_path,orig_img[0]))
-        img_height = img.shape[0]
-        img_width = img.shape[1]
+    # Get image dims
+    img = cv2.imread(os.path.join(data_path,imgs[0]))
+    img_height = img.shape[0]
+    img_width = img.shape[1]
 
-        # Create image array
-        orig_img_arr = np.zeros((length, img_height, img_width, 3), dtype=np.uint8)
+    # Create image array
+    orig_img_arr = np.zeros((length, img_height, img_width, 3), dtype=np.uint8)
 
-        # Get paths for each image
-        orig_img_path = [os.path.join(data_path, x) for x in orig_img]
+    # Get paths for each image
+    orig_img_path = [os.path.join(data_path, x) for x in imgs]
 
-        # Store images in array
-        for idx, path in tqdm(zip(range(length), orig_img_path),desc="Parsing Orig 2D Images"):
-            orig_img_arr[idx] = cv2.imread(path)
+    # Store images in array
+    for idx, path in tqdm(zip(range(length), orig_img_path),desc="Parsing 2D Images"):
+        orig_img_arr[idx] = cv2.imread(path)
 
-        # Save array
-        np.save(os.path.join(dest_path, 'og_img.npy'), orig_img_arr)
+    # Save array
+    np.save(os.path.join(dest_path, 'og_img.npy'), orig_img_arr)
 
-        # Save as a video
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter(os.path.join(dest_path,"og_vid.avi"),fourcc, 15, (img_width,img_height))
-        for idx in range(length):
-            out.write(orig_img_arr[idx])
-        out.release()
+    # Save as a video
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter(os.path.join(dest_path,"og_vid.avi"),fourcc, 15, (img_width,img_height))
+    for idx in range(length):
+        out.write(orig_img_arr[idx])
+    out.release()
 
+    segmenter = RobotSegmenter()
+    segmented_img_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
+    ply_data = []
 
-    # Read in rm images if provided
-    if use_rm:
+    # Segment images and PLYS
+    for idx in tqdm(range(length),desc="Segmenting"):
+        ply_path = os.path.join(data_path,plys[idx])
+        segmented_img_arr[idx,:,:,:], ply = segmenter.segmentImage(orig_img_arr[idx], ply_path)
+        ply_data.append(ply)
 
-        # Get image dims
-        img = cv2.imread(os.path.join(data_path,rm_img[0]))
-        img_height = img.shape[0]
-        img_width = img.shape[1]
+    # Save segmented image array
+    np.save(os.path.join(dest_path, 'seg_img.npy'), segmented_img_arr)
 
-        # Create image array
-        rm_img_arr = np.zeros((length, img_height, img_width, 3), dtype=np.uint8)
+    # Save as a video (just for reference)
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter(os.path.join(dest_path,"seg_vid.avi"),fourcc, 15, (segmenter.width(),segmenter.height()))
+    for idx in range(length):
+        out.write(segmented_img_arr[idx])
+    out.release()
 
-        # Get paths for each image
-        rm_img_path = [os.path.join(data_path, x) for x in rm_img]
+    """
+    Process PLY data
+    """
+    # Figure out what length all ply data must be to fit in the saem array
+    ply_lengths = [len(x) for x in ply_data]
+    unif_ply_length = np.max(ply_lengths)
 
-        # Store images in array
-        for idx, path in tqdm(zip(range(length), rm_img_path),desc="Parsing Rm 2D Images"):
-            rm_img_arr[idx] = cv2.imread(path)
+    dummy = [9999,9999,9999,9999,9999]  # What to insert in unused spaces
+    new_ply = []
 
-        # Save array
-        np.save(os.path.join(dest_path, 'rm_img.npy'), rm_img_arr)
+    for ply in ply_data:
+        # Normalize the length of each ply frame
+        num_to_append = unif_ply_length - len(ply)
+        to_append = [dummy] * num_to_append
+        ply.extend(to_append)
 
-        # Save as a video
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter(os.path.join(dest_path,"rm_vid.avi"),fourcc, 15, (img_width,img_height))
-        for idx in range(length):
-            out.write(rm_img_arr[idx])
-        out.release()
+        # Append to new list
+        new_ply.append(ply)
+
+    # Save as numpy array
+    full_ply_data = np.asarray(new_ply)
+    np.save(os.path.join(dest_path,'ply.npy'),full_ply_data)
 
 
     """
@@ -127,40 +127,6 @@ def build(data_path, dest_path = None):
     # Save JSON data as npy
     np.save(os.path.join(dest_path, 'ang.npy'), json_arr)
 
-
-    """
-    Parse PLYs as 3D points
-
-    As the number of verticies in each frame varies, these cannot be saved as a .npy file
-    Instead, they are saved as a list of dictionaries in each file, and must be processed upon loading
-    """
-    intrin = utils.makeIntrinsics()
-    ply_path = [os.path.join(data_path, x) for x in plys]
-
-    ply_arr = []
-
-    for path in tqdm(ply_path, desc="Parsing PLY data"):
-        # Read file
-        cloud = o3d.io.read_point_cloud(path)
-        points = np.asarray(cloud.points)
-        # Invert x Coords
-        points[:,0] = points[:,0] * -1
-
-        data = np.zeros((points.shape[0], 5))
-        data[:,2:5] = points
-
-        # Get pixel location of point
-        for row in range(points.shape[0]):
-            x, y = rs.rs2_project_point_to_pixel(intrin, data[row,2:5])
-            data[row,0:2] = [x,y]
-
-        ply_arr.append(data)
-
-    # Save as pickle
-    with open(os.path.join(dest_path,'ply.pyc'),'wb') as file:
-        pickle.dump(ply_arr,file)
-
-
     """
     Write dataset info file
     """
@@ -168,16 +134,22 @@ def build(data_path, dest_path = None):
     info = {
         "name": os.path.basename(os.path.normpath(dest_path)),
         "frames": length,
-        "use_orig": use_orig,
-        "use_rm": use_rm
+        "build_time": time.time() - build_start_time,
+        "last_build": str(datetime.datetime.now())
     }
 
     with open(os.path.join(dest_path,'ds.json'),'w') as file:
         json.dump(info, file)
 
 
+
+
+
 class Dataset():
-    def __init__(self, name, skeleton=None, no_data = False, primary = "rm"):
+    def __init__(self, name, skeleton=None, load_seg = True, load_og = False, no_data = False, primary = "seg"):
+        
+        self.load_seg = load_seg
+        self.load_og = load_og
         # Search for dataset with correct name
         datasets = [ f.path for f in os.scandir(p.datasets) if f.is_dir() ]
         names = [ os.path.basename(os.path.normpath(x)) for x in datasets ]
@@ -219,20 +191,19 @@ class Dataset():
         # Load dataset
         self.load(skeleton)
 
-        # Set paths
-        self.rm_vid_path = os.path.join(self.path, 'rm_vid.avi')
-        self.og_vid_path = os.path.join(self.path, 'og_vid.avi')
+        # Set paths, resolution
 
-        # Set resolution
-        if self.use_rm:
-            self.resolution = self.rm_img.shape[1:3]
-        if self.use_og:
-            self.resolution = self.og_img.shape[1:3]
+        if self.load_seg:
+            self.seg_vid_path = os.path.join(self.path, 'seg_vid.avi')
+            self.resolution_seg = self.seg_img.shape[1:3]
+        if self.load_og:
+            self.og_vid_path = os.path.join(self.path, 'og_vid.avi')
+            self.resolution_og = self.og_img.shape[1:3]
 
         # Set primary image and video types
-        if self.use_rm and not self.use_og:
-            primary = "rm"
-        if self.use_og and not self.use_rm:
+        if self.load_seg and not self.load_og:
+            primary = "seg"
+        if self.load_og and not self.load_seg:
             primary = "og"
 
         if primary == "og":
@@ -240,20 +211,16 @@ class Dataset():
             self.vid = self.og_vid
             self.vid_path = self.og_vid_path
         else:
-            self.img = self.rm_img
-            self.vid = self.rm_vid
-            self.vid_path = self.rm_vid_path
-            if primary != "rm":
-                print("Invalid primary media type selected.\nUsing rm.")
+            self.img = self.seg_img
+            self.vid = self.seg_vid
+            self.vid_path = self.seg_vid_path
+            if primary != "seg":
+                print("Invalid primary media type selected.\nUsing seg.")
 
 
 
         # If specified, remove all data from object to save space (only obtain paths)
         if no_data:
-            if self.use_og:
-                del self.og_img, self.og_vid
-            if self.use_rm:
-                del self.rm_img, self.rm_vid
             del self.angles, self.ply
 
 
@@ -263,18 +230,16 @@ class Dataset():
             d = json.load(f)
 
         self.length = d['frames']
-        self.use_og = d['use_orig']
-        self.use_rm = d['use_rm']
 
         # Read in og images
-        if self.use_og:
+        if self.load_og:
             self.og_img = np.load(os.path.join(self.path, 'og_img.npy'))
             self.og_vid = cv2.VideoCapture(os.path.join(self.path, 'og_vid.avi'))
 
-        # Read in rm images
-        if self.use_rm:
-            self.rm_img = np.load(os.path.join(self.path, 'rm_img.npy'))
-            self.rm_vid = cv2.VideoCapture(os.path.join(self.path, 'rm_vid.avi'))
+        # Read in seg images
+        if self.load_seg:
+            self.seg_img = np.load(os.path.join(self.path, 'seg_img.npy'))
+            self.seg_vid = cv2.VideoCapture(os.path.join(self.path, 'seg_vid.avi'))
 
         # Read angles
         self.angles = np.load(os.path.join(self.path, 'ang.npy'))
@@ -297,13 +262,13 @@ class Dataset():
     def validate(self, path):
         ang = os.path.isfile(os.path.join(path,'ang.npy'))
         ds = os.path.isfile(os.path.join(path,'ds.json'))
-        ply = os.path.isfile(os.path.join(path,'ply.pyc'))
-        rm_img = os.path.isfile(os.path.join(path,'rm_img.npy'))
+        ply = os.path.isfile(os.path.join(path,'ply.npy'))
+        seg_img = os.path.isfile(os.path.join(path,'seg_img.npy'))
         og_img = os.path.isfile(os.path.join(path,'og_img.npy'))
-        rm_vid = os.path.isfile(os.path.join(path,'rm_vid.avi'))
+        seg_vid = os.path.isfile(os.path.join(path,'seg_vid.avi'))
         og_vid = os.path.isfile(os.path.join(path,'og_vid.avi'))
 
-        return ang and ds and ply and ((rm_img and rm_vid) or (og_img and og_vid))
+        return ang and ds and ply and ((seg_img and seg_vid) or (og_img and og_vid))
 
 
     def build(self,data_path):
@@ -327,7 +292,7 @@ class Dataset():
         return f"RobotPose dataset of {self.length} frames. Using skeleton {self.skeleton}"
 
     def og(self):
-        return self.use_og
+        return self.load_og
 
-    def rm(self):
-        return self.use_rm
+    def seg(self):
+        return self.load_seg
