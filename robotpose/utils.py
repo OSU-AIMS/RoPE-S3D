@@ -169,10 +169,6 @@ def vizDepth(ply_frame_data, image):
 
 
 
-def proj_point_to_pixel(intrinsics, points):
-    pix = np.zeros()
-
-
 
 
 
@@ -181,9 +177,6 @@ def proj_point_to_pixel(intrinsics, points):
 DEPRECATED FUNCTIONS
 These functions are in the process of being replaced by the dataset class
 """
-
-
-
 
 
 
