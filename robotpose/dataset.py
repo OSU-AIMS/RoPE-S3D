@@ -87,25 +87,30 @@ def build(data_path, dest_path = None):
     """
     Process PLY data
     """
-    # Figure out what length all ply data must be to fit in the same array
-    ply_lengths = [len(x) for x in ply_data]
-    unif_ply_length = np.max(ply_lengths)
 
-    dummy = [9999,9999,9999,9999,9999]  # What to insert in unused spaces
-    new_ply = []
+    ply_data_nd = np.array(ply_data, dtype=object)
+    np.save(os.path.join(dest_path,'ply.npy'),ply_data_nd)
 
-    for ply in ply_data:
-        # Normalize the length of each ply frame
-        num_to_append = unif_ply_length - len(ply)
-        to_append = [dummy] * num_to_append
-        ply.extend(to_append)
 
-        # Append to new list
-        new_ply.append(ply)
+    # # Figure out what length all ply data must be to fit in the same array
+    # ply_lengths = [len(x) for x in ply_data]
+    # unif_ply_length = np.max(ply_lengths)
 
-    # Save as numpy array
-    full_ply_data = np.asarray(new_ply)
-    np.save(os.path.join(dest_path,'ply.npy'),full_ply_data)
+    # dummy = [9999,9999,9999,9999,9999]  # What to insert in unused spaces
+    # new_ply = []
+
+    # for ply in ply_data:
+    #     # Normalize the length of each ply frame
+    #     num_to_append = unif_ply_length - len(ply)
+    #     to_append = [dummy] * num_to_append
+    #     ply.extend(to_append)
+
+    #     # Append to new list
+    #     new_ply.append(ply)
+
+    # # Save as numpy array
+    # full_ply_data = np.asarray(new_ply)
+    # np.save(os.path.join(dest_path,'ply.npy'),full_ply_data)
 
 
     """
