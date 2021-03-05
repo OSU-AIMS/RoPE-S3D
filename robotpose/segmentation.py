@@ -5,10 +5,11 @@ import os
 import numpy as np
 import open3d as o3d
 import pyrealsense2 as rs
-from .utils import makeIntrinsics
+from .utils import intrin, makeIntrinsics
 from tqdm import tqdm
 from . import paths as p
 import time
+from . import projection as proj
 
 
 class RobotSegmenter():
@@ -124,15 +125,24 @@ class RobotSegmenter():
 
 
         # Get pixel location of each point
-        for row in range(points.shape[0]):
-            # if define_search_area:
-            #     if ply_data[row,0] < X_min or ply_data[row,0] > X_max or ply_data[row,1] < Y_min or ply_data[row,1] > Y_max:
-            #         continue
+        # for row in range(points.shape[0]):
+        #     # if define_search_area:
+        #     #     if ply_data[row,0] < X_min or ply_data[row,0] > X_max or ply_data[row,1] < Y_min or ply_data[row,1] > Y_max:
+        #     #         continue
             
-            x,y = rs.rs2_project_point_to_pixel(self.intrinsics, ply_data[row,:])
-            # If point is in mask, add to data
-            if mask[round(y),round(x)]:
-                crop_ply_data.append(np.append([x,y], ply_data[row,:]))
+        #     x,y = rs.rs2_project_point_to_pixel(self.intrinsics, ply_data[row,:])
+        #     # If point is in mask, add to data
+        #     if mask[round(y),round(x)]:
+        #         crop_ply_data.append(np.append([x,y], ply_data[row,:]))
+
+        # Do as array instead of points
+        points_proj = proj.proj_point_to_pixel(self.intrinsics, points)
+        points_proj_idx = np.zeros(points_proj.shape,dtype=int)
+        points_proj_idx[:,0] = np.clip(points_proj[:,0],0,1279)
+        points_proj_idx[:,1] = np.clip(points_proj[:,0],0,719)
+        for row in range(points.shape[0]):
+            if mask[points_proj_idx[row,1],points_proj_idx[row,0]]:
+                crop_ply_data.append(np.append(points_proj[row,:], ply_data[row,:]))
 
 
         # ply_viz = np.zeros((720,1280,3),dtype=np.uint8)

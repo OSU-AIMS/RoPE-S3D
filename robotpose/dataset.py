@@ -87,7 +87,7 @@ def build(data_path, dest_path = None):
     """
     Process PLY data
     """
-    # Figure out what length all ply data must be to fit in the saem array
+    # Figure out what length all ply data must be to fit in the same array
     ply_lengths = [len(x) for x in ply_data]
     unif_ply_length = np.max(ply_lengths)
 
