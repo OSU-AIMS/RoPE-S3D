@@ -7,7 +7,7 @@ from tqdm import tqdm
 import pickle
 from robotpose import paths as p
 import open3d as o3d
-
+import time
 
 def limitMemory():
     import tensorflow as tf
@@ -164,6 +164,36 @@ def vizDepth(ply_frame_data, image):
         g = int(np.interp(pt[4],[-1.3,-.9],[0,255]))
         r = 255-2*g
         image = cv2.circle(image, (x,y), radius=0, color=(0,g,r), thickness=-1)
+
+
+
+
+
+class Timer():
+    def __init__(self):
+        self.split_names = []
+        self.split_times = []
+        self.split_times.append(time.time())
+
+    def split(self,split_name):
+        self.split_times.append(time.time())
+        self.split_names.append(split_name)
+
+    def aslist(self):
+        out = []
+        for idx in range(1,len(self.split_times)):
+            out.append(self.split_times[idx] - self.split_times[idx-1])
+
+        return out
+
+    def __repr__(self):
+        out = "Times:"
+        for idx in range(1,len(self.split_times)):
+            out += f"\n\t{self.split_names[idx-1]}: {self.split_times[idx] - self.split_times[idx-1]:.3f}"
+
+        return out
+
+
 
 
 

@@ -68,11 +68,15 @@ def build(data_path, dest_path = None):
     segmented_img_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
     ply_data = []
 
+    times = np.array([0,0,0,0,0,0,0], dtype=np.float64)
     # Segment images and PLYS
     for idx in tqdm(range(length),desc="Segmenting"):
         ply_path = os.path.join(data_path,plys[idx])
-        segmented_img_arr[idx,:,:,:], ply = segmenter.segmentImage(orig_img_arr[idx], ply_path)
+        segmented_img_arr[idx,:,:,:], ply, t = segmenter.segmentImage(orig_img_arr[idx], ply_path)
         ply_data.append(ply)
+        times += np.asarray(t)
+
+    print(times)
 
     # Save segmented image array
     np.save(os.path.join(dest_path, 'seg_img.npy'), segmented_img_arr)

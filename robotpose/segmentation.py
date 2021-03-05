@@ -5,7 +5,7 @@ import os
 import numpy as np
 import open3d as o3d
 import pyrealsense2 as rs
-from .utils import intrin, makeIntrinsics
+from .utils import makeIntrinsics, Timer
 from tqdm import tqdm
 from . import paths as p
 import time
@@ -36,8 +36,13 @@ class RobotSegmenter():
         image = np.asarray(image)
         tmp = np.copy(image)
 
+        tim = Timer()
+
         # Detect image
         r, output = self.master.segmentImage(tmp, process_frame=True)
+
+        #51 sec
+        tim.split("Segment")
 
         # Get mask and roi
         mask = np.asarray(r['masks'])
@@ -81,6 +86,8 @@ class RobotSegmenter():
         assert roi[3] - roi[1] == self.crop_resolution[1], "ROI Crop Width Incorrect"
         assert roi[2] - roi[0] == self.crop_resolution[0], "ROI Crop Height Incorrect"
 
+        # 0.05sec
+        tim.split("ROI")
 
         """
         Mask Modifications
@@ -104,8 +111,8 @@ class RobotSegmenter():
                     # Go down so many from row
                     mask[image.shape[0]-look_up_dist:image.shape[0]-look_up_dist+to_go,col] = True
 
-
-        
+        # 0.16 sec
+        tim.split("Mask")
 
         """
         Crop out PLY data
@@ -123,6 +130,8 @@ class RobotSegmenter():
 
         crop_ply_data = []
 
+        # 100.4 sec
+        tim.split("Open PLY")
 
         # Get pixel location of each point
         # for row in range(points.shape[0]):
@@ -135,14 +144,18 @@ class RobotSegmenter():
         #     if mask[round(y),round(x)]:
         #         crop_ply_data.append(np.append([x,y], ply_data[row,:]))
 
+
         # Do as array instead of points
         points_proj = proj.proj_point_to_pixel(self.intrinsics, points)
+        tim.split("Calc")#1.54 sec
         points_proj_idx = np.zeros(points_proj.shape,dtype=int)
         points_proj_idx[:,0] = np.clip(points_proj[:,0],0,1279)
         points_proj_idx[:,1] = np.clip(points_proj[:,0],0,719)
+        tim.split("Create")#1.75 sec
         for row in range(points.shape[0]):
             if mask[points_proj_idx[row,1],points_proj_idx[row,0]]:
                 crop_ply_data.append(np.append(points_proj[row,:], ply_data[row,:]))
+        tim.split("Check")#55 sec
 
 
         # ply_viz = np.zeros((720,1280,3),dtype=np.uint8)
@@ -165,8 +178,6 @@ class RobotSegmenter():
             mask_img[:,:,idx] = mask
         output_image = np.multiply(image, mask_img).astype(np.uint8)
         output_image = output_image[roi[0]:roi[2],roi[1]:roi[3]]
-        #print(output_image.shape)
-        #cv2.imshow("img",output_image)
-        #cv2.waitKey(0)
-        return output_image, crop_ply_data
+
+        return output_image, crop_ply_data, tim.aslist()
 
