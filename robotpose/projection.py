@@ -61,7 +61,7 @@ def proj_point_to_pixel(intrin, points, correct_distortion = False):
     Expects n x 3 array of points to project
     """
     x = points[:,0] / points[:,2]
-    y = points[:,0] / points[:,2]
+    y = points[:,1] / points[:,2]
 
     if correct_distortion:
         if intrin.model == rs.distortion.inverse_brown_conrady or intrin.model == rs.distortion.modified_brown_conrady:
