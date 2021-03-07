@@ -14,7 +14,14 @@ import datetime
 from deepposekit.io import initialize_dataset
 
 
-dataset_version = 1
+dataset_version = 1.0
+"""
+Version 1.0: 3/7/2021
+    Began versioning.
+    Compatible versions should include the same integer base (eg 1.0 and 1.4).
+    Backwards-Incompatiblity should be marked by a new integer base (eg going from 1.4 to 2.0)
+
+"""
 
 
 
@@ -269,7 +276,7 @@ class Dataset():
             d = json.load(f)
 
         try:
-            if d['ds_ver'] != dataset_version:
+            if int(d['ds_ver']) != int(dataset_version):
                 print(f"Dataset Out of Date:\n\tDataset version:{d['ds_ver']}\n\tCurrent version: {dataset_version}")
                 return False
         except KeyError:
