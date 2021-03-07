@@ -14,6 +14,10 @@ import datetime
 from deepposekit.io import initialize_dataset
 
 
+dataset_version = 1
+
+
+
 def build(data_path, dest_path = None):
 
     build_start_time = time.time()
@@ -119,6 +123,7 @@ def build(data_path, dest_path = None):
     """
     # Make json info file
     info = {
+        "ds_ver": dataset_version,
         "name": os.path.basename(os.path.normpath(dest_path)),
         "frames": length,
         "build_time": time.time() - build_start_time,
@@ -179,8 +184,6 @@ class Dataset():
         self.load(skeleton)
 
         # Set paths, resolution
-
-
         if self.load_og:
             self.og_vid_path = os.path.join(self.path, 'og_vid.avi')
             self.resolution_og = self.og_img.shape[1:3]
@@ -261,6 +264,18 @@ class Dataset():
         og_img = os.path.isfile(os.path.join(path,'og_img.npy'))
         seg_vid = os.path.isfile(os.path.join(path,'seg_vid.avi'))
         og_vid = os.path.isfile(os.path.join(path,'og_vid.avi'))
+        
+        with open(os.path.join(path, 'ds.json'), 'r') as f:
+            d = json.load(f)
+
+        try:
+            if d['ds_ver'] != dataset_version:
+                print(f"Dataset Out of Date:\n\tDataset version:{d['ds_ver']}\n\tCurrent version: {dataset_version}")
+                return False
+        except KeyError:
+            print(f"Dataset Out of Date:\n\tDataset version: Unversioned\n\tCurrent version: {dataset_version}")
+            return False
+            
 
         return ang and ds and ply and seg_img and og_img and seg_vid and og_vid
 
