@@ -152,20 +152,25 @@ def predToXYZ(dict_list, ply_data):
 
     return out
 
-def vizDepth(ply_frame_data, image):
+
+
+
+def vizDepth_new(ply_frame_data, image):
     """
     Overlays the depth information given on an image
     """
-    intrin = makeIntrinsics()
-    for pt in ply_frame_data:
-        x, y = rs.rs2_project_point_to_pixel(intrin, pt[2:5])
-        x = int(x)
-        y = int(y)
-        g = int(np.interp(pt[4],[-1.3,-.9],[0,255]))
-        r = 255-2*g
-        image = cv2.circle(image, (x,y), radius=0, color=(0,g,r), thickness=-1)
+    z_no_out = reject_outliers(ply_frame_data[:,4])
+    z_min = np.min(z_no_out)
+    z_max = np.max(z_no_out)
+    idx_arr = ply_frame_data[:,0:2].astype(int)
+    print(f"{z_min}\t{z_max}")
+    for idx in range(len(ply_frame_data)):
+        g = int(np.interp(ply_frame_data[idx,4],[z_min,z_max],[0,255]))
+        r = int(255-1.5*g)
+        image = cv2.circle(image, (idx_arr[idx,0],idx_arr[idx,1]), radius=0, color=(0,g,r), thickness=-1)
 
-
+def reject_outliers(data, m=2):
+    return data[abs(data - np.mean(data)) < m * np.std(data)]
 
 
 
@@ -196,7 +201,18 @@ class Timer():
 
 
 
-
+def vizDepth(ply_frame_data, image, x_crop):
+    """
+    Overlays the depth information given on an image
+    """
+    intrin = makeIntrinsics()
+    for pt in ply_frame_data:
+        x, y = rs.rs2_project_point_to_pixel(intrin, pt[2:5])
+        x = int(x)-x_crop
+        y = int(y)
+        g = int(np.interp(pt[4],[-1.3,-.9],[0,255]))
+        r = 255-2*g
+        image = cv2.circle(image, (x,y), radius=0, color=(0,g,r), thickness=-1)
 
 
 
@@ -208,6 +224,19 @@ DEPRECATED FUNCTIONS
 These functions are in the process of being replaced by the dataset class
 """
 
+
+def vizDepth_old(ply_frame_data, image):
+    """
+    Overlays the depth information given on an image
+    """
+    intrin = makeIntrinsics()
+    for pt in ply_frame_data:
+        x, y = rs.rs2_project_point_to_pixel(intrin, pt[2:5])
+        x = int(x)
+        y = int(y)
+        g = int(np.interp(pt[4],[-1.3,-.9],[0,255]))
+        r = 255-2*g
+        image = cv2.circle(image, (x,y), radius=0, color=(0,g,r), thickness=-1)
 
 
 def parsePLYasPoints(path):

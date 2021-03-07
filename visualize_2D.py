@@ -12,7 +12,7 @@ from robotpose.dataset import Dataset
 limitMemory()
 
 # Load dataset
-ds = Dataset('set7','B')
+ds = Dataset('set6','B')
 
 # Read in Actual angles from JSONs to compare predicted angles to
 S_angles = ds.angles[:,0]
@@ -41,7 +41,8 @@ while ret:
     over = np.zeros((ds.resolution[0],ds.resolution[1],3),dtype=np.uint8)
 
     # Put depth info on overlay
-    #vizDepth(ds.ply[i], over)
+    vizDepth_new(ds.ply[i], over)
+    #vizDepth(ds.ply[i], over, ds.x_crop[i])
     #Visualize lines
     viz(image, over, predictions[i])
 

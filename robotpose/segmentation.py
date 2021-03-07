@@ -36,13 +36,10 @@ class RobotSegmenter():
         image = np.asarray(image)
         tmp = np.copy(image)
 
-        tim = Timer()
 
         # Detect image
         r, output = self.master.segmentImage(tmp, process_frame=True)
 
-        #51 sec
-        tim.split("Segment")
 
         # Get mask and roi
         mask = np.asarray(r['masks'])
@@ -86,8 +83,6 @@ class RobotSegmenter():
         assert roi[3] - roi[1] == self.crop_resolution[1], "ROI Crop Width Incorrect"
         assert roi[2] - roi[0] == self.crop_resolution[0], "ROI Crop Height Incorrect"
 
-        # 0.05sec
-        tim.split("ROI")
 
         """
         Mask Modifications
@@ -111,8 +106,7 @@ class RobotSegmenter():
                     # Go down so many from row
                     mask[image.shape[0]-look_up_dist:image.shape[0]-look_up_dist+to_go,col] = True
 
-        # 0.16 sec
-        tim.split("Mask")
+
 
         """
         Crop out PLY data
@@ -130,8 +124,6 @@ class RobotSegmenter():
 
         crop_ply_data = []
 
-        # 100.4 sec
-        tim.split("Open PLY")
 
         # Get pixel location of each point
         # for row in range(points.shape[0]):
@@ -147,27 +139,24 @@ class RobotSegmenter():
 
         # Do as array instead of points
         points_proj = proj.proj_point_to_pixel(self.intrinsics, points)
-        tim.split("Calc")#1.54 sec
+
         points_proj_idx = np.zeros(points_proj.shape,dtype=int)
         points_proj_idx[:,0] = np.clip(points_proj[:,0],0,1279)
-        points_proj_idx[:,1] = np.clip(points_proj[:,0],0,719)
-        tim.split("Create")#1.75 sec
+        points_proj_idx[:,1] = np.clip(points_proj[:,1],0,719)
+
         for row in range(points.shape[0]):
             if mask[points_proj_idx[row,1],points_proj_idx[row,0]]:
+                # Shift based on ROI
+                points_proj[row,0] -= roi[1]
+                points_proj[row,1] -= roi[0]
                 crop_ply_data.append(np.append(points_proj[row,:], ply_data[row,:]))
-        tim.split("Check")#55 sec
-
-        # Shift data based on final ROI
-        for entry in crop_ply_data:
-            entry[0] -= roi[0]
-            entry[1] -= roi[1]
 
         # ply_viz = np.zeros((720,1280,3),dtype=np.uint8)
-        # for row in range(crop_ply_data.shape[0]):
-        #     pix = rs.rs2_project_point_to_pixel(self.intrinsics, crop_ply_data[row,2:5])
+        # for row in range(len(crop_ply_data)):
+        #     pix = rs.rs2_project_point_to_pixel(self.intrinsics, crop_ply_data[row][2:5])
         #     pix = [round(x) for x in pix] # round to ints
 
-        #     z = round(crop_ply_data[row,4] * -100)
+        #     z = round(crop_ply_data[row][4] * -100)
         #     ply_viz[pix[1],pix[0]] = (30,z,30)
 
         # cv2.imshow("PLY VIZ", ply_viz)
@@ -183,5 +172,5 @@ class RobotSegmenter():
         output_image = np.multiply(image, mask_img).astype(np.uint8)
         output_image = output_image[roi[0]:roi[2],roi[1]:roi[3]]
 
-        return output_image, crop_ply_data, tim.aslist()
+        return output_image, crop_ply_data, roi[1]
 

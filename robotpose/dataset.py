@@ -68,16 +68,20 @@ def build(data_path, dest_path = None):
     segmenter = RobotSegmenter()
     segmented_img_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
     ply_data = []
+    x_crop_list = []
 
     times = np.array([0,0,0,0,0,0,0], dtype=np.float64)
     # Segment images and PLYS
     for idx in tqdm(range(length),desc="Segmenting"):
         ply_path = os.path.join(data_path,plys[idx])
-        segmented_img_arr[idx,:,:,:], ply, t = segmenter.segmentImage(orig_img_arr[idx], ply_path)
+        segmented_img_arr[idx,:,:,:], ply, x_crop = segmenter.segmentImage(orig_img_arr[idx], ply_path)
         ply_data.append(ply)
-        times += np.asarray(t)
+        x_crop_list.append(x_crop)
 
-    print(times)
+    x_crop_list = np.asarray(x_crop_list)
+    # Save x_crop array
+    np.save(os.path.join(dest_path, 'x_crop.npy'), x_crop_list)
+
 
     # Save segmented image array
     np.save(os.path.join(dest_path, 'seg_img.npy'), segmented_img_arr)
@@ -239,7 +243,13 @@ class Dataset():
 
         # Read in point data
         print("Reading 3D data...")
-        self.ply = np.load(os.path.join(self.path, 'ply.npy'),allow_pickle=True)
+        ply_in = np.load(os.path.join(self.path, 'ply.npy'),allow_pickle=True)
+        self.ply = []
+        for entry in ply_in:
+            entry = np.array(entry)
+            self.ply.append(entry)
+
+        self.x_crop =  np.load(os.path.join(self.path, 'x_crop.npy'))
 
         # Set deeppose dataset path
         self.deepposeds_path = os.path.join(self.path,'deeppose.h5')
