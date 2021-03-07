@@ -165,9 +165,19 @@ def vizDepth_new(ply_frame_data, image):
     idx_arr = ply_frame_data[:,0:2].astype(int)
     print(f"{z_min}\t{z_max}")
     for idx in range(len(ply_frame_data)):
-        g = int(np.interp(ply_frame_data[idx,4],[z_min,z_max],[0,255]))
+        g = int(np.interp(ply_frame_data[idx,4],[z_min,z_max],[20,255]))
         r = int(255-1.5*g)
-        image = cv2.circle(image, (idx_arr[idx,0],idx_arr[idx,1]), radius=0, color=(0,g,r), thickness=-1)
+        if g > 255:
+            g=255
+        if r>255:
+            r=255
+        if g<0:
+            g=0
+        if r<0:
+            r=0
+        image = cv2.circle(image, (idx_arr[idx,0],idx_arr[idx,1]), radius=1, color=(100,g,r), thickness=-1)
+
+    return image
 
 def reject_outliers(data, m=2):
     return data[abs(data - np.mean(data)) < m * np.std(data)]

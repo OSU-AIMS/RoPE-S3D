@@ -14,7 +14,7 @@ FLT_EPSILON = 1
 
 
 
-def makeIntrinsics(preset = '1280_720_depth'):
+def makeIntrinsics(preset = '1280_720_color'):
     """
     Make Realsense Intrinsics from presets
     """
@@ -127,4 +127,18 @@ def proj_point_to_pixel(intrin, points, correct_distortion = False):
     pixel[:,1] = y * intrin.fy + intrin.ppy
 
     return pixel
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

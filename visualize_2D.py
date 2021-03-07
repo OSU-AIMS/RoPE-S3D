@@ -51,7 +51,7 @@ while ret:
     dual[:,frame_width:frame_width*2] = over
 
     out.write(dual)
-    cv2.imshow("test",dual)
+    cv2.imshow("Output",dual)
     cv2.waitKey(1)
     i+=1
     ret, image = cap.read()

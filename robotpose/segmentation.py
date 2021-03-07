@@ -5,7 +5,7 @@ import os
 import numpy as np
 import open3d as o3d
 import pyrealsense2 as rs
-from .utils import makeIntrinsics, Timer
+from .utils import makeIntrinsics, Timer, vizDepth_new
 from tqdm import tqdm
 from . import paths as p
 import time
@@ -19,14 +19,14 @@ class RobotSegmenter():
         self.master.inferConfig(num_classes= 1, class_names= ["BG", "mh5"])
         self.master.load_model(model_path)
         self.crop_resolution = resolution
-        self.intrinsics = makeIntrinsics()
+        self.intrinsics = proj.makeIntrinsics('1280_720_color')
 
     def height(self):
         return self.crop_resolution[0]
     def width(self):
         return self.crop_resolution[1]
 
-    def segmentImage(self, img, ply_path):
+    def segmentImage(self, img, ply_path, debug=False):
         # Load image if given path
         if type(img) is str:
             image = cv2.imread(img)
@@ -139,17 +139,48 @@ class RobotSegmenter():
 
         # Do as array instead of points
         points_proj = proj.proj_point_to_pixel(self.intrinsics, points)
+        
+        if debug:
+            ####################
+            temp = np.zeros((points_proj.shape[0],5))
+            temp[:,0:2] = points_proj
+            temp[:,2:5] = ply_data
+            temp_show = np.zeros((720,1280,3),dtype=np.uint8)
+            cv2.imshow("Before",vizDepth_new(temp,temp_show))
+            cv2.waitKey(1)
+            ####################
+
 
         points_proj_idx = np.zeros(points_proj.shape,dtype=int)
-        points_proj_idx[:,0] = np.clip(points_proj[:,0],0,1279)
-        points_proj_idx[:,1] = np.clip(points_proj[:,1],0,719)
+        points_proj_idx[:,0] = np.round(np.clip(points_proj[:,0],0,1279))
+        points_proj_idx[:,1] = np.round(np.clip(points_proj[:,1],0,719))
 
-        for row in range(points.shape[0]):
+        if debug:
+            ####################
+            temp = np.zeros((points_proj.shape[0],5))
+            temp[:,0:2] = points_proj_idx
+            temp[:,2:5] = ply_data
+            temp_show = np.zeros((720,1280,3),dtype=np.uint8)
+            vizDepth_new(temp,temp_show)
+            temp_show = temp_show *.5 + image *.5
+            cv2.imshow("Before_overlay",temp_show.astype(np.uint8))
+            cv2.waitKey(1)
+            ####################
+
+
+        for row in range(points_proj.shape[0]):
             if mask[points_proj_idx[row,1],points_proj_idx[row,0]]:
                 # Shift based on ROI
                 points_proj[row,0] -= roi[1]
                 points_proj[row,1] -= roi[0]
                 crop_ply_data.append(np.append(points_proj[row,:], ply_data[row,:]))
+
+        if debug:
+            ##############
+            temp_show = np.zeros((720,1280,3),dtype=np.uint8)
+            cv2.imshow("After",vizDepth_new(np.asarray(crop_ply_data),temp_show))
+            cv2.waitKey(1)
+            ##############
 
         # ply_viz = np.zeros((720,1280,3),dtype=np.uint8)
         # for row in range(len(crop_ply_data)):
@@ -172,5 +203,14 @@ class RobotSegmenter():
         output_image = np.multiply(image, mask_img).astype(np.uint8)
         output_image = output_image[roi[0]:roi[2],roi[1]:roi[3]]
 
-        return output_image, crop_ply_data, roi[1]
+        if debug:
+            #####################
+            temp_show_crop = temp_show[:,0:800]
+            temp_show_crop = output_image * .5 + temp_show_crop *.5
+            cv2.imshow("output_overlay",temp_show_crop.astype(np.uint8))
+            print("Cycle Complete")
+            cv2.waitKey(0)
+            ######################
+
+        return output_image, crop_ply_data
 
