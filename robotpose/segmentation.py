@@ -157,6 +157,10 @@ class RobotSegmenter():
                 crop_ply_data.append(np.append(points_proj[row,:], ply_data[row,:]))
         tim.split("Check")#55 sec
 
+        # Shift data based on final ROI
+        for entry in crop_ply_data:
+            entry[0] -= roi[0]
+            entry[1] -= roi[1]
 
         # ply_viz = np.zeros((720,1280,3),dtype=np.uint8)
         # for row in range(crop_ply_data.shape[0]):

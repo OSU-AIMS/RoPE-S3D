@@ -11,6 +11,7 @@ from robotpose import paths as p
 from .segmentation import RobotSegmenter
 import time
 import datetime
+from deepposekit.io import initialize_dataset
 
 
 def build(data_path, dest_path = None):
@@ -96,27 +97,6 @@ def build(data_path, dest_path = None):
     np.save(os.path.join(dest_path,'ply.npy'),ply_data_nd)
 
 
-    # # Figure out what length all ply data must be to fit in the same array
-    # ply_lengths = [len(x) for x in ply_data]
-    # unif_ply_length = np.max(ply_lengths)
-
-    # dummy = [9999,9999,9999,9999,9999]  # What to insert in unused spaces
-    # new_ply = []
-
-    # for ply in ply_data:
-    #     # Normalize the length of each ply frame
-    #     num_to_append = unif_ply_length - len(ply)
-    #     to_append = [dummy] * num_to_append
-    #     ply.extend(to_append)
-
-    #     # Append to new list
-    #     new_ply.append(ply)
-
-    # # Save as numpy array
-    # full_ply_data = np.asarray(new_ply)
-    # np.save(os.path.join(dest_path,'ply.npy'),full_ply_data)
-
-
     """
     Parse JSONs
     """
@@ -155,7 +135,7 @@ def build(data_path, dest_path = None):
 
 
 class Dataset():
-    def __init__(self, name, skeleton=None, load_seg = True, load_og = False, no_data = False, primary = "seg"):
+    def __init__(self, name, skeleton=None, load_seg = True, load_og = False, primary = "seg"):
         
         self.load_seg = load_seg
         self.load_og = load_og
@@ -202,12 +182,16 @@ class Dataset():
 
         # Set paths, resolution
 
-        if self.load_seg:
-            self.seg_vid_path = os.path.join(self.path, 'seg_vid.avi')
-            self.resolution_seg = self.seg_img.shape[1:3]
+
         if self.load_og:
             self.og_vid_path = os.path.join(self.path, 'og_vid.avi')
             self.resolution_og = self.og_img.shape[1:3]
+            self.resolution = self.resolution_og
+        if self.load_seg:
+            self.seg_vid_path = os.path.join(self.path, 'seg_vid.avi')
+            self.resolution_seg = self.seg_img.shape[1:3]
+            self.resolution = self.resolution_seg
+
 
         # Set primary image and video types
         if self.load_seg and not self.load_og:
@@ -228,12 +212,8 @@ class Dataset():
 
 
 
-        # If specified, remove all data from object to save space (only obtain paths)
-        if no_data:
-            del self.angles, self.ply
-
-
     def load(self, skeleton=None):
+        print("\nLoading Dataset...")
         # Read into JSON to get dataset settings
         with open(os.path.join(self.path, 'ds.json'), 'r') as f:
             d = json.load(f)
@@ -242,23 +222,24 @@ class Dataset():
 
         # Read in og images
         if self.load_og:
+            print("Reading orig images...")
             self.og_img = np.load(os.path.join(self.path, 'og_img.npy'))
             self.og_vid = cv2.VideoCapture(os.path.join(self.path, 'og_vid.avi'))
 
         # Read in seg images
         if self.load_seg:
+            print("Reading segmented images...")
             self.seg_img = np.load(os.path.join(self.path, 'seg_img.npy'))
             self.seg_vid = cv2.VideoCapture(os.path.join(self.path, 'seg_vid.avi'))
+            
 
         # Read angles
+        print("Reading joint angles...")
         self.angles = np.load(os.path.join(self.path, 'ang.npy'))
 
         # Read in point data
-        with open(os.path.join(self.path, 'ply.pyc'), 'rb') as f:
-            self.ply = pickle.load(f)
-        # Make sure points are as numpy arrays
-        for idx in range(self.length):
-            self.ply[idx] = np.asarray(self.ply[idx])
+        print("Reading 3D data...")
+        self.ply = np.load(os.path.join(self.path, 'ply.npy'),allow_pickle=True)
 
         # Set deeppose dataset path
         self.deepposeds_path = os.path.join(self.path,'deeppose.h5')
@@ -266,6 +247,8 @@ class Dataset():
         # If a skeleton is set, change paths accordingly
         if skeleton is not None:
             self.setSkeleton(skeleton)
+        
+        print("Dataset Loaded.\n\n")
 
 
     def validate(self, path):
@@ -277,7 +260,7 @@ class Dataset():
         seg_vid = os.path.isfile(os.path.join(path,'seg_vid.avi'))
         og_vid = os.path.isfile(os.path.join(path,'og_vid.avi'))
 
-        return ang and ds and ply and ((seg_img and seg_vid) or (og_img and og_vid))
+        return ang and ds and ply and seg_img and og_img and seg_vid and og_vid
 
 
     def build(self,data_path):
@@ -289,6 +272,26 @@ class Dataset():
                 self.skeleton = os.path.splitext(file)[0]
                 self.skeleton_path = os.path.join(p.skeletons, file)
                 self.deepposeds_path = self.deepposeds_path.replace('.h5','_'+os.path.splitext(file)[0]+'.h5')
+
+    def makeDeepPoseDS(self, force=False):
+        if force:
+            initialize_dataset(
+                images=self.seg_img,
+                datapath=self.deepposeds_path,
+                skeleton=self.skeleton_path,
+                overwrite=True # This overwrites the existing datapath
+            )
+            return
+
+        if not os.path.isfile(self.deepposeds_path):
+            initialize_dataset(
+                images=self.seg_img,
+                datapath=self.deepposeds_path,
+                skeleton=self.skeleton_path,
+                overwrite=False # This overwrites the existing datapath
+            )
+        else:
+            print("Using Precompiled Deeppose Dataset")
 
 
     def __len__(self):

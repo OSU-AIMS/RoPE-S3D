@@ -1,3 +1,4 @@
+from robotpose.utils import limitMemory
 from robotpose.dataset import Dataset
 import tensorflow as tf
 import numpy as np
@@ -11,10 +12,11 @@ from robotpose import paths as p
 import os
 import argparse
 
+limitMemory()
 
 def run(dataset, skeleton, model_type, batch_size, valid_size):
 
-    ds = Dataset(dataset,skeleton,no_data=True)
+    ds = Dataset(dataset,skeleton)
     print("Dataset loaded")
     data_generator = DataGenerator(ds.deepposeds_path)
     print("Data Generator loaded")
@@ -31,7 +33,7 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
                                         augmenter=None,
                                         sigma=5,
                                         validation_split=valid_size, 
-                                        use_graph=False,
+                                        use_graph=True,
                                         random_seed=1,
                                         graph_scale=1)
         print("Training Generator loaded")

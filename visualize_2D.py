@@ -12,8 +12,7 @@ from robotpose.dataset import Dataset
 limitMemory()
 
 # Load dataset
-ds = Dataset('set5','B',primary="rm")
-print(ds.resolution)
+ds = Dataset('set7','B')
 
 # Read in Actual angles from JSONs to compare predicted angles to
 S_angles = ds.angles[:,0]
@@ -22,7 +21,7 @@ U_angles = ds.angles[:,2]
 B_angles = ds.angles[:,4]
 
 # Load model, make predictions
-model = load_model(r'C:\Users\exley\OneDrive\Documents\GitHub\DeepPoseRobot\models\deeppose_B_CutMobilenet_1.h5')
+model = load_model(r'C:\Users\exley\OneDrive\Documents\GitHub\DeepPoseRobot\models\set6_slu__B__CutMobilenet.h5')
 reader = VideoReader(ds.vid_path)
 predictions = model.predict(reader)
 
