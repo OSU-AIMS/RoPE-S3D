@@ -1,6 +1,7 @@
 # Raw data
-data/raw/*/
+data/raw/*.zip
 data/*/
+data/raw/extracted
 !data/raw/
 !data/skeletons/
 .vscode

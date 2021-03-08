@@ -14,12 +14,15 @@ import datetime
 from deepposekit.io import initialize_dataset
 
 
-dataset_version = 1.0
+dataset_version = 1.1
 """
 Version 1.0: 3/7/2021
     Began versioning.
     Compatible versions should include the same integer base (eg 1.0 and 1.4).
-    Backwards-Incompatiblity should be marked by a new integer base (eg going from 1.4 to 2.0)
+    Backwards-Incompatiblity should be marked by a new integer base (eg going from 1.4 to 2.0).
+
+Version 1.1: 3/7/2022
+    Changed raw compilation from using folders to using zip files to save storage
 
 """
 
@@ -80,13 +83,11 @@ def build(data_path, dest_path = None):
     segmented_img_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
     ply_data = []
 
-    times = np.array([0,0,0,0,0,0,0], dtype=np.float64)
     # Segment images and PLYS
     for idx in tqdm(range(length),desc="Segmenting"):
         ply_path = os.path.join(data_path,plys[idx])
         segmented_img_arr[idx,:,:,:], ply = segmenter.segmentImage(orig_img_arr[idx], ply_path)
         ply_data.append(ply)
-
 
     # Save segmented image array
     np.save(os.path.join(dest_path, 'seg_img.npy'), segmented_img_arr)
@@ -150,42 +151,90 @@ class Dataset():
         self.load_seg = load_seg
         self.load_og = load_og
         # Search for dataset with correct name
-        datasets = [ f.path for f in os.scandir(p.datasets) if f.is_dir() ]
-        names = [ os.path.basename(os.path.normpath(x)) for x in datasets ]
-        ds_found = False
-        for ds, nm in zip(datasets, names):
-            if name in nm:
-                if self.validate(ds):
-                    self.path = ds
-                    self.name = nm
-                    ds_found = True
-                    break
-                else:
-                    print("\nDataset Incomplete.")
-                    print(f"Recompiling:\n")
-                    self.build(os.path.join(os.path.join(p.datasets,'raw'),nm))
-                    self.path = ds
-                    self.name = nm
-                    ds_found = True
-                    break
-
-
-        # If no dataset was found, try to find one to build
-        if not ds_found:
-            datasets = [ f.path for f in os.scandir(os.path.join(p.datasets,'raw')) if f.is_dir() ]
-            names = [ os.path.basename(os.path.normpath(x)) for x in datasets ]
-            for ds, nm in zip(datasets, names):
-                if name in nm:
-                    print("\nNo matching compiled dataset found.")
-                    print(f"Compiling from {ds}:\n")
-                    self.build(ds)
-                    self.path = os.path.join(p.datasets, nm)
-                    self.name = nm
-                    ds_found = True
-                    break
+        # datasets = [ f.path for f in os.scandir(p.datasets) if f.is_dir() ]
+        # names = [ os.path.basename(os.path.normpath(x)) for x in datasets ]
+        # ds_found = False
+        # for ds, nm in zip(datasets, names):
+        #     if name in nm:
+        #         if self.validate(ds):
+        #             self.path = ds
+        #             self.name = nm
+        #             ds_found = True
+        #             break
+        #         else:
+        #             print("\nDataset Incomplete.")
+        #             print(f"Recompiling:\n")
+        #             self.build(os.path.join(os.path.join(p.datasets,'raw'),nm))
+        #             self.path = ds
+        #             self.name = nm
+        #             ds_found = True
+        #             break
+        #         # If no dataset was found, try to find one to build
+        # if not ds_found:
+        #     datasets = [ f.path for f in os.scandir(os.path.join(p.datasets,'raw')) if f.is_dir() ]
+        #     names = [ os.path.basename(os.path.normpath(x)) for x in datasets ]
+        #     for ds, nm in zip(datasets, names):
+        #         if name in nm:
+        #             print("\nNo matching compiled dataset found.")
+        #             print(f"Compiling from {ds}:\n")
+        #             self.build(ds)
+        #             self.path = os.path.join(p.datasets, nm)
+        #             self.name = nm
+        #             ds_found = True
+        #             break
         
-        # Make sure a dataset was found
-        assert ds_found, f"No matching dataset found for '{name}'"
+
+        compiled_datasets = [ f.path for f in os.scandir(p.datasets) if f.is_dir() and 'raw' not in str(f.path) and 'skeleton' not in str(f.path) ]
+        compiled_names = [ os.path.basename(os.path.normpath(x)) for x in compiled_datasets ]
+
+        uncompiled_datasets = [ f.path for f in os.scandir(os.path.join(p.datasets,'raw')) if str(f.path).endswith('.zip') ]
+        uncompiled_names = [ os.path.basename(os.path.normpath(x)) for x in uncompiled_datasets ]
+
+        compiled_matches = [x for x in compiled_names if x.startswith(name)]
+        uncompiled_matches = [x for x in uncompiled_names if x.startswith(name)]
+
+        if len(compiled_matches) == 0:
+            # No compiled matches found, attempt to compile one
+            if len(uncompiled_matches) == 0:
+                # No matches found at all, list options
+                raise ValueError(f"No matching datasets found. The following are availble:\n\tCompiled: {compiled_names}\n\tUncompiled: {[x.replace('.zip','') for x in uncompiled_names]}")
+            if len(uncompiled_matches) > 1:
+                # Multiple matches found
+                raise ValueError(f"Multiple uncompiled sets were found with the given dataset name:\n\tGiven Name: {name}\n\tMatching Names: {uncompiled_matches}")
+            else:
+                # One uncompiled match found, compile
+                ds_name = uncompiled_matches[0].replace('.zip','')
+                print("No matching compiled datasets found.\nCompiling from raw data.\n\n")
+                ds_path = self.compile_from_zip([x for x in uncompiled_datasets if uncompiled_matches[0] in x][0])
+        elif len(compiled_matches) > 1:
+            # Multiple matches found, raise error
+            raise ValueError(f"Multiple compiled sets were found with the given dataset name:\n\tGiven Name: {name}\n\tMatching Names: {compiled_matches}")
+        else:
+            # One match found, set
+            ds_name = compiled_matches[0]
+            ds_path = [x for x in compiled_datasets if compiled_matches[0] in x][0]
+
+        # There is now a dataset chosen, validate
+        if self.validate(ds_path):
+            # Validation sucessful, set paths
+            self.path = ds_path
+            self.name = os.path.basename(os.path.normpath(ds_path))
+        else:
+            # Attempt a recompile
+            if len(uncompiled_matches) == 0:
+                raise ValueError(f"The chosen dataset could not be validated and raw data for a rebuild cannot be found.")
+            if len(uncompiled_matches) > 1:
+                raise ValueError(f"The chosen dataset could not be validated and multiple raw data files for a rebuild are found.")
+            else:
+                # Actually recompile
+                print("Dataset validation failed.\nAttempting recompile.\n\n")
+                ds_name = uncompiled_matches[0].replace('.zip','')
+                ds_path = self.compile_from_zip([x for x in uncompiled_datasets if uncompiled_matches[0] in x][0])
+
+        
+        self.path = ds_path
+        self.name = ds_name
+
 
         # Load dataset
         self.load(skeleton)
@@ -289,6 +338,35 @@ class Dataset():
 
     def build(self,data_path):
         build(data_path)
+
+
+
+    def compile_from_zip(self, zip_path):
+        import tempfile
+        import zipfile
+        with tempfile.TemporaryDirectory() as tempdir:
+            print("Extracting raw data...")
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(tempdir)
+
+            # Go in one folder if needed
+            src_dir = tempdir
+            if len(os.listdir(tempdir)) == 1:
+                src_dir = os.path.join(tempdir,os.listdir(tempdir)[0])
+            
+            # Get final dataset path
+            dest_dir = os.path.join(p.datasets,os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
+
+            # Build
+            print("Attempting dataset build...\n\n")
+            build(src_dir, dest_dir)
+
+        return dest_dir
+
+
+
+
+
 
     def setSkeleton(self,skeleton_name):
         for file in [x for x in os.listdir(p.skeletons) if x.endswith('.csv')]:
