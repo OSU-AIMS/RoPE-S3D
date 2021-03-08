@@ -1,27 +1,37 @@
 import os
 import cv2
 from robotpose import paths as p
+import imageio
+import argparse
+import numpy as np
+
+parser = argparse.ArgumentParser()
+parser.add_argument('path', type=str)
+args = parser.parse_args()
 
 
 
-cap = cv2.VideoCapture(p.video.replace(".avi","_overlay.avi"))
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out = cv2.VideoWriter(p.video.replace(".avi","_overlay_rebound.avi"),fourcc, 30, (640*2,480))
+cap = cv2.VideoCapture(args.path)
+
 
 frames = []
 
 ret, frame = cap.read()
 while ret:
-    frames.append(frame)
+    frames.append(cv2.cvtColor(frame,cv2.COLOR_BGR2RGB))
     ret, frame = cap.read()
+cap.release()
 
 rev = frames.copy()
 rev.reverse()
 
 full = frames + rev
+full = np.asarray(full)
 
-for frame in full:
-    out.write(frame)
+imageio.mimsave('assets/a.gif', full, duration = .033)
+print("Done")
 
-cap.release()
-out.release()
+
+
+
+
