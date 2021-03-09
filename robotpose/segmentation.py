@@ -116,11 +116,13 @@ class RobotSegmenter():
         cloud = o3d.io.read_point_cloud(ply_path)
         points = np.asarray(cloud.points)
 
-        # Invert x Coords
+        # Invert X Coords
         points[:,0] = points[:,0] * -1
 
-        ply_data = np.zeros((points.shape[0], 3))
-        ply_data[:,:] = points
+        # Align XYZ points relative to the color camera instead of the depth camera
+        points[:,0] -= .0175
+
+        ply_data = points
 
         crop_ply_data = []
 
