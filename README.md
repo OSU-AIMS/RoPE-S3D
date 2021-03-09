@@ -6,6 +6,8 @@
 
 This is an adaptation of both [DeepPoseKit](deepposekit.org)  and [PixelLib](https://github.com/ayoolaolafenwa/PixelLib) to predict robot joint angles.
 
+Visualization uses the [Turbo Colormap](https://ai.googleblog.com/2019/08/turbo-improved-rainbow-colormap-for.html).
+
 The robot is isolated from the background using PixelLib and then the keypoint locations of the robot are predicted using a DeepPoseKit model.
 
 
@@ -38,23 +40,3 @@ pip install --update tensorfow-gpu==2.0.0
 # License
 
 Released under a Apache 2.0 License. See [LICENSE](https://github.com/jgraving/deepposekit/blob/master/LICENSE) for details.
-
-# References
-
-If you use DeepPoseKit for your research please cite [our open-access paper](http://paper.deepposekit.org):
-
-    @article{graving2019deepposekit,
-             title={DeepPoseKit, a software toolkit for fast and robust animal pose estimation using deep learning},
-             author={Graving, Jacob M and Chae, Daniel and Naik, Hemal and Li, Liang and Koger, Benjamin and Costelloe, Blair R and Couzin, Iain D},
-             journal={eLife},
-             volume={8},
-             pages={e47994},
-             year={2019},
-             publisher={eLife Sciences Publications Limited}
-             url={https://doi.org/10.7554/eLife.47994},
-             }
-
-
-If you use the [imgaug package](https://github.com/aleju/imgaug) for data augmentation, please also consider [citing it](https://github.com/aleju/imgaug/blob/master/README.md#citation).
-
-Please also consider citing the relevant references for the pose estimation model(s) used in your research, which can be found in the documentation (i.e., [`StackedDenseNet`](http://jakegraving.com/DeepPoseKit/html/deepposekit/models/StackedDenseNet.html#references), [`StackedHourglass`](http://jakegraving.com/DeepPoseKit/html/deepposekit/models/StackedHourglass.html#references), [`DeepLabCut`](http://jakegraving.com/DeepPoseKit/html/deepposekit/models/DeepLabCut.html#references), [`LEAP`](http://jakegraving.com/DeepPoseKit/html/deepposekit/models/LEAP.html#references)).
