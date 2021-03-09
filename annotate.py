@@ -1,7 +1,6 @@
-from matplotlib.pyplot import annotate
 from robotpose.dataset import Dataset
 from deepposekit import Annotator
-from deepposekit.io import DataGenerator, initialize_dataset
+from deepposekit.io import DataGenerator
 import os
 import argparse
 
@@ -14,7 +13,7 @@ def anno(set,skele):
     # Create DeepPoseDataset path if not already made
     ds.makeDeepPoseDS()
 
-    data_generator = DataGenerator(ds.deepposeds_path, mode="full")
+    #data_generator = DataGenerator(ds.deepposeds_path, mode="full")
 
 
     app = Annotator(datapath=os.path.abspath(ds.deepposeds_path),
