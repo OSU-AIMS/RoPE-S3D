@@ -5,10 +5,11 @@ import os
 import numpy as np
 import open3d as o3d
 import pyrealsense2 as rs
-from .utils import makeIntrinsics
+from .utils import makeIntrinsics, Timer, vizDepth_new
 from tqdm import tqdm
 from . import paths as p
 import time
+from . import projection as proj
 
 
 class RobotSegmenter():
@@ -18,9 +19,14 @@ class RobotSegmenter():
         self.master.inferConfig(num_classes= 1, class_names= ["BG", "mh5"])
         self.master.load_model(model_path)
         self.crop_resolution = resolution
-        self.intrinsics = makeIntrinsics()
+        self.intrinsics = proj.makeIntrinsics('1280_720_color')
 
-    def segment(self, img, ply_path):
+    def height(self):
+        return self.crop_resolution[0]
+    def width(self):
+        return self.crop_resolution[1]
+
+    def segmentImage(self, img, ply_path, debug=False):
         # Load image if given path
         if type(img) is str:
             image = cv2.imread(img)
@@ -30,8 +36,10 @@ class RobotSegmenter():
         image = np.asarray(image)
         tmp = np.copy(image)
 
+
         # Detect image
         r, output = self.master.segmentImage(tmp, process_frame=True)
+
 
         # Get mask and roi
         mask = np.asarray(r['masks'])
@@ -83,7 +91,7 @@ class RobotSegmenter():
         """
 
         # Base how far it goes down on how many are around it in an x-pixel radius
-        look_up_dist = 25
+        look_up_dist = 27
         look_side_dist = 10 # one way
 
         for col in range(mask.shape[1]):
@@ -99,7 +107,6 @@ class RobotSegmenter():
                     mask[image.shape[0]-look_up_dist:image.shape[0]-look_up_dist+to_go,col] = True
 
 
-        
 
         """
         Crop out PLY data
@@ -119,27 +126,68 @@ class RobotSegmenter():
 
 
         # Get pixel location of each point
-        for row in range(points.shape[0]):
-            # if define_search_area:
-            #     if ply_data[row,0] < X_min or ply_data[row,0] > X_max or ply_data[row,1] < Y_min or ply_data[row,1] > Y_max:
-            #         continue
+        # for row in range(points.shape[0]):
+        #     # if define_search_area:
+        #     #     if ply_data[row,0] < X_min or ply_data[row,0] > X_max or ply_data[row,1] < Y_min or ply_data[row,1] > Y_max:
+        #     #         continue
             
-            x,y = rs.rs2_project_point_to_pixel(self.intrinsics, ply_data[row,:])
-            # If point is in mask, add to data
-            if mask[round(y),round(x)]:
-                crop_ply_data.append(np.append([x,y], ply_data[row,:]))
+        #     x,y = rs.rs2_project_point_to_pixel(self.intrinsics, ply_data[row,:])
+        #     # If point is in mask, add to data
+        #     if mask[round(y),round(x)]:
+        #         crop_ply_data.append(np.append([x,y], ply_data[row,:]))
 
- 
-        # Store as numpy array
-        crop_ply_data = np.asarray(crop_ply_data)
 
+        # Do as array instead of points
+        points_proj = proj.proj_point_to_pixel(self.intrinsics, points)
+        
+        if debug:
+            ####################
+            temp = np.zeros((points_proj.shape[0],5))
+            temp[:,0:2] = points_proj
+            temp[:,2:5] = ply_data
+            temp_show = np.zeros((720,1280,3),dtype=np.uint8)
+            cv2.imshow("Before",vizDepth_new(temp,temp_show))
+            cv2.waitKey(1)
+            ####################
+
+
+        points_proj_idx = np.zeros(points_proj.shape,dtype=int)
+        points_proj_idx[:,0] = np.round(np.clip(points_proj[:,0],0,1279))
+        points_proj_idx[:,1] = np.round(np.clip(points_proj[:,1],0,719))
+
+        if debug:
+            ####################
+            temp = np.zeros((points_proj.shape[0],5))
+            temp[:,0:2] = points_proj_idx
+            temp[:,2:5] = ply_data
+            temp_show = np.zeros((720,1280,3),dtype=np.uint8)
+            vizDepth_new(temp,temp_show)
+            temp_show = temp_show *.5 + image *.5
+            cv2.imshow("Before_overlay",temp_show.astype(np.uint8))
+            cv2.waitKey(1)
+            ####################
+
+
+        for row in range(points_proj.shape[0]):
+            if mask[points_proj_idx[row,1],points_proj_idx[row,0]]:
+                # Shift based on ROI
+                points_proj[row,0] -= roi[1]
+                points_proj[row,1] -= roi[0]
+                crop_ply_data.append(np.append(points_proj[row,:], ply_data[row,:]))
+
+        if debug:
+            ##############
+            temp_show = np.zeros((720,1280,3),dtype=np.uint8)
+            cv2.imshow("After",vizDepth_new(np.asarray(crop_ply_data),temp_show))
+            cv2.waitKey(1)
+            ##############
 
         # ply_viz = np.zeros((720,1280,3),dtype=np.uint8)
-        # for row in range(crop_ply_data.shape[0]):
-        #     pix = rs.rs2_project_point_to_pixel(self.intrinsics, crop_ply_data[row,2:5])
+        # for row in range(len(crop_ply_data)):
+        #     pix = rs.rs2_project_point_to_pixel(self.intrinsics, crop_ply_data[row][2:5])
         #     pix = [round(x) for x in pix] # round to ints
 
-        #     z = round(crop_ply_data[row,4] * -100)
+        #     z = round(crop_ply_data[row][4] * -100)
         #     ply_viz[pix[1],pix[0]] = (30,z,30)
 
         # cv2.imshow("PLY VIZ", ply_viz)
@@ -154,8 +202,15 @@ class RobotSegmenter():
             mask_img[:,:,idx] = mask
         output_image = np.multiply(image, mask_img).astype(np.uint8)
         output_image = output_image[roi[0]:roi[2],roi[1]:roi[3]]
-        #print(output_image.shape)
-        #cv2.imshow("img",output_image)
-        #cv2.waitKey(0)
-        return output_image
+
+        if debug:
+            #####################
+            temp_show_crop = temp_show[:,0:800]
+            temp_show_crop = output_image * .5 + temp_show_crop *.5
+            cv2.imshow("output_overlay",temp_show_crop.astype(np.uint8))
+            print("Cycle Complete")
+            cv2.waitKey(0)
+            ######################
+
+        return output_image, crop_ply_data
 

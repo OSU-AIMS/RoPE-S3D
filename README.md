@@ -1,6 +1,7 @@
 # DeepPoseRobot, an implementation of DeepPoseKit
 <p align="center">
 <img src="https://github.com/AdamExley/DeepPoseRobot/blob/main/assets/video_overlay_rebound.gif" height="200px">
+<img src="https://github.com/AdamExley/DeepPoseRobot/blob/segmentation_dataset/assets/video_overlay_new.gif" height="200px">
 </p>
 
 This is an adaptation of [DeepPoseKit](deepposekit.org) to predict robot joint angles.

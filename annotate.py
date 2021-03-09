@@ -11,13 +11,8 @@ def anno(set,skele):
     print("Annotating on the following dataset:")
     print(ds)
 
-    if not os.path.isfile(ds.deepposeds_path):
-        initialize_dataset(
-            images=ds.rm_img,
-            datapath=ds.deepposeds_path,
-            skeleton=ds.skeleton_path,
-            overwrite=False # This overwrites the existing datapath
-        )
+    # Create DeepPoseDataset path if not already made
+    ds.makeDeepPoseDS()
 
     data_generator = DataGenerator(ds.deepposeds_path, mode="full")
 

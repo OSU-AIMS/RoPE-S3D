@@ -7,7 +7,7 @@ from tqdm import tqdm
 import pickle
 from robotpose import paths as p
 import open3d as o3d
-
+import time
 
 def limitMemory():
     import tensorflow as tf
@@ -152,25 +152,77 @@ def predToXYZ(dict_list, ply_data):
 
     return out
 
-def vizDepth(ply_frame_data, image):
+
+
+
+def vizDepth_new(ply_frame_data, image):
+    """
+    Overlays the depth information given on an image
+    """
+    z_no_out = reject_outliers(ply_frame_data[:,4])
+    z_min = np.min(z_no_out)
+    z_max = np.max(z_no_out)
+    idx_arr = ply_frame_data[:,0:2].astype(int)
+    print(f"{z_min}\t{z_max}")
+    for idx in range(len(ply_frame_data)):
+        g = int(np.interp(ply_frame_data[idx,4],[z_min,z_max],[20,255]))
+        r = int(255-1.5*g)
+        if g > 255:
+            g=255
+        if r>255:
+            r=255
+        if g<0:
+            g=0
+        if r<0:
+            r=0
+        image = cv2.circle(image, (idx_arr[idx,0],idx_arr[idx,1]), radius=1, color=(100,g,r), thickness=-1)
+
+    return image
+
+def reject_outliers(data, m=2):
+    return data[abs(data - np.mean(data)) < m * np.std(data)]
+
+
+
+class Timer():
+    def __init__(self):
+        self.split_names = []
+        self.split_times = []
+        self.split_times.append(time.time())
+
+    def split(self,split_name):
+        self.split_times.append(time.time())
+        self.split_names.append(split_name)
+
+    def aslist(self):
+        out = []
+        for idx in range(1,len(self.split_times)):
+            out.append(self.split_times[idx] - self.split_times[idx-1])
+
+        return out
+
+    def __repr__(self):
+        out = "Times:"
+        for idx in range(1,len(self.split_times)):
+            out += f"\n\t{self.split_names[idx-1]}: {self.split_times[idx] - self.split_times[idx-1]:.3f}"
+
+        return out
+
+
+
+
+def vizDepth(ply_frame_data, image, x_crop):
     """
     Overlays the depth information given on an image
     """
     intrin = makeIntrinsics()
     for pt in ply_frame_data:
         x, y = rs.rs2_project_point_to_pixel(intrin, pt[2:5])
-        x = int(x)
+        x = int(x)-x_crop
         y = int(y)
         g = int(np.interp(pt[4],[-1.3,-.9],[0,255]))
         r = 255-2*g
         image = cv2.circle(image, (x,y), radius=0, color=(0,g,r), thickness=-1)
-
-
-
-
-
-def proj_point_to_pixel(intrinsics, points):
-    pix = np.zeros()
 
 
 
@@ -183,8 +235,18 @@ These functions are in the process of being replaced by the dataset class
 """
 
 
-
-
+def vizDepth_old(ply_frame_data, image):
+    """
+    Overlays the depth information given on an image
+    """
+    intrin = makeIntrinsics()
+    for pt in ply_frame_data:
+        x, y = rs.rs2_project_point_to_pixel(intrin, pt[2:5])
+        x = int(x)
+        y = int(y)
+        g = int(np.interp(pt[4],[-1.3,-.9],[0,255]))
+        r = 255-2*g
+        image = cv2.circle(image, (x,y), radius=0, color=(0,g,r), thickness=-1)
 
 
 def parsePLYasPoints(path):

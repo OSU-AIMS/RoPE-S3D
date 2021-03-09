@@ -2,7 +2,9 @@
 
 Raw and compiled data is stored here.
 
-Place raw data in /data/raw/ before compiling.
+Place raw zip data in /data/raw/ before compiling.
+
+Compilation occurs automatically if loading of uncompiled dataset is attempted.
 
 To compile a dataset manually, use the following function:
 ```python
@@ -24,23 +26,18 @@ Data should be arranged as follows:
 ├── ...
 ├── data
 |   |── raw
-|   |   |── set3_lu                 # Placed by user
-|   |   |   |──2021022300001.json
-|   |   |   |──2021022300001.ply
-|   |   |   |──2021022300001_og.png
-|   |   |   |──2021022300001_rm.png
-|   |   |   |──2021022300002.json
-|   |   |   └── ...
+|   |   |── set6_slu.zip             # Placed by user
+|   |   |── set7_lu.zip              
 |   |   └── ...
 |   |  
-|   |── set3_lu                     # Compilied by program
+|   |── set6_slu                     # Compilied by program
 |   |   |── ds.json
 |   |   |── ang.npy
 |   |   |── og_img.npy
-|   |   |── rm_img.npy
+|   |   |── seg_img.npy
 |   |   |── og_vid.avi
-|   |   |── rm_vid.avi
-|   |   |── ply.pyc
+|   |   |── seg_vid.avi
+|   |   |── ply.npy
 |   |   └── 
 |   |   
 |   |── skeletons                   # Created by user

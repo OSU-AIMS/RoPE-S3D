@@ -12,8 +12,7 @@ from robotpose.dataset import Dataset
 limitMemory()
 
 # Load dataset
-ds = Dataset('set5','B',primary="rm")
-print(ds.resolution)
+ds = Dataset('set6','B')
 
 # Read in Actual angles from JSONs to compare predicted angles to
 S_angles = ds.angles[:,0]
@@ -22,7 +21,7 @@ U_angles = ds.angles[:,2]
 B_angles = ds.angles[:,4]
 
 # Load model, make predictions
-model = load_model(r'C:\Users\exley\OneDrive\Documents\GitHub\DeepPoseRobot\models\deeppose_B_CutMobilenet_1.h5')
+model = load_model(r'C:\Users\exley\OneDrive\Documents\GitHub\DeepPoseRobot\models\set6_slu__B__CutMobilenet.h5')
 reader = VideoReader(ds.vid_path)
 predictions = model.predict(reader)
 
@@ -42,7 +41,8 @@ while ret:
     over = np.zeros((ds.resolution[0],ds.resolution[1],3),dtype=np.uint8)
 
     # Put depth info on overlay
-    #vizDepth(ds.ply[i], over)
+    vizDepth_new(ds.ply[i], over)
+    #vizDepth(ds.ply[i], over, ds.x_crop[i])
     #Visualize lines
     viz(image, over, predictions[i])
 
@@ -51,7 +51,7 @@ while ret:
     dual[:,frame_width:frame_width*2] = over
 
     out.write(dual)
-    cv2.imshow("test",dual)
+    cv2.imshow("Output",dual)
     cv2.waitKey(1)
     i+=1
     ret, image = cap.read()
