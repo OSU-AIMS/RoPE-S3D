@@ -35,4 +35,6 @@ def interpolate_or_clip(x, colormap=turbo_colormap_data):
 
 def normalize_and_interpolate(x, x_min, x_max):
   x = (x - x_min) / (x_max - x_min)
-  return [int(c * 255) for c in interpolate_or_clip(x)]
+  if x < 0.0: x = 0.0
+  elif x > 1.0: x = 1.0
+  return [int(c * 255) for c in interpolate(x)]

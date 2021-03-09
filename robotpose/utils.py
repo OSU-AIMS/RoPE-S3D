@@ -75,6 +75,20 @@ def predToDictList(preds):
                     'B':p[4],
                     'T':p[5]})
     return out
+
+
+def predToDictList_new(preds):
+    """
+    Takes predictions from DeepPoseKit as list and translates into a dictionary of points
+    """
+    out = []
+    for p in preds:
+        out.append({'base':p[0],
+                    'L':p[1],
+                    'U':p[2],
+                    'R':p[3],
+                    'B':p[4]})
+    return out
     
 
 def viz(image, over, frame_data):
