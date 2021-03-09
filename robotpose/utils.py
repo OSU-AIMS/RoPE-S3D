@@ -8,6 +8,9 @@ import pickle
 from robotpose import paths as p
 import open3d as o3d
 import time
+from .projection import makeIntrinsics
+from .turbo_colormap import normalize_and_interpolate
+
 
 def limitMemory():
     import tensorflow as tf
@@ -122,23 +125,25 @@ def vizDepth_new(ply_frame_data, image):
     """
     Overlays the depth information given on an image
     """
-    z_no_out = reject_outliers(ply_frame_data[:,4])
+    z_no_out = reject_outliers(ply_frame_data[:,4],m=2)
     z_min = np.min(z_no_out)
     z_max = np.max(z_no_out)
     idx_arr = ply_frame_data[:,0:2].astype(int)
     print(f"{z_min}\t{z_max}")
     for idx in range(len(ply_frame_data)):
-        g = int(np.interp(ply_frame_data[idx,4],[z_min,z_max],[20,255]))
-        r = int(255-1.5*g)
-        if g > 255:
-            g=255
-        if r>255:
-            r=255
-        if g<0:
-            g=0
-        if r<0:
-            r=0
-        image = cv2.circle(image, (idx_arr[idx,0],idx_arr[idx,1]), radius=1, color=(100,g,r), thickness=-1)
+        # g = int(np.interp(ply_frame_data[idx,4],[z_min,z_max],[0,255]))
+        # r = int(np.interp(ply_frame_data[idx,4],[z_min,(z_max+z_min)/1.5],[255,0]))
+        # if g > 255:
+        #     g=255
+        # if r>255:
+        #     r=255
+        # if g<0:
+        #     g=0
+        # if r<0:
+        #     r=0
+        color = normalize_and_interpolate(ply_frame_data[idx,4], z_min, z_max)
+        color.reverse()
+        image = cv2.circle(image, (idx_arr[idx,0],idx_arr[idx,1]), radius=1, color=color, thickness=-1)
 
     return image
 
