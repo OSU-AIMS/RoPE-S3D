@@ -4,18 +4,14 @@
 <img src="https://github.com/AdamExley/DeepPoseRobot/blob/segmentation_dataset/assets/video_overlay_new.gif" height="200px">
 </p>
 
-This is an adaptation of [DeepPoseKit](deepposekit.org) to predict robot joint angles.
+This is an adaptation of both [DeepPoseKit](deepposekit.org)  and [PixelLib](https://github.com/ayoolaolafenwa/PixelLib) to predict robot joint angles.
 
-## For more details on DeepPoseKit:
-
-- See [our example notebooks](https://github.com/jgraving/deepposekit/blob/master/examples/)
-- Check the [documentation](http://docs.deepposekit.org)
-- Read [our paper](https://doi.org/10.7554/eLife.47994)
+The robot is isolated from the background using PixelLib and then the keypoint locations of the robot are predicted using a DeepPoseKit model.
 
 
 # Installation
 
-DeepPoseKit requires [Tensorflow](https://github.com/tensorflow/tensorflow) for training and using pose estimation models. [Tensorflow](https://github.com/tensorflow/tensorflow) should be manually installed, along with dependencies such as CUDA and cuDNN, before installing DeepPoseKit:
+This requires [Tensorflow](https://github.com/tensorflow/tensorflow) for both segmentation and pose estimation. [Tensorflow](https://github.com/tensorflow/tensorflow) should be manually installed, along with CUDA and cuDNN as follows:
 
 - [Tensorflow Installation Instructions](https://www.tensorflow.org/install)
 - Any Tensorflow version >=2.0.0 should be compatible.
@@ -23,7 +19,7 @@ DeepPoseKit requires [Tensorflow](https://github.com/tensorflow/tensorflow) for 
 
 ## Installing with Anaconda on Windows
 
-To install DeepPoseKit on Windows, you must first manually install `Shapely`, one of the dependencies for the [imgaug package](https://github.com/aleju/imgaug):
+To use DeepPoseKit on Windows, you must first manually install `Shapely`, one of the dependencies for the [imgaug package](https://github.com/aleju/imgaug):
 ```bash
 conda install -c conda-forge shapely
 ```
@@ -35,7 +31,7 @@ pip install --update --r requirements.txt
 Sometimes Pixellib will not work after all installations have been complted. To fix this error, upgrade and downgrade Tensorflow.
 ```bash
 pip install --update tensorflow-gpu
-pip install --updage tensorfow-gpu==2.0.0
+pip install --update tensorfow-gpu==2.0.0
 ```
 
 
@@ -58,7 +54,6 @@ If you use DeepPoseKit for your research please cite [our open-access paper](htt
              url={https://doi.org/10.7554/eLife.47994},
              }
 
-You can also read [our open-access preprint](http://preprint.deepposekit.org).
 
 If you use the [imgaug package](https://github.com/aleju/imgaug) for data augmentation, please also consider [citing it](https://github.com/aleju/imgaug/blob/master/README.md#citation).
 
