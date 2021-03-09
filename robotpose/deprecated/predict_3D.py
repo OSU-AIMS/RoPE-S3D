@@ -27,7 +27,7 @@ model = load_model(p.model_mult)
 reader = VideoReader(p.video)
 predictions = model.predict(reader)
 pred_dict = predToDictList(predictions)
-pred_dict_xyz = predToXYZ(pred_dict, ply_data)
+pred_dict_xyz = predToXYZdict(pred_dict, ply_data)
 
 # Load video capture and make output
 cap = cv2.VideoCapture(p.video)

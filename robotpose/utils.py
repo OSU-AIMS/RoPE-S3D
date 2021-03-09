@@ -10,6 +10,7 @@ import open3d as o3d
 import time
 from .projection import makeIntrinsics
 from .turbo_colormap import normalize_and_interpolate
+import matplotlib.pyplot as plt
 
 
 def limitMemory():
@@ -110,7 +111,7 @@ def viz(image, over, frame_data):
 
 
 
-def predToXYZ(dict_list, ply_data):
+def predToXYZdict(dict_list, ply_data):
     """
     Using the complete list of dictionaries and 3D data, find the XYZ coords of each keypoint 
     """
@@ -132,6 +133,30 @@ def predToXYZ(dict_list, ply_data):
 
     return out
 
+def predToXYZ(preds, ply_data):
+    ply_data = np.asarray(ply_data)
+    # Make sure there are the same number of frame predictions as ply frames
+    assert len(preds) == ply_data.shape[0]
+
+    # Create output array
+    out = np.zeros((ply_data.shape[0], len(preds[0]), 3))
+
+    # Go through each frame
+    for pred, ply, idx in zip(preds, ply_data, range(len(preds))):
+        x_list = ply[:,0]
+        y_list = ply[:,1]
+
+        # Go through each point in the frame
+        for point, sub_idx in zip(pred, range(len(pred))):
+            px, py = point[0:2]
+
+            # Find closest point
+            dist = np.sqrt( np.square( x_list - px ) + np.square( y_list - py ) )
+            min_idx = dist.argmin()
+            out[idx,sub_idx] = tuple(ply[min_idx,2:5])
+
+    return out
+
 
 
 
@@ -139,30 +164,34 @@ def vizDepth_new(ply_frame_data, image):
     """
     Overlays the depth information given on an image
     """
-    z_no_out = reject_outliers(ply_frame_data[:,4],m=2)
-    z_min = np.min(z_no_out)
-    z_max = np.max(z_no_out)
+    # z_no_out = reject_outliers(ply_frame_data[:,4],m=2)
+    # z_min = np.min(z_no_out)
+    # z_max = np.max(z_no_out)
+    z_min, z_max = outlier_min_max(ply_frame_data[:,4], iqr_mult=3.0)
     idx_arr = ply_frame_data[:,0:2].astype(int)
-    print(f"{z_min}\t{z_max}")
+    #print(f"Min: {np.min(ply_frame_data[:,4])}\t{z_min}\nMax: {np.max(ply_frame_data[:,4])}\t{z_max}\n")
     for idx in range(len(ply_frame_data)):
-        # g = int(np.interp(ply_frame_data[idx,4],[z_min,z_max],[0,255]))
-        # r = int(np.interp(ply_frame_data[idx,4],[z_min,(z_max+z_min)/1.5],[255,0]))
-        # if g > 255:
-        #     g=255
-        # if r>255:
-        #     r=255
-        # if g<0:
-        #     g=0
-        # if r<0:
-        #     r=0
         color = normalize_and_interpolate(ply_frame_data[idx,4], z_min, z_max)
-        color.reverse()
+        color.reverse() # Switch from BGR/RGB
         image = cv2.circle(image, (idx_arr[idx,0],idx_arr[idx,1]), radius=1, color=color, thickness=-1)
+
+    # plt.hist(ply_frame_data[:,4], bins=200)
+    # plt.yscale('log')
+    # plt.show()
 
     return image
 
 def reject_outliers(data, m=2):
     return data[abs(data - np.mean(data)) < m * np.std(data)]
+
+def outlier_min_max(data, iqr_mult = 1.5):
+    percentiles = np.percentile(data, [75, 25])
+    iqr = np.subtract(*percentiles)
+    max = percentiles[0] + iqr_mult * iqr
+    min = percentiles[1] - iqr_mult * iqr
+    data = data[data >= min]
+    data = data[data <= max]
+    return np.min(data), np.max(data)
 
 
 
