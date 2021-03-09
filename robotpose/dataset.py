@@ -14,7 +14,7 @@ import datetime
 from deepposekit.io import initialize_dataset
 
 
-dataset_version = 1.1
+dataset_version = 1.2
 """
 Version 1.0: 3/7/2021
     Began versioning.
@@ -23,6 +23,9 @@ Version 1.0: 3/7/2021
 
 Version 1.1: 3/7/2022
     Changed raw compilation from using folders to using zip files to save storage
+
+Version 1.2: 3/8/2022
+    Added position parsing
 
 """
 
@@ -111,20 +114,23 @@ def build(data_path, dest_path = None):
     Parse JSONs
     """
     json_path = [os.path.join(data_path, x) for x in jsons]
-    json_arr = np.zeros((length, 6), dtype=float)
+    ang_arr = np.zeros((length, 6), dtype=float)
+    pos_arr = np.zeros((length, 6, 3), dtype=float)
 
-    for idx, path in tqdm(zip(range(length), json_path), desc="Parsing JSON Joint Angles"):
+    for idx, path in tqdm(zip(range(length), json_path), desc="Parsing JSON Joint Angles and Positions"):
         # Open file
         with open(path, 'r') as f:
             d = json.load(f)
-        d = d['objects'][0]['joint_angles']
+        d = d['objects'][0]['joints']
 
         # Put data in array
         for sub_idx in range(6):
-            json_arr[idx,sub_idx] = d[sub_idx]['angle']
+            ang_arr[idx,sub_idx] = d[sub_idx]['angle']
+            pos_arr[idx,sub_idx] = d[sub_idx]['position']
 
     # Save JSON data as npy
-    np.save(os.path.join(dest_path, 'ang.npy'), json_arr)
+    np.save(os.path.join(dest_path, 'ang.npy'), ang_arr)
+    np.save(os.path.join(dest_path, 'pos.npy'), ang_arr)
 
     """
     Write dataset info file
@@ -292,7 +298,11 @@ class Dataset():
 
         # Read angles
         print("Reading joint angles...")
-        self.angles = np.load(os.path.join(self.path, 'ang.npy'))
+        self.ang = np.load(os.path.join(self.path, 'ang.npy'))
+
+        # Read angles
+        print("Reading joint positions...")
+        self.pos = np.load(os.path.join(self.path, 'pos.npy'))
 
         # Read in point data
         print("Reading 3D data...")
