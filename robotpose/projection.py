@@ -1,3 +1,13 @@
+# Software License Agreement (Apache 2.0 License)
+#
+# Copyright (c) 2021, The Ohio State University
+# Center for Design and Manufacturing Excellence (CDME)
+# The Artificially Intelligent Manufacturing Systems Lab (AIMS)
+# All rights reserved.
+#
+# Author: Adam Exley
+
+
 import os
 import json
 import numpy as np
@@ -8,8 +18,6 @@ import open3d as o3d
 
 
 FLT_EPSILON = 1
-
-
 
 
 
@@ -56,6 +64,7 @@ def intrin(resolution, pp, f, model, coeffs):
 def proj_point_to_pixel(intrin, points, correct_distortion = False):
     """
     Python copy of the C++ realsense sdk function
+    https://github.com/IntelRealSense/librealsense/blob/master/include/librealsense2/rsutil.h
     Can take arrays as inputs to speed up calculations
     Expects n x 3 array of points to project
     """

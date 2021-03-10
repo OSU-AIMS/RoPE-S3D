@@ -1,3 +1,13 @@
+# Software License Agreement (Apache 2.0 License)
+#
+# Copyright (c) 2021, The Ohio State University
+# Center for Design and Manufacturing Excellence (CDME)
+# The Artificially Intelligent Manufacturing Systems Lab (AIMS)
+# All rights reserved.
+#
+# Author: Adam Exley
+
+
 import os
 import json
 import numpy as np
@@ -181,17 +191,21 @@ def vizDepth_new(ply_frame_data, image):
 
     return image
 
-def reject_outliers(data, m=2):
+def reject_outliers_std(data, m=2):
     return data[abs(data - np.mean(data)) < m * np.std(data)]
 
 def outlier_min_max(data, iqr_mult = 1.5):
+    data = reject_outliers_iqr(data, iqr_mult)
+    return np.min(data), np.max(data)
+
+def reject_outliers_iqr(data, iqr_mult = 1.5):
     percentiles = np.percentile(data, [75, 25])
     iqr = np.subtract(*percentiles)
     max = percentiles[0] + iqr_mult * iqr
     min = percentiles[1] - iqr_mult * iqr
     data = data[data >= min]
     data = data[data <= max]
-    return np.min(data), np.max(data)
+    return data
 
 
 
