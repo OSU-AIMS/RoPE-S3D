@@ -42,22 +42,21 @@ def angToPoseArr(ang1,ang2,ang3, arr = None):
     else:
         pose = arr
 
-    pose[0,0] = c[1] * c[2]
-    pose[1,0] = c[0] * s[2] + c[2] * s[0] * s[1]
-    pose[2,0] = s[0] * s[2] - c[0] * c[2] * s[1]
+    pose[0,0] = c[0] * c[1]
+    pose[1,0] = c[1] * s[0]
+    pose[2,0] = -1 * s[1]
 
-    pose[0,1] = -1 * c[1] * s[2]
-    pose[1,1] = c[0] * c[2] - np.prod(s)
-    pose[2,1] = c[2] * s[0] + c[0] * s[1] * s[2]
+    pose[0,1] = c[0] * s[1] * s[2] - c[2] * s[0]
+    pose[1,1] = c[0] * c[2] + np.prod(s)
+    pose[2,1] = c[1] * s[2]
 
-    pose[0,2] = s[1]
-    pose[1,2] = -1 * c[1] * s[0]
-    pose[2,2] = c[0] * c[1]
+    pose[0,2] = s[0] * s[2] + c[0] * c[2] * s[1]
+    pose[1,2] = c[2] * s[0] * s[1] - c[0] * s[2]
+    pose[2,2] = c[1] * c[2]
 
     pose[3,3] = 1.0
 
     return pose
-
 
 def translatePoseArr(x,y,z, arr = None):
     if arr is None:
@@ -73,7 +72,7 @@ def translatePoseArr(x,y,z, arr = None):
 
 
 def makePose(x,y,z,pitch,roll,yaw):
-    pose = angToPoseArr(pitch,roll,yaw)
+    pose = angToPoseArr(yaw,pitch,roll)
     pose = translatePoseArr(x,y,z,pose)
     return pose
 
@@ -86,10 +85,32 @@ def loadCoords():
     ang = np.load(ang_path)
     assert pos.shape[0] == ang.shape[0]
 
-    #Make arr in x,y,z,pitch,roll,yaw format
-
+    #Make arr in x,y,z,roll,pitch,yaw format
     coord = np.zeros((pos.shape[0],6,6))
-    coord[:,:,0:3] = pos
+
+    # 1:6 are movable joints, correspond to S,L,U,R and BT
+    coord[:,1:6,2] = pos[:,:5,2] # z is equal
+    coord[:,1:6,0] = -1 * pos[:,:5,1] # x = -y
+    coord[:,1:6,1] = pos[:,:5,0] # y = x
+
+    # I'm dumb so these all use dm instead of m
+    coord[:,:,0:3] *= 10
+
+    # Yaw of all movings parts is just the S angle
+    for idx in range(1,6):
+        coord[:,idx,5] = ang[:,0]
+
+    # Pitch of L
+    coord[:,2,4] = -1 * ang[:,1]
+
+    # Pitch of U
+    coord[:,3,4] = -1 * ang[:,1] + ang[:,2]
+
+    # Pitch of R?
+    coord[:,4,4] = -1 * ang[:,1] + ang[:,2] + np.pi/2
+
+    # Pitch of BT
+    coord[:,5,4] = -1 * ang[:,1] + ang[:,2] + ang[:,4]
 
     return coord
 
@@ -104,50 +125,35 @@ def makePoses(coords):
     return poses
 
 
+def setPoses(scene, nodes, poses):
+    for node, pose in zip(nodes,poses):
+        scene.set_pose(node,pose)
+
+
+
 
 def test_render():
 
-    objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS','MH5_BT_UNIFIED_AXIS']
+    objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
     meshes = loadOBJs(objs)
     coords = loadCoords()
     poses = makePoses(coords)
 
-    test_pose = poses[50]
+    test_pose = poses[60]
 
     scene = pyrender.Scene()
-    num_of_joints_to_do = 3
+    num_of_joints_to_do = 6
 
+    nodes = []
     for mesh, pose in zip(meshes[0:num_of_joints_to_do],test_pose[0:num_of_joints_to_do]):
-        print(pose)
-        scene.add(mesh, pose=pose)
+        nodes.append(scene.add(mesh, pose=pose))
 
 
-    # scene.add(mesha)
-    # scene.add(meshb)
-    # scene.add(meshc)
-    # scene.add(meshd)
-    #camera = pyrender.PerspectiveCamera(yfov=np.pi / 3.0, aspectRatio=1.0)
 
-    #intrin((1280,720), (638.391,361.493), (905.23, 904.858), rs.distortion.inverse_brown_conrady, [0,0,0,0,0])
     camera = cameraFromIntrinsics(makeIntrinsics())
-    #s = np.sqrt(2)/2
     s = np.sqrt(2)/2
-    camera_pose = np.array([
-        [0.0, -s,   s,   5],
-        [1.0,  0.0, 0.0, 0.0],
-        [0.0,  s,   s,   2],
-        [0.0,  0.0, 0.0, 1.0],
-     ])
+    camera_pose = makePose(17,0,4,0,np.pi/2,np.pi/2) # X,Y,Z, Roll(+CW,CCW-), Tilt(+Up,Down-), Pan(+Left,Right-) 
 
-    a = 0
-    b = .9
-
-    camera_pose = np.array([
-        [0.0,               -a,                 b,   20],
-        [1.0,              0.0,               0.0, 0.0],
-        [0.0,  np.sqrt(1-a**2),   np.sqrt(1-b**2),   8],
-        [0.0,               0.0,              0.0, 1.0],
-     ])
     scene.add(camera, pose=camera_pose)
     light = pyrender.SpotLight(color=np.ones(3), intensity=1000.0,
                                 innerConeAngle=np.pi/16.0,
@@ -155,18 +161,16 @@ def test_render():
     dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=15.0)
     scene.add(dl, pose=camera_pose)
     r = pyrender.OffscreenRenderer(1280, 720)
-    color, depth = r.render(scene)
-    # plt.figure()
-    # plt.subplot(1,2,1)
-    # plt.axis('off')
-    # plt.imshow(color)
-    # plt.subplot(1,2,2)
-    # plt.axis('off')
-    # plt.imshow(depth, cmap=plt.cm.gray_r)
-    cv2.imshow("Render", color)
-    print("done")
-    cv2.waitKey(0)
-    # plt.show()
+
+
+    for frame in range(100):
+        frame_poses = poses[frame,:num_of_joints_to_do]
+        setPoses(scene, nodes, frame_poses)
+        color, depth = r.render(scene)
+        cv2.imshow("Render", color) 
+        cv2.waitKey(1)
+
+
 
 
 if __name__ == "__main__":

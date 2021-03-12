@@ -4,11 +4,14 @@
 <img src="https://github.com/AdamExley/DeepPoseRobot/blob/segmentation_dataset/assets/video_overlay_new.gif" height="200px">
 </p>
 
-This is an adaptation of both [DeepPoseKit](deepposekit.org)  and [PixelLib](https://github.com/ayoolaolafenwa/PixelLib) to predict robot joint angles.
+This is an adaptation of both [DeepPoseKit](deepposekit.org) and [PixelLib](https://github.com/ayoolaolafenwa/PixelLib) to predict robot joint angles.
+
+The robot is isolated from the background using PixelLib and then the keypoint locations of the robot are predicted using a DeepPoseKit model.
+
 
 Visualization uses the [Turbo Colormap](https://ai.googleblog.com/2019/08/turbo-improved-rainbow-colormap-for.html).
 
-The robot is isolated from the background using PixelLib and then the keypoint locations of the robot are predicted using a DeepPoseKit model.
+3D Rendering is done via [Pyrender](https://github.com/mmatl/pyrender).
 
 
 # Installation
