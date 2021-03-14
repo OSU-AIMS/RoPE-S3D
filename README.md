@@ -1,6 +1,6 @@
 # DeepPoseRobot, an implementation of DeepPoseKit
 
-To see rendering examples, open [Render_Examples.md]("https://github.com/AdamExley/DeepPoseRobot/blob/main/Render_examples.md")
+To see rendering examples, open [Render_Examples.md](https://github.com/AdamExley/DeepPoseRobot/blob/main/Render_examples.md)
 
 This is an adaptation of both [DeepPoseKit](deepposekit.org) and [PixelLib](https://github.com/ayoolaolafenwa/PixelLib) to predict robot joint angles.
 
