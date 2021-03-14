@@ -1,4 +1,5 @@
 import numpy as np
+from pyrender import renderer
 import trimesh
 import pyrender
 import matplotlib.pyplot as plt
@@ -6,18 +7,22 @@ import cv2
 from .projection import makeIntrinsics
 import os
 from . import paths as p
+from .autoAnnotate import labelSegmentation
+import json
+from .dataset import Dataset
+
 
 
 def cameraFromIntrinsics(rs_intrinsics):
     return pyrender.IntrinsicsCamera(cx=rs_intrinsics.ppx, cy=rs_intrinsics.ppy, fx=rs_intrinsics.fx, fy=rs_intrinsics.fy)
 
 
-def loadOBJs(obj_list, path = p.robot_cad, mode = 'pyrender'):
+def loadModels(obj_list, path = p.robot_cad, mode = 'pyrender',fileend='.obj'):
     assert mode == 'trimesh' or mode == 'pyrender'
     meshes = []
     for file in obj_list:
-        if not file.endswith('.obj'):
-            file += '.obj'
+        if not file.endswith(fileend):
+            file += fileend
         
         meshes.append(trimesh.load(os.path.join(path,file)))
 
@@ -132,43 +137,273 @@ def setPoses(scene, nodes, poses):
 
 
 
+
+
+
 def test_render():
 
     objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
-    meshes = loadOBJs(objs)
+    #stls = ['base_link', 'link_s','link_l','link_u','link_r','link_b']
+    meshes = loadModels(objs)
+    #meshes = loadModels(stls,fileend='.stl')
     coords = loadCoords()
     poses = makePoses(coords)
 
     test_pose = poses[60]
 
-    scene = pyrender.Scene()
+    scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])
     num_of_joints_to_do = 6
+
 
     nodes = []
     for mesh, pose in zip(meshes[0:num_of_joints_to_do],test_pose[0:num_of_joints_to_do]):
+        #mesh.primitives[0].material = pyrender.MetallicRoughnessMaterial(metallicFactor=0)
         nodes.append(scene.add(mesh, pose=pose))
 
 
 
     camera = cameraFromIntrinsics(makeIntrinsics())
-    s = np.sqrt(2)/2
-    camera_pose = makePose(17,0,4,0,np.pi/2,np.pi/2) # X,Y,Z, Roll(+CW,CCW-), Tilt(+Up,Down-), Pan(+Left,Right-) 
+    c_pose = [17,0,4,0,np.pi/2,np.pi/2]
+    camera_pose = makePose(*c_pose) # X,Y,Z, Roll(+CW,CCW-), Tilt(+Up,Down-), Pan(+Left,Right-) 
 
     scene.add(camera, pose=camera_pose)
     light = pyrender.SpotLight(color=np.ones(3), intensity=1000.0,
                                 innerConeAngle=np.pi/16.0,
                                 outerConeAngle=np.pi/6.0)
     dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=15.0)
-    scene.add(dl, pose=camera_pose)
+    
+    scene.add(dl, pose=makePose(15,0,15,0,np.pi/4,np.pi/2)) # Add light above camera
+    scene.add(dl, pose=makePose(15,0,-15,0,3*np.pi/4,np.pi/2)) # Add light below camera
+    scene.add(dl, pose=camera_pose) # Add light at camera pos
     r = pyrender.OffscreenRenderer(1280, 720)
 
 
     for frame in range(100):
-        frame_poses = poses[frame,:num_of_joints_to_do]
+        frame_poses = poses[frame]
         setPoses(scene, nodes, frame_poses)
         color, depth = r.render(scene)
+        
         cv2.imshow("Render", color) 
+        #cv2.imwrite(fr'seg_test/{frame}.png', color)
+        #labelSegmentation(fr'seg_test/{frame:3d}.png',color)
+        labelSegmentation(color,color,fr'seg_test/{frame:03d}')
+        
         cv2.waitKey(1)
+
+
+
+
+
+
+
+class Aligner():
+    """
+    W/S - Move forward/backward
+    A/D - Move left/right
+    Z/X - Move down/up
+    Q/E - Roll
+    R/F - Tilt down/up
+    G/H - Pan left/right
+    +/- - Increase/Decrease Step size
+    """
+
+    def __init__(self,dataset='set6',skeleton='B'):
+        # Load dataset
+        self.ds = Dataset(dataset,skeleton,load_seg= False, load_og=True, primary="og")
+
+        self.cam_path = os.path.join(self.ds.path,'camera_pose.json')
+
+        # Read in camera pose if it's been written before
+        if os.path.isfile(self.cam_path):
+            self.readCameraPose()
+        else:
+            # Init pose, write
+            self.c_pose = [17,0,4,0,np.pi/2,np.pi/2]
+            self.saveCameraPose()
+
+        self.scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])
+        self.renderer = pyrender.OffscreenRenderer(1280, 720)
+
+        objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
+        self.meshes = loadModels(objs)
+        coords = self.loadCoords()
+        self.poses = makePoses(coords)
+
+
+        self.nodes = []
+        for mesh, pose in zip(self.meshes,self.poses[0]):
+            mesh.primitives[0].material = pyrender.MetallicRoughnessMaterial(metallicFactor=0)
+            self.nodes.append(self.scene.add(mesh, pose=pose))
+
+
+        camera = cameraFromIntrinsics(makeIntrinsics())
+        dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=15.0)
+
+        self.camera_pose_arr = makePose(*self.c_pose) # X,Y,Z, Roll(+CW,CCW-), Tilt(+Up,Down-), Pan(+Left,Right-) 
+        self.cam = self.scene.add(camera, pose=self.camera_pose_arr)
+        self.light = self.scene.add(dl, pose=self.camera_pose_arr) # Add light at camera pos
+
+        self.scene.add(dl, pose=makePose(15,0,15,0,np.pi/4,np.pi/2)) # Add light above robot
+        self.scene.add(dl, pose=makePose(15,0,-15,0,3*np.pi/4,np.pi/2)) # Add light below robot
+
+        self.idx = 0
+
+        
+        self.xyz_steps = [.01,.05,.1,.25,.5,1,5,10]
+        self.ang_steps = [.005,.01,.025,.05,.1,.25,.5,1]
+        self.step_loc = len(self.xyz_steps) - 4
+
+
+
+    def run(self):
+        ret = True
+
+        while ret:
+
+            self.camera_pose_arr = makePose(*self.c_pose)
+            setPoses(self.scene,[self.cam, self.light],[self.camera_pose_arr,self.camera_pose_arr])
+            real = self.ds.img[self.idx]
+            self.updatePoses()
+            render = self.renderFrame()
+            image = self.combineImages(real, render)
+            image = self.addOverlay(image)
+            cv2.imshow("Aligner", image)
+            inp = cv2.waitKey(0)
+            ret = self.moveCamera(inp)
+
+        cv2.destroyAllWindows()
+
+
+
+    def moveCamera(self,inp):
+        """
+        W/S - Move forward/backward
+        A/D - Move left/right
+        Z/X - Move up/down
+        Q/E - Roll
+        R/F - Tilt down/up
+        G/H - Pan left/right
+        +/- - Increase/Decrease Step size
+        K/L - Last/Next image
+        0 - Quit
+        """
+
+        xyz_step = self.xyz_steps[self.step_loc]
+        ang_step = self.ang_steps[self.step_loc]
+
+        if inp == ord('0'):
+            return False
+
+        if inp == ord('w'):
+            self.c_pose[0] -= xyz_step
+        elif inp == ord('s'):
+            self.c_pose[0] += xyz_step
+        elif inp == ord('a'):
+            self.c_pose[1] -= xyz_step
+        elif inp == ord('d'):
+            self.c_pose[1] += xyz_step
+        elif inp == ord('z'):
+            self.c_pose[2] += xyz_step
+        elif inp == ord('x'):
+            self.c_pose[2] -= xyz_step
+        elif inp == ord('q'):
+            self.c_pose[3] -= ang_step
+        elif inp == ord('e'):
+            self.c_pose[3] += ang_step
+        elif inp == ord('r'):
+            self.c_pose[4] -= ang_step
+        elif inp == ord('f'):
+            self.c_pose[4] += ang_step
+        elif inp == ord('g'):
+            self.c_pose[5] += ang_step
+        elif inp == ord('h'):
+            self.c_pose[5] -= ang_step
+        elif inp == ord('='):
+            self.step_loc += 1
+            if self.step_loc >= len(self.xyz_steps):
+                self.step_loc = len(self.xyz_steps) - 1
+        elif inp == ord('-'):
+            self.step_loc -= 1
+            if self.step_loc < 0:
+                self.step_loc = 0
+        elif inp == ord('k'):
+            self.increment(-5)
+        elif inp == ord('l'):
+            self.increment(5)
+
+        self.saveCameraPose()
+        return True
+        
+
+
+    def addOverlay(self, image):
+        pose_str = "["
+        for num in self.c_pose:
+            pose_str += f"{num:.3f}, "
+        pose_str +="]"
+        image = cv2.putText(image, pose_str,(10,50), cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
+        image = cv2.putText(image, str(self.xyz_steps[self.step_loc]),(10,100), cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
+        image = cv2.putText(image, str(self.ang_steps[self.step_loc]),(10,150), cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
+        return image
+
+
+    def combineImages(self,image_a, image_b, weight = .5):
+        return np.array(image_a * weight + image_b *(1-weight), dtype=np.uint8)
+        #return cv2.addWeighted(image_a,.4,image_b,.1,0)
+
+
+    def increment(self, step):
+        if not (self.idx + step >= self.ds.length) and not (self.idx + step < 0):
+            self.idx += step
+
+
+    def renderFrame(self):
+        color, depth = self.renderer.render(self.scene)
+        return color
+
+
+    def saveCameraPose(self):
+        with open(self.cam_path,'w') as f:
+            json.dump({'pose':self.c_pose},f)
+
+    def readCameraPose(self):
+        with open(self.cam_path,'r') as f:
+            d = json.load(f)
+        self.c_pose = d['pose']
+
+
+    def updatePoses(self):
+        frame_poses = self.poses[self.idx]
+        setPoses(self.scene, self.nodes, frame_poses)
+
+
+    def loadCoords(self):
+        pos = self.ds.pos
+        ang = self.ds.ang
+        assert pos.shape[0] == ang.shape[0]
+
+        coord = np.zeros((pos.shape[0],6,6))
+
+        coord[:,1:6,2] = pos[:,:5,2] # z is equal
+        coord[:,1:6,0] = -1 * pos[:,:5,1] # x = -y
+        coord[:,1:6,1] = pos[:,:5,0] # y = x
+
+        # I'm dumb so these all use dm instead of m
+        coord[:,:,0:3] *= 10
+        for idx in range(1,6):
+            coord[:,idx,5] = ang[:,0]
+        coord[:,2,4] = -1 * ang[:,1]
+        coord[:,3,4] = -1 * ang[:,1] + ang[:,2]
+        coord[:,4,4] = -1 * ang[:,1] + ang[:,2] + np.pi/2
+        coord[:,5,4] = -1 * ang[:,1] + ang[:,2] + ang[:,4]
+
+        return coord
+
+
+
+
+
+
 
 
 
