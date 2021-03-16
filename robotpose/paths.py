@@ -1,3 +1,7 @@
+"""
+General Paths
+"""
+
 #video = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\video.avi'
 image = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\2d'
 ply = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\ply'

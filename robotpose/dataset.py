@@ -10,7 +10,6 @@
 
 import os
 import cv2
-import robotpose.utils as utils
 import numpy as np
 from tqdm import tqdm
 import json
@@ -19,6 +18,7 @@ import open3d as o3d
 import pickle
 from robotpose import paths as p
 from .segmentation import RobotSegmenter
+import robotpose.utils as utils
 import time
 import datetime
 from deepposekit.io import initialize_dataset
@@ -42,6 +42,9 @@ Version 1.2: 3/8/2022
 
 
 def build(data_path, dest_path = None):
+    """
+    Build dataset into usable format
+    """
 
     build_start_time = time.time()
 
@@ -166,39 +169,6 @@ class Dataset():
         
         self.load_seg = load_seg
         self.load_og = load_og
-        # Search for dataset with correct name
-        # datasets = [ f.path for f in os.scandir(p.datasets) if f.is_dir() ]
-        # names = [ os.path.basename(os.path.normpath(x)) for x in datasets ]
-        # ds_found = False
-        # for ds, nm in zip(datasets, names):
-        #     if name in nm:
-        #         if self.validate(ds):
-        #             self.path = ds
-        #             self.name = nm
-        #             ds_found = True
-        #             break
-        #         else:
-        #             print("\nDataset Incomplete.")
-        #             print(f"Recompiling:\n")
-        #             self.build(os.path.join(os.path.join(p.datasets,'raw'),nm))
-        #             self.path = ds
-        #             self.name = nm
-        #             ds_found = True
-        #             break
-        #         # If no dataset was found, try to find one to build
-        # if not ds_found:
-        #     datasets = [ f.path for f in os.scandir(os.path.join(p.datasets,'raw')) if f.is_dir() ]
-        #     names = [ os.path.basename(os.path.normpath(x)) for x in datasets ]
-        #     for ds, nm in zip(datasets, names):
-        #         if name in nm:
-        #             print("\nNo matching compiled dataset found.")
-        #             print(f"Compiling from {ds}:\n")
-        #             self.build(ds)
-        #             self.path = os.path.join(p.datasets, nm)
-        #             self.name = nm
-        #             ds_found = True
-        #             break
-        
 
         compiled_datasets = [ f.path for f in os.scandir(p.datasets) if f.is_dir() and 'raw' not in str(f.path) and 'skeleton' not in str(f.path) ]
         compiled_names = [ os.path.basename(os.path.normpath(x)) for x in compiled_datasets ]
@@ -333,6 +303,9 @@ class Dataset():
 
 
     def validate(self, path):
+        """
+        Check that all required elements of the dataset are present
+        """
         ang = os.path.isfile(os.path.join(path,'ang.npy'))
         ds = os.path.isfile(os.path.join(path,'ds.json'))
         ply = os.path.isfile(os.path.join(path,'ply.npy'))
@@ -358,11 +331,15 @@ class Dataset():
 
 
     def build(self,data_path):
+        # Build dataset
         build(data_path)
 
 
 
     def compile_from_zip(self, zip_path):
+        """
+        Build dataset from a tempdir that is the extracted data
+        """
         import tempfile
         import zipfile
         with tempfile.TemporaryDirectory() as tempdir:

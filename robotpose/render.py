@@ -452,12 +452,3 @@ def compare_depth(ply_frame_data, color, depth, ply_multiplier = -10):
 
     return out
 
-
-
-
-
-
-
-
-if __name__ == "__main__":
-    test_render()

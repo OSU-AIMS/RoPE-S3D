@@ -132,31 +132,17 @@ class RobotSegmenter():
         # Align XYZ points relative to the color camera instead of the depth camera
         points[:,0] -= .0175
 
-        ply_data = points
-
         crop_ply_data = []
 
 
         # Get pixel location of each point
-        # for row in range(points.shape[0]):
-        #     # if define_search_area:
-        #     #     if ply_data[row,0] < X_min or ply_data[row,0] > X_max or ply_data[row,1] < Y_min or ply_data[row,1] > Y_max:
-        #     #         continue
-            
-        #     x,y = rs.rs2_project_point_to_pixel(self.intrinsics, ply_data[row,:])
-        #     # If point is in mask, add to data
-        #     if mask[round(y),round(x)]:
-        #         crop_ply_data.append(np.append([x,y], ply_data[row,:]))
-
-
-        # Do as array instead of points
         points_proj = proj.proj_point_to_pixel(self.intrinsics, points)
         
         if debug:
             ####################
             temp = np.zeros((points_proj.shape[0],5))
             temp[:,0:2] = points_proj
-            temp[:,2:5] = ply_data
+            temp[:,2:5] = points
             temp_show = np.zeros((720,1280,3),dtype=np.uint8)
             cv2.imshow("Before",vizDepth_new(temp,temp_show))
             cv2.waitKey(1)
@@ -171,7 +157,7 @@ class RobotSegmenter():
             ####################
             temp = np.zeros((points_proj.shape[0],5))
             temp[:,0:2] = points_proj_idx
-            temp[:,2:5] = ply_data
+            temp[:,2:5] = points
             temp_show = np.zeros((720,1280,3),dtype=np.uint8)
             vizDepth_new(temp,temp_show)
             temp_show = temp_show *.5 + image *.5
@@ -185,7 +171,7 @@ class RobotSegmenter():
                 # Shift based on ROI
                 points_proj[row,0] -= roi[1]
                 points_proj[row,1] -= roi[0]
-                crop_ply_data.append(np.append(points_proj[row,:], ply_data[row,:]))
+                crop_ply_data.append(np.append(points_proj[row,:], points[row,:]))
 
         if debug:
             ##############

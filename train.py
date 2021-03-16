@@ -29,7 +29,7 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
     else:
 
         train_generator = TrainingGenerator(generator=data_generator,
-                                        downsample_factor=2,
+                                        downsample_factor=0,
                                         augmenter=None,
                                         sigma=5,
                                         validation_split=valid_size, 
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, choices=["CutResnet","CutMobilenet","CutDensenet","StackedDensenet","LEAP","StackedHourglass"],
                         default='LEAP', help="The type of model to train."
                         )
-    parser.add_argument('--batch',type=int, choices=[1,2,4,8], default=2, help="Batch size for training")
+    parser.add_argument('--batch',type=int, choices=[1,2,4,8,12,16], default=2, help="Batch size for training")
     parser.add_argument('--valid',type=float, default=0.1, help="Validation size for training")
     args = parser.parse_args()
 
