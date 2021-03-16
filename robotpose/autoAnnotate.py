@@ -34,7 +34,7 @@ def contourImg(image):
 
 
 
-class AutoAnnotator():
+class Annotator():
 
     def __init__(self, color_dict, segmentation = True, keypoints = False):
         self.color_dict = color_dict
@@ -68,25 +68,29 @@ class AutoAnnotator():
         shapes = []
 
         for label in self.color_dict:
-            contour = self._get_contour(render, self.color_dict[label])
+            contours = self._get_contour(render, self.color_dict[label])
 
-            # Convert to compatiable list
-            contourlist = np.asarray(contour[0]).tolist()
-            contour_data = []
-            for point in contourlist:
-                contour_data.append(point[0])
-            
-            # Make entry
-            shape = {
-                "label": label,
-                "points": contour_data,
-                "group_id": None,
-                "shape_type": "polygon",
-                "flags": {}
-            }
+            for contour in contours:
+                # Skip falses
+                if len(contour) < 20:
+                    continue
+                # Convert to compatiable list
+                contourlist = np.asarray(contour).tolist()
+                contour_data = []
+                for point in contourlist:
+                    contour_data.append(point[0])
+                
+                # Make entry
+                shape = {
+                    "label": label,
+                    "points": contour_data,
+                    "group_id": None,
+                    "shape_type": "polygon",
+                    "flags": {}
+                }
 
-            # Add to shapes
-            shapes.append(shape)
+                # Add to shapes
+                shapes.append(shape)
 
         # Save annotation file
         f.save(
@@ -111,7 +115,6 @@ class AutoAnnotator():
         return contours
 
 
-    pass
 
 
 

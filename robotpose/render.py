@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.core.numeric import full
 from pyrender import renderer
 import trimesh
 import pyrender
@@ -7,11 +8,12 @@ import cv2
 from .projection import makeIntrinsics
 import os
 from . import paths as p
-from .autoAnnotate import labelSegmentation
+from .autoAnnotate import Annotator, labelSegmentation, makeMask
 import json
 from .dataset import Dataset
+from .turbo_colormap import normalize_and_interpolate
 
-
+import random
 
 def cameraFromIntrinsics(rs_intrinsics):
     return pyrender.IntrinsicsCamera(cx=rs_intrinsics.ppx, cy=rs_intrinsics.ppy, fx=rs_intrinsics.fx, fy=rs_intrinsics.fy)
@@ -135,7 +137,10 @@ def setPoses(scene, nodes, poses):
         scene.set_pose(node,pose)
 
 
-
+def readCameraPose(path):
+    with open(path,'r') as f:
+        d = json.load(f)
+    return d['pose']
 
 
 
@@ -152,18 +157,27 @@ def test_render():
     test_pose = poses[60]
 
     scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])
-    num_of_joints_to_do = 6
 
 
+    node_map = dict()
     nodes = []
-    for mesh, pose in zip(meshes[0:num_of_joints_to_do],test_pose[0:num_of_joints_to_do]):
+    label_dict = dict()
+    # full_c = [55,138,243]
+    # label_dict["mh5"] = full_c
+    for mesh, name in zip(meshes,objs):
         #mesh.primitives[0].material = pyrender.MetallicRoughnessMaterial(metallicFactor=0)
-        nodes.append(scene.add(mesh, pose=pose))
+        n = scene.add(mesh)
+        nodes.append(n)
+        node_map[n] = [random.randint(0,255),random.randint(0,255),random.randint(0,255)]
+        label_dict[name] = node_map[n]
+        # node_map[n] = full_c
+
 
 
 
     camera = cameraFromIntrinsics(makeIntrinsics())
-    c_pose = [17,0,4,0,np.pi/2,np.pi/2]
+    #c_pose = [17,0,4,0,np.pi/2,np.pi/2]
+    c_pose = readCameraPose(r'data/set6_slu/camera_pose.json')
     camera_pose = makePose(*c_pose) # X,Y,Z, Roll(+CW,CCW-), Tilt(+Up,Down-), Pan(+Left,Right-) 
 
     scene.add(camera, pose=camera_pose)
@@ -177,16 +191,20 @@ def test_render():
     scene.add(dl, pose=camera_pose) # Add light at camera pos
     r = pyrender.OffscreenRenderer(1280, 720)
 
+    anno = Annotator(label_dict)
+
+    imgs = np.load(r'data/set6_slu/og_img.npy')
 
     for frame in range(100):
         frame_poses = poses[frame]
         setPoses(scene, nodes, frame_poses)
-        color, depth = r.render(scene)
-        
+        color, depth = r.render(scene,flags=pyrender.constants.RenderFlags.SEG,seg_node_map=node_map)
+        print(f"{np.min(depth)},{np.max(depth)}")
         cv2.imshow("Render", color) 
         #cv2.imwrite(fr'seg_test/{frame}.png', color)
         #labelSegmentation(fr'seg_test/{frame:3d}.png',color)
-        labelSegmentation(color,color,fr'seg_test/{frame:03d}')
+        #labelSegmentation(color,color,fr'seg_test/{frame:03d}')
+        anno.annotate(imgs[frame],color,fr'seg_test/{frame:03d}')
         
         cv2.waitKey(1)
 
@@ -221,24 +239,27 @@ class Aligner():
             self.c_pose = [17,0,4,0,np.pi/2,np.pi/2]
             self.saveCameraPose()
 
+        # setup
         self.scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])
         self.renderer = pyrender.OffscreenRenderer(1280, 720)
 
+        # Load meshes and poses
         objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
         self.meshes = loadModels(objs)
         coords = self.loadCoords()
         self.poses = makePoses(coords)
 
-
+        # Put items into scene
         self.nodes = []
         for mesh, pose in zip(self.meshes,self.poses[0]):
             mesh.primitives[0].material = pyrender.MetallicRoughnessMaterial(metallicFactor=0)
             self.nodes.append(self.scene.add(mesh, pose=pose))
 
-
+        # Make camera
         camera = cameraFromIntrinsics(makeIntrinsics())
         dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=15.0)
 
+        # Add in camera/light
         self.camera_pose_arr = makePose(*self.c_pose) # X,Y,Z, Roll(+CW,CCW-), Tilt(+Up,Down-), Pan(+Left,Right-) 
         self.cam = self.scene.add(camera, pose=self.camera_pose_arr)
         self.light = self.scene.add(dl, pose=self.camera_pose_arr) # Add light at camera pos
@@ -246,9 +267,10 @@ class Aligner():
         self.scene.add(dl, pose=makePose(15,0,15,0,np.pi/4,np.pi/2)) # Add light above robot
         self.scene.add(dl, pose=makePose(15,0,-15,0,3*np.pi/4,np.pi/2)) # Add light below robot
 
+        # Image counter
         self.idx = 0
 
-        
+        # Movement steps
         self.xyz_steps = [.01,.05,.1,.25,.5,1,5,10]
         self.ang_steps = [.005,.01,.025,.05,.1,.25,.5,1]
         self.step_loc = len(self.xyz_steps) - 4
@@ -264,10 +286,15 @@ class Aligner():
             setPoses(self.scene,[self.cam, self.light],[self.camera_pose_arr,self.camera_pose_arr])
             real = self.ds.img[self.idx]
             self.updatePoses()
-            render = self.renderFrame()
+            render, depth = self.renderFrame(do_depth=True)
             image = self.combineImages(real, render)
             image = self.addOverlay(image)
             cv2.imshow("Aligner", image)
+
+            depth_cmp = compare_depth(self.ds.ply[self.idx], render, depth)
+            cv2.imshow("Aligner_depth", depth_cmp)
+
+
             inp = cv2.waitKey(0)
             ret = self.moveCamera(inp)
 
@@ -357,9 +384,12 @@ class Aligner():
             self.idx += step
 
 
-    def renderFrame(self):
+    def renderFrame(self, do_depth = False):
         color, depth = self.renderer.render(self.scene)
-        return color
+        if do_depth:
+            return color, depth
+        else:
+            return color
 
 
     def saveCameraPose(self):
@@ -400,6 +430,27 @@ class Aligner():
         return coord
 
 
+
+
+
+def compare_depth(ply_frame_data, color, depth, ply_multiplier = -10):
+    mask = makeMask(color)
+    ply_depth = np.zeros(depth.shape)
+    idx_arr = ply_frame_data[:,0:2].astype(int)
+    for idx in range(len(ply_frame_data)):
+        if mask[idx_arr[idx,0],idx_arr[idx,1]]:
+            ply_depth[idx_arr[idx,0],idx_arr[idx,1]] = ply_multiplier * ply_frame_data[idx,4]
+
+    diff = depth - ply_depth
+
+    out = np.zeros((depth.shape[0], depth.shape[1],3), np.uint8)
+    mn = np.min(diff)
+    mx = np.max(diff)
+    for r in range(depth.shape[0]):
+        for c in [x for x in range(depth.shape[1]) if mask[r,x]]:
+            out[r,c] = normalize_and_interpolate(diff[r,c], mn,mx)
+
+    return out
 
 
 
