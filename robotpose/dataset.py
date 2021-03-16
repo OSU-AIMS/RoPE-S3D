@@ -341,16 +341,17 @@ class Dataset():
         seg_vid = os.path.isfile(os.path.join(path,'seg_vid.avi'))
         og_vid = os.path.isfile(os.path.join(path,'og_vid.avi'))
         
-        with open(os.path.join(path, 'ds.json'), 'r') as f:
-            d = json.load(f)
+        if ds:
+            with open(os.path.join(path, 'ds.json'), 'r') as f:
+                d = json.load(f)
 
-        try:
-            if int(d['ds_ver']) != int(dataset_version):
-                print(f"Dataset Out of Date:\n\tDataset version:{d['ds_ver']}\n\tCurrent version: {dataset_version}")
+            try:
+                if int(d['ds_ver']) != int(dataset_version):
+                    print(f"Dataset Out of Date:\n\tDataset version:{d['ds_ver']}\n\tCurrent version: {dataset_version}")
+                    return False
+            except KeyError:
+                print(f"Dataset Out of Date:\n\tDataset version: Unversioned\n\tCurrent version: {dataset_version}")
                 return False
-        except KeyError:
-            print(f"Dataset Out of Date:\n\tDataset version: Unversioned\n\tCurrent version: {dataset_version}")
-            return False
             
 
         return ang and ds and ply and seg_img and og_img and seg_vid and og_vid
