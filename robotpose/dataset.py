@@ -143,7 +143,7 @@ def build(data_path, dest_path = None):
 
     # Save JSON data as npy
     np.save(os.path.join(dest_path, 'ang.npy'), ang_arr)
-    np.save(os.path.join(dest_path, 'pos.npy'), ang_arr)
+    np.save(os.path.join(dest_path, 'pos.npy'), pos_arr)
 
     """
     Write dataset info file
