@@ -1,3 +1,12 @@
+# Software License Agreement (Apache 2.0 License)
+#
+# Copyright (c) 2021, The Ohio State University
+# Center for Design and Manufacturing Excellence (CDME)
+# The Artificially Intelligent Manufacturing Systems Lab (AIMS)
+# All rights reserved.
+#
+# Author: Adam Exley
+
 import numpy as np
 from numpy.core.numeric import full
 from pyrender import renderer
@@ -12,7 +21,10 @@ from .autoAnnotate import Annotator, labelSegmentation, makeMask
 import json
 from .dataset import Dataset
 from .turbo_colormap import normalize_and_interpolate
+from .projection import proj_point_to_pixel, makeIntrinsics
 
+
+from .utils import outlier_min_max
 import random
 
 def cameraFromIntrinsics(rs_intrinsics):
@@ -431,24 +443,35 @@ class Aligner():
 
 
 
+import matplotlib.pyplot as plt
 
-
-def compare_depth(ply_frame_data, color, depth, ply_multiplier = -10):
+def compare_depth(ply, color, depth, ply_multiplier = -10):
+    ply_frame_data = np.copy(ply)
     mask = makeMask(color)
     ply_depth = np.zeros(depth.shape)
-    idx_arr = ply_frame_data[:,0:2].astype(int)
-    for idx in range(len(ply_frame_data)):
-        if mask[idx_arr[idx,0],idx_arr[idx,1]]:
-            ply_depth[idx_arr[idx,0],idx_arr[idx,1]] = ply_multiplier * ply_frame_data[idx,4]
 
-    diff = depth - ply_depth
+    # Reproject pixels
+    intrin = makeIntrinsics()
+    ply_frame_data[:,0:2] = proj_point_to_pixel(intrin,ply_frame_data[:,2:5])
+    idx_arr = ply_frame_data[:,0:2].astype(int)
+    idx_arr[:,0] = np.clip(idx_arr[:,0],0,1279)
+    idx_arr[:,1] = np.clip(idx_arr[:,1],0,719)
+    for idx in range(len(ply_frame_data)):
+        ply_depth[idx_arr[idx,1],idx_arr[idx,0]] = ply_multiplier * ply_frame_data[idx,4]
+
+
+    diff_vec = np.subtract(depth,ply_depth)
+    diff = np.copy(diff_vec)
+    diff_vec.flatten()
+
+    # plt.hist(diff_vec)
+    # plt.show()
 
     out = np.zeros((depth.shape[0], depth.shape[1],3), np.uint8)
-    mn = np.min(diff)
-    mx = np.max(diff)
+    #mn,mx = outlier_min_max(diff_vec[np.where(np.all(diff_vec != 0.0, axis=-1))])
     for r in range(depth.shape[0]):
         for c in [x for x in range(depth.shape[1]) if mask[r,x]]:
-            out[r,c] = normalize_and_interpolate(diff[r,c], mn,mx)
+            out[r,c] = normalize_and_interpolate(diff[r,c], -.5, .5)
 
     return out
 
