@@ -29,7 +29,7 @@ conda install -c conda-forge shapely
 
 Install requirements with pip:
 ```bash
-pip install --update --r requirements.txt
+pip install --upgrade --r requirements.txt
 ```
 Sometimes Pixellib will not work after all installations have been completed. To fix this error, upgrade and downgrade Tensorflow.
 ```bash
