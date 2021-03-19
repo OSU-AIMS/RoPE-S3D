@@ -7,25 +7,35 @@
 #
 # Author: Adam Exley
 
+import json
 import numpy as np
-from numpy.core.numeric import full
-from pyrender import renderer
+import os
+import random
+
+import cv2
 import trimesh
 import pyrender
-import matplotlib.pyplot as plt
-import cv2
-from .projection import makeIntrinsics
-import os
+
 from . import paths as p
 from .autoAnnotate import Annotator, labelSegmentation, makeMask
-import json
 from .dataset import Dataset
-from .turbo_colormap import normalize_and_interpolate
 from .projection import proj_point_to_pixel, makeIntrinsics
-
-
+from .turbo_colormap import normalize_and_interpolate
 from .utils import outlier_min_max
-import random
+
+
+
+DEFAULT_COLORS = [
+    [0  , 0  , 255],    # Red
+    [0  , 125, 255],    # Orange
+    [0  , 255, 0  ],    # Green
+    [255, 255, 0  ],    # Cyan
+    [255, 0  , 0  ],    # Blue
+    [255, 0  , 125],    # Purple
+    [255, 0  , 255],    # Pink
+    [125, 0  , 255]     # Fuchsia
+]
+
 
 def cameraFromIntrinsics(rs_intrinsics):
     return pyrender.IntrinsicsCamera(cx=rs_intrinsics.ppx, cy=rs_intrinsics.ppy, fx=rs_intrinsics.fx, fy=rs_intrinsics.fy)
@@ -166,7 +176,6 @@ def test_render():
     coords = loadCoords()
     poses = makePoses(coords)
 
-    test_pose = poses[60]
 
     scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])
 
@@ -222,6 +231,141 @@ def test_render():
 
 
 
+def test_render_with_class():
+
+    objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
+
+    coords = loadCoords()
+    poses = makePoses(coords)
+
+    sphere = trimesh.creation.icosphere(subdivisions=3, radius=0.551, color=None)
+    sphere = trimesh.creation.cylinder(1, height=.1)
+    sphere = pyrender.Mesh.from_trimesh(sphere)
+
+    trimesh.creation.cylinder(1, height=.1)
+
+    r = Renderer(objs)
+    s = r.scene.add(sphere, parent_name='MH5_BT_UNIFIED_AXIS')
+    r.node_color_map[s] = DEFAULT_COLORS[0]
+
+    for frame in range(100):
+        frame_poses = poses[frame]
+        r.setObjectPoses(frame_poses)
+        color,depth = r.render()
+        cv2.imshow("Render", color) 
+        cv2.waitKey(0)
+
+
+
+
+
+
+
+
+
+class Renderer():
+    
+    def __init__(
+            self,
+            mesh_list,
+            mode = 'seg',
+            mesh_path = p.robot_cad,
+            mesh_type = '.obj',
+            dataset='set6',
+            skeleton='B',
+            camera_pose = None,
+            camera_intrin = '1280_720_color',
+            resolution = [1280, 720]
+            ):
+
+        # Load dataset
+        self.ds = Dataset(dataset, skeleton, load_seg=True, load_og=False)
+
+        # Load meshes
+        print("Loading Meshes")
+        self.meshes = loadModels(mesh_list, mesh_path, fileend=mesh_type)
+
+        cam_path = os.path.join(self.ds.path,'camera_pose.json')
+         
+        if camera_pose is not None:
+            c_pose = camera_pose
+        elif os.path.isfile(cam_path):
+            c_pose = readCameraPose(cam_path)
+        else:
+            c_pose = [17,0,4,0,np.pi/2,np.pi/2]    # Default Camera Pose
+
+        self.scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])  # Make scene
+
+        camera = cameraFromIntrinsics(makeIntrinsics(camera_intrin))
+        cam_pose = makePose(*c_pose)
+
+        self.scene.add(camera, pose=cam_pose)
+
+        dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=15.0)
+        
+        self.scene.add(dl, pose=makePose(15,0,15,0,np.pi/4,np.pi/2)) # Add light above camera
+        self.scene.add(dl, pose=makePose(15,0,-15,0,3*np.pi/4,np.pi/2)) # Add light below camera
+        self.scene.add(dl, pose=cam_pose) # Add light at camera pos
+
+        self.joint_nodes = []
+        for mesh,name in zip(self.meshes, mesh_list):
+            self.joint_nodes.append(pyrender.Node(name=name,mesh=mesh))
+
+        for node in self.joint_nodes:
+            self.scene.add_node(node)
+
+        self.rend = pyrender.OffscreenRenderer(*resolution)
+
+        self.setMode(mode)
+
+
+    def render(self):
+        return self.rend.render(
+            self.scene,
+            flags=pyrender.constants.RenderFlags.SEG,
+            seg_node_map=self.node_color_map
+            )
+
+
+
+    def setObjectPoses(self, poses):
+        setPoses(self.scene, self.joint_nodes, poses)
+        # Update Keypoint markers if applicable
+
+    def setMode(self, mode):
+        valid_modes = ['seg','key','full']
+        assert mode in valid_modes, f"Mode invalid; must be one of: {valid_modes}"
+
+        self.mode = mode
+
+        self.node_color_map = {}
+
+        if mode == 'seg':
+            for joint, idx in zip(self.joint_nodes, range(len(self.joint_nodes))):
+                self.node_color_map[joint] = DEFAULT_COLORS[idx]
+
+            # Remove Key Markers
+        elif mode == 'key':
+            # Add Key Markers
+            pass
+        else:
+            pass
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -251,7 +395,6 @@ class Aligner():
             self.c_pose = [17,0,4,0,np.pi/2,np.pi/2]
             self.saveCameraPose()
 
-        # setup
         self.scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])
         self.renderer = pyrender.OffscreenRenderer(1280, 720)
 
@@ -443,7 +586,6 @@ class Aligner():
 
 
 
-import matplotlib.pyplot as plt
 
 def compare_depth(ply, color, depth, ply_multiplier = -10):
     ply_frame_data = np.copy(ply)
