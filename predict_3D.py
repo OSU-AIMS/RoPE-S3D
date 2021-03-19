@@ -124,7 +124,7 @@ for a, b in zip(["S_act","L_act","U_act","S_pred","L_pred","U_pred"],["S_angles"
 fig, axs = plt.subplots(3,3)
 
 # Plot Raw Angles
-for idx, act, pred, label in zip(range(4),["S_act","L_act","U_act","B_act"],["S_pred","L_pred","U_pred"],["S","L","U"]):
+for idx, act, pred, label in zip(range(3),["S_act","L_act","U_act",],["S_pred","L_pred","U_pred"],["S","L","U"]):
     axs[idx,0].set_title(f'Raw {label} Angle')
     axs[idx,0].plot(globals()[act])
     axs[idx,0].plot(globals()[pred])
