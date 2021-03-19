@@ -113,14 +113,17 @@ def loadCoords():
     pos = np.load(pos_path)
     ang = np.load(ang_path)
     assert pos.shape[0] == ang.shape[0]
+    return coordsFromData(ang, pos)
 
+
+def coordsFromData(ang, pos):
     #Make arr in x,y,z,roll,pitch,yaw format
     coord = np.zeros((pos.shape[0],6,6))
 
     # 1:6 are movable joints, correspond to S,L,U,R and BT
-    coord[:,1:6,2] = pos[:,:5,2] # z is equal
-    coord[:,1:6,0] = -1 * pos[:,:5,1] # x = -y
-    coord[:,1:6,1] = pos[:,:5,0] # y = x
+    coord[:,1:6,2] = pos[:,:5,2]        # z is equal
+    coord[:,1:6,0] = -1 * pos[:,:5,1]   # x = -y
+    coord[:,1:6,1] = pos[:,:5,0]        # y = x
 
     # I'm dumb so these all use dm instead of m
     coord[:,:,0:3] *= 10
@@ -129,17 +132,10 @@ def loadCoords():
     for idx in range(1,6):
         coord[:,idx,5] = ang[:,0]
 
-    # Pitch of L
-    coord[:,2,4] = -1 * ang[:,1]
-
-    # Pitch of U
-    coord[:,3,4] = -1 * ang[:,1] + ang[:,2]
-
-    # Pitch of R?
-    coord[:,4,4] = -1 * ang[:,1] + ang[:,2] + np.pi/2
-
-    # Pitch of BT
-    coord[:,5,4] = -1 * ang[:,1] + ang[:,2] + ang[:,4]
+    coord[:,2,4] = -1 * ang[:,1]    # Pitch of L
+    coord[:,3,4] = -1 * ang[:,1] + ang[:,2] # Pitch of U
+    coord[:,4,4] = -1 * ang[:,1] + ang[:,2] + np.pi/2   # Pitch of R
+    coord[:,5,4] = -1 * ang[:,1] + ang[:,2] + ang[:,4]  # Pitch of BT
 
     return coord
 
@@ -234,23 +230,25 @@ def test_render():
 def test_render_with_class():
 
     objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
+    names = ['BASE','S','L','U','R','BT']
 
-    coords = loadCoords()
-    poses = makePoses(coords)
-
-    sphere = trimesh.creation.icosphere(subdivisions=3, radius=0.551, color=None)
-    sphere = trimesh.creation.cylinder(1, height=.1)
+    sphere = trimesh.creation.icosphere(subdivisions=3, radius=0.2, color=None)
+    sphere = trimesh.creation.cylinder(.05, height=.05)
     sphere = pyrender.Mesh.from_trimesh(sphere)
 
-    trimesh.creation.cylinder(1, height=.1)
 
-    r = Renderer(objs)
-    s = r.scene.add(sphere, parent_name='MH5_BT_UNIFIED_AXIS')
-    r.node_color_map[s] = DEFAULT_COLORS[0]
+    temp_pose = makePose(*[0.82,0,-1.63,np.pi/2,0,0])
+
+    r = Renderer(objs, name_list=names)
+    s = r.scene.add(sphere, parent_name='BASE',pose=temp_pose)
+    r.node_color_map[s] = DEFAULT_COLORS[3]
 
     for frame in range(100):
-        frame_poses = poses[frame]
-        r.setObjectPoses(frame_poses)
+        if frame % 2 == 0:
+            r.setMode('seg')
+        else:
+            r.setMode('key')
+        r.setPosesFromDS(frame)
         color,depth = r.render()
         cv2.imshow("Render", color) 
         cv2.waitKey(0)
@@ -268,6 +266,7 @@ class Renderer():
     def __init__(
             self,
             mesh_list,
+            name_list = None,
             mode = 'seg',
             mesh_path = p.robot_cad,
             mesh_type = '.obj',
@@ -279,11 +278,13 @@ class Renderer():
             ):
 
         # Load dataset
-        self.ds = Dataset(dataset, skeleton, load_seg=True, load_og=False)
+        self.ds = Dataset(dataset, skeleton, load_seg=False, load_og=False, load_ply=False)
 
         # Load meshes
         print("Loading Meshes")
         self.meshes = loadModels(mesh_list, mesh_path, fileend=mesh_type)
+        if name_list is None:
+            name_list = mesh_list
 
         cam_path = os.path.join(self.ds.path,'camera_pose.json')
          
@@ -307,12 +308,28 @@ class Renderer():
         self.scene.add(dl, pose=makePose(15,0,-15,0,3*np.pi/4,np.pi/2)) # Add light below camera
         self.scene.add(dl, pose=cam_pose) # Add light at camera pos
 
+        # Add in joints
         self.joint_nodes = []
-        for mesh,name in zip(self.meshes, mesh_list):
+        for mesh,name in zip(self.meshes, name_list):
             self.joint_nodes.append(pyrender.Node(name=name,mesh=mesh))
 
         for node in self.joint_nodes:
             self.scene.add_node(node)
+
+        # Add in keypoint markers
+        self.key_nodes = []
+        marker = trimesh.creation.cylinder(
+            self.ds.keypoint_data['markers']['radius'],
+            height=self.ds.keypoint_data['markers']['height']
+            )
+        marker = pyrender.Mesh.from_trimesh(marker)
+
+        for name in self.ds.keypoint_data['keypoints'].keys():
+            parent = self.ds.keypoint_data['keypoints'][name]['parent_joint']
+            pose = makePose(*self.ds.keypoint_data['keypoints'][name]['pose'])
+            n = self.scene.add(marker, name=name, pose=pose, parent_name=parent)
+            self.key_nodes.append(n)
+
 
         self.rend = pyrender.OffscreenRenderer(*resolution)
 
@@ -330,10 +347,17 @@ class Renderer():
 
     def setObjectPoses(self, poses):
         setPoses(self.scene, self.joint_nodes, poses)
-        # Update Keypoint markers if applicable
+
+
+    def setPosesFromDS(self, idx):
+        if not hasattr(self,'ds_poses'):
+            self.ds_poses = makePoses(coordsFromData(self.ds.ang, self.ds.pos))
+        self.setObjectPoses(self.ds_poses[idx])
+
+
 
     def setMode(self, mode):
-        valid_modes = ['seg','key','full']
+        valid_modes = ['seg','key','seg_full']
         assert mode in valid_modes, f"Mode invalid; must be one of: {valid_modes}"
 
         self.mode = mode
@@ -343,14 +367,14 @@ class Renderer():
         if mode == 'seg':
             for joint, idx in zip(self.joint_nodes, range(len(self.joint_nodes))):
                 self.node_color_map[joint] = DEFAULT_COLORS[idx]
-
-            # Remove Key Markers
+            
         elif mode == 'key':
-            # Add Key Markers
-            pass
-        else:
-            pass
+            for keypt, idx in zip(self.key_nodes, range(len(self.key_nodes))):
+                self.node_color_map[keypt] = DEFAULT_COLORS[idx]
 
+        elif mode == 'seg_full':
+            for joint in self.joint_nodes:
+                self.node_color_map[joint] = DEFAULT_COLORS[0]
  
 
 

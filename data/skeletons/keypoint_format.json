@@ -1,0 +1,16 @@
+{
+    "markers":{
+        "height": 0.00,
+        "radius": 0.00
+    },
+    "keypoints":{
+        "keypoint":{
+            "parent_joint": "A Joint Name",
+            "pose":[1,1,1,0,0,0]
+        },
+        "another_keypoint":{
+            "parent_joint": "Another Joint Name",
+            "pose":[0,0,0,1,1,1]
+        }
+    }
+}

@@ -7,24 +7,21 @@
 #
 # Author: Adam Exley
 
-
-import os
-import cv2
-import numpy as np
-from tqdm import tqdm
-import json
-import pyrealsense2 as rs
-import open3d as o3d
-import pickle
-from robotpose import paths as p
-from .segmentation import RobotSegmenter
-import robotpose.utils as utils
-import time
 import datetime
+import json
+import numpy as np
+import os
+import time
+
+import cv2
 from deepposekit.io import initialize_dataset
+from tqdm import tqdm
+
+from . import paths as p
+from .segmentation import RobotSegmenter
 
 
-dataset_version = 1.2
+dataset_version = 1.3
 """
 Version 1.0: 3/7/2021
     Began versioning.
@@ -36,6 +33,10 @@ Version 1.1: 3/7/2022
 
 Version 1.2: 3/8/2022
     Added position parsing
+
+Version 1.3: 3/19/2022
+    Added ability to not load images/ply data at all
+    Added support for keypoint location information
 
 """
 
@@ -158,17 +159,18 @@ def build(data_path, dest_path = None):
     }
 
     with open(os.path.join(dest_path,'ds.json'),'w') as file:
-        json.dump(info, file)
+        json.dump(info, file, indent=4, sort_keys= True)
 
 
 
 
 
 class Dataset():
-    def __init__(self, name, skeleton=None, load_seg = True, load_og = False, primary = "seg"):
+    def __init__(self, name, skeleton=None, load_seg = True, load_og = False, primary = "seg", load_ply = True):
         
         self.load_seg = load_seg
         self.load_og = load_og
+        self.load_ply = load_ply
 
         compiled_datasets = [ f.path for f in os.scandir(p.datasets) if f.is_dir() and 'raw' not in str(f.path) and 'skeleton' not in str(f.path) ]
         compiled_names = [ os.path.basename(os.path.normpath(x)) for x in compiled_datasets ]
@@ -225,38 +227,40 @@ class Dataset():
         # Load dataset
         self.load(skeleton)
 
-        # Set paths, resolution
-        if self.load_og:
-            self.og_vid_path = os.path.join(self.path, 'og_vid.avi')
-            self.resolution_og = self.og_img.shape[1:3]
-            self.resolution = self.resolution_og
-        if self.load_seg:
-            self.seg_vid_path = os.path.join(self.path, 'seg_vid.avi')
-            self.resolution_seg = self.seg_img.shape[1:3]
-            self.resolution = self.resolution_seg
+        # Set img/video info if it's set to load
+        if self.load_og or self.load_seg:
+            # Set paths, resolution
+            if self.load_og:
+                self.og_vid_path = os.path.join(self.path, 'og_vid.avi')
+                self.resolution_og = self.og_img.shape[1:3]
+                self.resolution = self.resolution_og
+            if self.load_seg:
+                self.seg_vid_path = os.path.join(self.path, 'seg_vid.avi')
+                self.resolution_seg = self.seg_img.shape[1:3]
+                self.resolution = self.resolution_seg
 
 
-        # Set primary image and video types
-        if self.load_seg and not self.load_og:
-            primary = "seg"
-        if self.load_og and not self.load_seg:
-            primary = "og"
+            # Set primary image and video types
+            if self.load_seg and not self.load_og:
+                primary = "seg"
+            if self.load_og and not self.load_seg:
+                primary = "og"
 
-        if primary == "og":
-            self.img = self.og_img
-            self.vid = self.og_vid
-            self.vid_path = self.og_vid_path
-        else:
-            self.img = self.seg_img
-            self.vid = self.seg_vid
-            self.vid_path = self.seg_vid_path
-            if primary != "seg":
-                print("Invalid primary media type selected.\nUsing seg.")
+            if primary == "og":
+                self.img = self.og_img
+                self.vid = self.og_vid
+                self.vid_path = self.og_vid_path
+            else:
+                self.img = self.seg_img
+                self.vid = self.seg_vid
+                self.vid_path = self.seg_vid_path
+                if primary != "seg":
+                    print("Invalid primary media type selected.\nUsing seg.")
 
 
 
     def load(self, skeleton=None):
-        print("\nLoading Dataset...")
+        print("\nLoading Dataset:")
         # Read into JSON to get dataset settings
         with open(os.path.join(self.path, 'ds.json'), 'r') as f:
             d = json.load(f)
@@ -265,32 +269,33 @@ class Dataset():
 
         # Read in og images
         if self.load_og:
-            print("Reading orig images...")
+            print("\tReading orig images...")
             self.og_img = np.load(os.path.join(self.path, 'og_img.npy'))
             self.og_vid = cv2.VideoCapture(os.path.join(self.path, 'og_vid.avi'))
 
         # Read in seg images
         if self.load_seg:
-            print("Reading segmented images...")
+            print("\tReading segmented images...")
             self.seg_img = np.load(os.path.join(self.path, 'seg_img.npy'))
             self.seg_vid = cv2.VideoCapture(os.path.join(self.path, 'seg_vid.avi'))
             
 
         # Read angles
-        print("Reading joint angles...")
+        print("\tReading joint angles...")
         self.ang = np.load(os.path.join(self.path, 'ang.npy'))
 
         # Read angles
-        print("Reading joint positions...")
+        print("\tReading joint positions...")
         self.pos = np.load(os.path.join(self.path, 'pos.npy'))
 
         # Read in point data
-        print("Reading 3D data...")
-        ply_in = np.load(os.path.join(self.path, 'ply.npy'),allow_pickle=True)
-        self.ply = []
-        for entry in ply_in:
-            entry = np.array(entry)
-            self.ply.append(entry)
+        if self.load_ply:
+            print("\tReading 3D data...")
+            ply_in = np.load(os.path.join(self.path, 'ply.npy'),allow_pickle=True)
+            self.ply = []
+            for entry in ply_in:
+                entry = np.array(entry)
+                self.ply.append(entry)
 
         # Set deeppose dataset path
         self.deepposeds_path = os.path.join(self.path,'deeppose.h5')
@@ -299,7 +304,7 @@ class Dataset():
         if skeleton is not None:
             self.setSkeleton(skeleton)
         
-        print("Dataset Loaded.\n\n")
+        print("Dataset Loaded.\n")
 
 
     def validate(self, path):
@@ -373,6 +378,12 @@ class Dataset():
                 self.skeleton_path = os.path.join(p.skeletons, file)
                 self.deepposeds_path = self.deepposeds_path.replace('.h5','_'+os.path.splitext(file)[0]+'.h5')
 
+        for file in [x for x in os.listdir(p.skeletons) if x.endswith('.json')]:
+            if self.skeleton in os.path.splitext(file)[0]:
+                with open(os.path.join(p.skeletons, file),'r') as f:
+                    self.keypoint_data = json.load(f)
+
+
     def makeDeepPoseDS(self, force=False):
         if force:
             initialize_dataset(
@@ -400,8 +411,9 @@ class Dataset():
         else:
             return self.length  
 
+
     def __repr__(self):
-        return f"RobotPose dataset of {self.length} frames. Using skeleton {self.skeleton}"
+        return f"RobotPose dataset of {self.length} frames. Using skeleton {self.skeleton}."
 
     def og(self):
         return self.load_og
