@@ -10,7 +10,6 @@
 import json
 import numpy as np
 import os
-import random
 
 import cv2
 import trimesh
@@ -21,8 +20,6 @@ from .autoAnnotate import KeypointAnnotator, SegmentationAnnotator, makeMask
 from .dataset import Dataset
 from .projection import proj_point_to_pixel, makeIntrinsics
 from .turbo_colormap import normalize_and_interpolate
-from .utils import outlier_min_max
-
 
 
 DEFAULT_COLORS = [
@@ -38,10 +35,16 @@ DEFAULT_COLORS = [
 
 
 def cameraFromIntrinsics(rs_intrinsics):
+    """Returns Pyrender Camera.
+    Makes a Pyrender camera from realsense intrinsics
+    """
     return pyrender.IntrinsicsCamera(cx=rs_intrinsics.ppx, cy=rs_intrinsics.ppy, fx=rs_intrinsics.fx, fy=rs_intrinsics.fy)
 
 
 def loadModels(obj_list, path = p.robot_cad, mode = 'pyrender',fileend='.obj'):
+    """Returns mesh objects.
+    Loads CAD models as trimesh or pyrender objects
+    """
     assert mode == 'trimesh' or mode == 'pyrender'
     meshes = []
     for file in obj_list:
@@ -62,6 +65,9 @@ def loadModels(obj_list, path = p.robot_cad, mode = 'pyrender',fileend='.obj'):
 
 
 def angToPoseArr(ang1,ang2,ang3, arr = None):
+    """Returns 4x4 pose array.
+    Converts rotations to a pose array
+    """
     # Takes pitch, roll, yaw and converts into a pose arr
     angs = np.array([ang1,ang2,ang3])
     c = np.cos(angs)
@@ -88,6 +94,9 @@ def angToPoseArr(ang1,ang2,ang3, arr = None):
     return pose
 
 def translatePoseArr(x,y,z, arr = None):
+    """Returns 4x4 pose array.
+    Translates a pose array
+    """
     if arr is None:
         pose = np.zeros((4,4))
     else:
@@ -101,22 +110,19 @@ def translatePoseArr(x,y,z, arr = None):
 
 
 def makePose(x,y,z,pitch,roll,yaw):
+    """Returns 4x4 pose array.
+    Makes pose array given positon and angle
+    """
     pose = angToPoseArr(yaw,pitch,roll)
     pose = translatePoseArr(x,y,z,pose)
     return pose
 
 
-def loadCoords():
-    pos_path = r'data/set6_slu/pos.npy'
-    ang_path = r'data/set6_slu/ang.npy'
-
-    pos = np.load(pos_path)
-    ang = np.load(ang_path)
-    assert pos.shape[0] == ang.shape[0]
-    return coordsFromData(ang, pos)
-
 
 def coordsFromData(ang, pos):
+    """Returns Zx6x6 array of positions and angles.
+    Given angle and positon arrays, make an array of mesh locations and rotations.
+    """
     #Make arr in x,y,z,roll,pitch,yaw format
     coord = np.zeros((pos.shape[0],6,6))
 
@@ -132,8 +138,8 @@ def coordsFromData(ang, pos):
     for idx in range(1,6):
         coord[:,idx,5] = ang[:,0]
 
-    coord[:,2,4] = -1 * ang[:,1]    # Pitch of L
-    coord[:,3,4] = -1 * ang[:,1] + ang[:,2] # Pitch of U
+    coord[:,2,4] = -1 * ang[:,1]                        # Pitch of L
+    coord[:,3,4] = -1 * ang[:,1] + ang[:,2]             # Pitch of U
     coord[:,4,4] = -1 * ang[:,1] + ang[:,2] + np.pi/2   # Pitch of R
     coord[:,5,4] = -1 * ang[:,1] + ang[:,2] + ang[:,4]  # Pitch of BT
 
@@ -141,6 +147,9 @@ def coordsFromData(ang, pos):
 
 
 def makePoses(coords):
+    """Returns Zx6x4x4 array.
+    Given a coordinate and roation array, make 4x4 pose arrays
+    """
     poses = np.zeros((coords.shape[0],6,4,4))
     # X frames, 6 joints, 4x4 pose for each
     for idx in range(coords.shape[0]):
@@ -151,6 +160,9 @@ def makePoses(coords):
 
 
 def setPoses(scene, nodes, poses):
+    """
+    Set all the poses of objects in a scene
+    """
     for node, pose in zip(nodes,poses):
         scene.set_pose(node,pose)
 
@@ -161,69 +173,6 @@ def readCameraPose(path):
     return d['pose']
 
 
-
-
-def test_render():
-
-    objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
-    #stls = ['base_link', 'link_s','link_l','link_u','link_r','link_b']
-    meshes = loadModels(objs)
-    #meshes = loadModels(stls,fileend='.stl')
-    coords = loadCoords()
-    poses = makePoses(coords)
-
-
-    scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])
-
-
-    node_map = dict()
-    nodes = []
-    label_dict = dict()
-    # full_c = [55,138,243]
-    # label_dict["mh5"] = full_c
-    for mesh, name in zip(meshes,objs):
-        #mesh.primitives[0].material = pyrender.MetallicRoughnessMaterial(metallicFactor=0)
-        n = scene.add(mesh)
-        nodes.append(n)
-        node_map[n] = [random.randint(0,255),random.randint(0,255),random.randint(0,255)]
-        label_dict[name] = node_map[n]
-        # node_map[n] = full_c
-
-
-
-
-    camera = cameraFromIntrinsics(makeIntrinsics())
-    #c_pose = [17,0,4,0,np.pi/2,np.pi/2]
-    c_pose = readCameraPose(r'data/set6_slu/camera_pose.json')
-    camera_pose = makePose(*c_pose) # X,Y,Z, Roll(+CW,CCW-), Tilt(+Up,Down-), Pan(+Left,Right-) 
-
-    scene.add(camera, pose=camera_pose)
-    light = pyrender.SpotLight(color=np.ones(3), intensity=1000.0,
-                                innerConeAngle=np.pi/16.0,
-                                outerConeAngle=np.pi/6.0)
-    dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=15.0)
-    
-    scene.add(dl, pose=makePose(15,0,15,0,np.pi/4,np.pi/2)) # Add light above camera
-    scene.add(dl, pose=makePose(15,0,-15,0,3*np.pi/4,np.pi/2)) # Add light below camera
-    scene.add(dl, pose=camera_pose) # Add light at camera pos
-    r = pyrender.OffscreenRenderer(1280, 720)
-
-    anno = SegmentationAnnotator(label_dict)
-
-    imgs = np.load(r'data/set6_slu/og_img.npy')
-
-    for frame in range(100):
-        frame_poses = poses[frame]
-        setPoses(scene, nodes, frame_poses)
-        color, depth = r.render(scene,flags=pyrender.constants.RenderFlags.SEG,seg_node_map=node_map)
-        print(f"{np.min(depth)},{np.max(depth)}")
-        cv2.imshow("Render", color) 
-        #cv2.imwrite(fr'seg_test/{frame}.png', color)
-        #labelSegmentation(fr'seg_test/{frame:3d}.png',color)
-        #labelSegmentation(color,color,fr'seg_test/{frame:03d}')
-        anno.annotate(imgs[frame],color,fr'seg_test/{frame:03d}')
-        
-        cv2.waitKey(1)
 
 
 
@@ -374,22 +323,10 @@ class Renderer():
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class Aligner():
+    """
+    Used to manually find the position of camera relative to robot.
+    """
     """
     W/S - Move forward/backward
     A/D - Move left/right
@@ -629,7 +566,6 @@ def compare_depth(ply, color, depth, ply_multiplier = -10):
     # plt.show()
 
     out = np.zeros((depth.shape[0], depth.shape[1],3), np.uint8)
-    #mn,mx = outlier_min_max(diff_vec[np.where(np.all(diff_vec != 0.0, axis=-1))])
     for r in range(depth.shape[0]):
         for c in [x for x in range(depth.shape[1]) if mask[r,x]]:
             out[r,c] = normalize_and_interpolate(diff[r,c], -.5, .5)
