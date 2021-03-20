@@ -11,6 +11,35 @@ Visualization uses the [Turbo Colormap](https://ai.googleblog.com/2019/08/turbo-
 
 3D Rendering is done via [Pyrender](https://github.com/mmatl/pyrender).
 
+# Automatic Annotation
+
+## Alignment
+
+Before running any automatic annotation, first align the dataset with the render using the Aligner class:
+
+```python
+from robotpose.render import Aligner
+align = Aligner('example_dataset_name','example_skeleton_name')
+align.run()
+```
+
+## Keypoints
+
+To run automatic keypoint annotation, first align the dataset.
+
+Then, use the AutomaticKeypointAnnotator class to annotate:
+
+```python
+from robotpose.autoAnnotate import AutomaticKeypointAnnotator
+# Mesh information
+objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
+names = ['BASE','S','L','U','R','BT']
+anno = AutomaticKeypointAnnotator(objs, names, 'example_dataset_name','example_skeleton_name')
+anno.run()
+```
+
+
+
 
 # Installation
 

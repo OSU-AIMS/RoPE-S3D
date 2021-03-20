@@ -7,13 +7,18 @@
 #
 # Author: Adam Exley
 
-import os
-from robotpose.dataset import Dataset
-import cv2
 import numpy as np
-from labelme.label_file import LabelFile
+import os
 import tempfile
+
+import cv2
 import h5py
+from labelme.label_file import LabelFile
+from tqdm import tqdm
+
+from robotpose.dataset import Dataset
+from robotpose.render import Renderer
+import robotpose.paths as p
 
 def makeMask(image):
     mask = np.zeros(image.shape[0:2], dtype=np.uint8)
@@ -155,3 +160,41 @@ class KeypointAnnotator():
         avg_y = np.mean(coords[0])
         avg_x = np.mean(coords[1])
         return [avg_x, avg_y]
+
+
+
+
+class AutomaticKeypointAnnotator():
+    
+    def __init__(
+            self,
+            objs,
+            names,
+            dataset,
+            skeleton,
+            mesh_path = p.robot_cad,
+            mesh_type = '.obj',
+            camera_pose = None
+            ):
+        
+        self.rend = Renderer(
+            objs,
+            name_list = names,
+            mode = 'key',
+            mesh_path = mesh_path,
+            mesh_type = mesh_type,
+            dataset = dataset,
+            skeleton = skeleton,
+            camera_pose = camera_pose
+            )
+        color_dict = self.rend.getColorDict()
+        self.anno = KeypointAnnotator(color_dict,dataset,skeleton)
+
+    def run(self):
+        
+        for frame in tqdm(range(self.anno.ds.length),desc="Labeling Keypoints"):
+            self.rend.setPosesFromDS(frame)
+            color,depth = self.rend.render()
+            self.anno.annotate(color,frame)
+            cv2.imshow("Automatic Keypoint Annotator", color)
+            cv2.waitKey(1)
