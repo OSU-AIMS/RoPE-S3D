@@ -17,7 +17,7 @@ import trimesh
 import pyrender
 
 from . import paths as p
-from .autoAnnotate import Annotator, labelSegmentation, makeMask
+from .autoAnnotate import KeypointAnnotator, SegmentationAnnotator, makeMask
 from .dataset import Dataset
 from .projection import proj_point_to_pixel, makeIntrinsics
 from .turbo_colormap import normalize_and_interpolate
@@ -208,7 +208,7 @@ def test_render():
     scene.add(dl, pose=camera_pose) # Add light at camera pos
     r = pyrender.OffscreenRenderer(1280, 720)
 
-    anno = Annotator(label_dict)
+    anno = SegmentationAnnotator(label_dict)
 
     imgs = np.load(r'data/set6_slu/og_img.npy')
 
@@ -232,30 +232,19 @@ def test_render_with_class():
     objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
     names = ['BASE','S','L','U','R','BT']
 
-    sphere = trimesh.creation.icosphere(subdivisions=3, radius=0.2, color=None)
-    sphere = trimesh.creation.cylinder(.05, height=.05)
-    sphere = pyrender.Mesh.from_trimesh(sphere)
-
-
-    temp_pose = makePose(*[0.82,0,-1.63,np.pi/2,0,0])
-
     r = Renderer(objs, name_list=names)
-    s = r.scene.add(sphere, parent_name='BASE',pose=temp_pose)
-    r.node_color_map[s] = DEFAULT_COLORS[3]
+    r.setMode('key')
+    color_dict = r.getColorDict()
+    anno = KeypointAnnotator(color_dict,'set6','B')
+    
 
     for frame in range(100):
-        if frame % 2 == 0:
-            r.setMode('seg')
-        else:
-            r.setMode('key')
+            
         r.setPosesFromDS(frame)
         color,depth = r.render()
-        cv2.imshow("Render", color) 
-        cv2.waitKey(0)
-
-
-
-
+        anno.annotate(color,frame)
+        cv2.imshow("Render", color)
+        cv2.waitKey(100)
 
 
 
@@ -354,6 +343,12 @@ class Renderer():
             self.ds_poses = makePoses(coordsFromData(self.ds.ang, self.ds.pos))
         self.setObjectPoses(self.ds_poses[idx])
 
+
+    def getColorDict(self):
+        out = {}
+        for node, color in zip(self.node_color_map.keys(), self.node_color_map.values()):
+            out[node.name] = color
+        return out
 
 
     def setMode(self, mode):

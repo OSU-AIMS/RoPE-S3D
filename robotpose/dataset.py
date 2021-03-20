@@ -21,7 +21,7 @@ from . import paths as p
 from .segmentation import RobotSegmenter
 
 
-dataset_version = 1.3
+dataset_version = 2.0
 """
 Version 1.0: 3/7/2021
     Began versioning.
@@ -37,6 +37,9 @@ Version 1.2: 3/8/2022
 Version 1.3: 3/19/2022
     Added ability to not load images/ply data at all
     Added support for keypoint location information
+
+Version 2.0: 3/20/2022
+    Added crop data to facilitate keypoint annotation
 
 """
 
@@ -99,12 +102,16 @@ def build(data_path, dest_path = None):
     segmenter = RobotSegmenter()
     segmented_img_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
     ply_data = []
+    crop_data = []
 
     # Segment images and PLYS
     for idx in tqdm(range(length),desc="Segmenting"):
         ply_path = os.path.join(data_path,plys[idx])
-        segmented_img_arr[idx,:,:,:], ply = segmenter.segmentImage(orig_img_arr[idx], ply_path)
+        segmented_img_arr[idx,:,:,:], ply, left_crop = segmenter.segmentImage(orig_img_arr[idx], ply_path)
         ply_data.append(ply)
+        crop_data.append(left_crop)
+
+    np.save(os.path.join(dest_path, 'crop_data.npy'), np.array(crop_data))
 
     # Save segmented image array
     np.save(os.path.join(dest_path, 'seg_img.npy'), segmented_img_arr)
@@ -278,6 +285,7 @@ class Dataset():
             print("\tReading segmented images...")
             self.seg_img = np.load(os.path.join(self.path, 'seg_img.npy'))
             self.seg_vid = cv2.VideoCapture(os.path.join(self.path, 'seg_vid.avi'))
+            self.crop_data = np.load(os.path.join(self.path, 'crop_data.npy'))
             
 
         # Read angles
@@ -315,6 +323,7 @@ class Dataset():
         ds = os.path.isfile(os.path.join(path,'ds.json'))
         ply = os.path.isfile(os.path.join(path,'ply.npy'))
         seg_img = os.path.isfile(os.path.join(path,'seg_img.npy'))
+        crop_data = os.path.isfile(os.path.join(path,'crop_data.npy'))
         og_img = os.path.isfile(os.path.join(path,'og_img.npy'))
         seg_vid = os.path.isfile(os.path.join(path,'seg_vid.avi'))
         og_vid = os.path.isfile(os.path.join(path,'og_vid.avi'))
@@ -332,7 +341,7 @@ class Dataset():
                 return False
             
 
-        return ang and ds and ply and seg_img and og_img and seg_vid and og_vid
+        return ang and ds and ply and seg_img and og_img and seg_vid and og_vid and crop_data
 
 
     def build(self,data_path):

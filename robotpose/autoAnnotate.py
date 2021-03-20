@@ -8,11 +8,12 @@
 # Author: Adam Exley
 
 import os
+from robotpose.dataset import Dataset
 import cv2
 import numpy as np
 from labelme.label_file import LabelFile
 import tempfile
-import os
+import h5py
 
 def makeMask(image):
     mask = np.zeros(image.shape[0:2], dtype=np.uint8)
@@ -43,14 +44,14 @@ def contourImg(image):
 
 
 
-class Annotator():
+class SegmentationAnnotator():
 
-    def __init__(self, color_dict, segmentation = True, keypoints = False):
+    def __init__(self, color_dict = None):
+        if color_dict is not None:
+            self.color_dict = color_dict
+
+    def setDict(self, color_dict):
         self.color_dict = color_dict
-        self.seg = segmentation
-        self.key = keypoints
-
-
 
     def annotate(self, image, render, path = None):
 
@@ -113,7 +114,6 @@ class Annotator():
 
 
 
-
     def _mask_color(self,image, color):
         mask = np.zeros(image.shape[0:2], dtype=np.uint8)
         mask[np.where(np.all(image == color, axis=-1))] = 255
@@ -127,51 +127,31 @@ class Annotator():
 
 
 
+class KeypointAnnotator():
 
+    def __init__(self, color_dict, dataset, skeleton):
+        self.color_dict = color_dict
+        self.ds = Dataset(dataset, skeleton, load_ply=False)
+        self.ds.makeDeepPoseDS()    # Make sure there is already a valid deeppose DS for the DS
+        self.dpds = h5py.File(self.ds.deepposeds_path, 'r+')
 
+    def setDict(self, color_dict):
+        self.color_dict = color_dict
 
-def labelSegmentation(act_img, render_img, path = None):
+    def annotate(self, render, idx):
+        anno = []
+        for color in self.color_dict.values():
+            anno.append(self._getColorMidpoint(render, color))
 
-    f = LabelFile()
+        anno = np.array(anno)
+        anno[:,0] -= self.ds.crop_data[idx]
 
-    if type(act_img) is not str:
+        self.dpds['annotated'][idx] = np.array([True]*len(self.color_dict))
+        self.dpds['annotations'][idx] = anno
 
-        assert path is not None, "Path must be specified if an image file is not used."
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cv2.imwrite(os.path.join(tmpdir,'img.png'), act_img)
-            imageData = f.load_image_file(os.path.join(tmpdir,'img.png'))
-
-        act_image_path = 'img.png'
-        json_path = path
-        if not json_path.endswith('.json'):
-            json_path += '.json'
-    else:
-        imageData = f.load_image_file(act_img)
-        act_image_path = act_img
-        json_path = act_image_path.replace('.png','.json')
-
-    contour = makeContours(render_img)
-
-    contourlist = np.asarray(contour[0]).tolist()
-    contour_data = []
-    for point in contourlist:
-        contour_data.append(point[0])
     
-
-    shape = {
-        "label": "mh5",
-        "points": contour_data,
-        "group_id": None,
-        "shape_type": "polygon",
-        "flags": {}
-    }
-
-    f.save(
-        filename = json_path,
-        shapes = [shape],
-        imagePath = act_image_path,
-        imageHeight = 720,
-        imageWidth = 1280,
-        imageData = imageData
-    )
+    def _getColorMidpoint(self, image, color):
+        coords = np.where(np.all(image == color, axis=-1))
+        avg_y = np.mean(coords[0])
+        avg_x = np.mean(coords[1])
+        return [avg_x, avg_y]

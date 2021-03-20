@@ -210,5 +210,5 @@ class RobotSegmenter():
             cv2.waitKey(0)
             ######################
 
-        return output_image, crop_ply_data
+        return output_image, crop_ply_data, roi[1]
 
