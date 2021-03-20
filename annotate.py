@@ -5,7 +5,7 @@ import os
 import argparse
 
 def anno(set,skele):
-    ds = Dataset(set,skele)
+    ds = Dataset(set,skele,load_ply=False)
 
     print("Annotating on the following dataset:")
     print(ds)

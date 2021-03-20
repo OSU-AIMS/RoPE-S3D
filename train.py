@@ -1,3 +1,4 @@
+from json import load
 from robotpose.utils import limitMemory
 from robotpose.dataset import Dataset
 import tensorflow as tf
@@ -16,7 +17,7 @@ limitMemory()
 
 def run(dataset, skeleton, model_type, batch_size, valid_size):
 
-    ds = Dataset(dataset,skeleton)
+    ds = Dataset(dataset,skeleton,load_seg=False,load_ply=False)
     print("Dataset loaded")
     data_generator = DataGenerator(ds.deepposeds_path)
     print("Data Generator loaded")
