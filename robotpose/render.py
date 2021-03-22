@@ -186,8 +186,11 @@ class Renderer():
             mesh_type = '.obj',
             camera_pose = None,
             camera_intrin = '1280_720_color',
-            resolution = [1280, 720]
+            resolution = [1280, 720],
+            robot_name="mh5"
             ):
+
+        self.robot_name = robot_name
 
         # Load dataset
         self.ds = Dataset(dataset, skeleton, load_seg=False, load_og=False, load_ply=False)
@@ -270,10 +273,13 @@ class Renderer():
 
 
     def getColorDict(self):
-        out = {}
-        for node, color in zip(self.node_color_map.keys(), self.node_color_map.values()):
-            out[node.name] = color
-        return out
+        if self.mode != 'seg_full':
+            out = {}
+            for node, color in zip(self.node_color_map.keys(), self.node_color_map.values()):
+                out[node.name] = color
+            return out
+        else:
+            return {self.robot_name: DEFAULT_COLORS[0]}
 
 
     def setMode(self, mode):
