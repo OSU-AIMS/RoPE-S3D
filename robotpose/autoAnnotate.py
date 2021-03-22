@@ -16,9 +16,9 @@ import h5py
 from labelme.label_file import LabelFile
 from tqdm import tqdm
 
-from robotpose.dataset import Dataset
-from robotpose.render import Renderer
-import robotpose.paths as p
+from .dataset import Dataset
+from .render import Renderer
+from . import paths as p
 
 def makeMask(image):
     mask = np.zeros(image.shape[0:2], dtype=np.uint8)
@@ -168,7 +168,7 @@ class AutomaticKeypointAnnotator():
     
     def __init__(
             self,
-            objs,
+            mesh_list,
             names,
             dataset,
             skeleton,
@@ -178,13 +178,13 @@ class AutomaticKeypointAnnotator():
             ):
         
         self.rend = Renderer(
-            objs,
+            mesh_list,
+            dataset,
+            skeleton,
             name_list = names,
             mode = 'key',
             mesh_path = mesh_path,
             mesh_type = mesh_type,
-            dataset = dataset,
-            skeleton = skeleton,
             camera_pose = camera_pose
             )
         color_dict = self.rend.getColorDict()

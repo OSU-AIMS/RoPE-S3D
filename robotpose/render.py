@@ -16,7 +16,7 @@ import trimesh
 import pyrender
 
 from . import paths as p
-from .autoAnnotate import KeypointAnnotator, SegmentationAnnotator, makeMask
+#from .autoAnnotate import makeMask
 from .dataset import Dataset
 from .projection import proj_point_to_pixel, makeIntrinsics
 from .turbo_colormap import normalize_and_interpolate
@@ -167,34 +167,8 @@ def setPoses(scene, nodes, poses):
         scene.set_pose(node,pose)
 
 
-def readCameraPose(path):
-    with open(path,'r') as f:
-        d = json.load(f)
-    return d['pose']
-
-
-
-
-
-def test_render_with_class():
-
-    objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
-    names = ['BASE','S','L','U','R','BT']
-
-    r = Renderer(objs, name_list=names)
-    r.setMode('key')
-    color_dict = r.getColorDict()
-    anno = KeypointAnnotator(color_dict,'set6','B')
-    
-
-    for frame in range(100):
-            
-        r.setPosesFromDS(frame)
-        color,depth = r.render()
-        anno.annotate(color,frame)
-        cv2.imshow("Render", color)
-        cv2.waitKey(100)
-
+def readCameraPose(path, idx):
+    return np.load(path)[idx]
 
 
 
@@ -204,12 +178,12 @@ class Renderer():
     def __init__(
             self,
             mesh_list,
+            dataset,
+            skeleton,
             name_list = None,
             mode = 'seg',
             mesh_path = p.robot_cad,
             mesh_type = '.obj',
-            dataset='set6',
-            skeleton='B',
             camera_pose = None,
             camera_intrin = '1280_720_color',
             resolution = [1280, 720]
@@ -224,12 +198,12 @@ class Renderer():
         if name_list is None:
             name_list = mesh_list
 
-        cam_path = os.path.join(self.ds.path,'camera_pose.json')
+        self.cam_path = os.path.join(self.ds.path,'camera_pose.npy')
          
         if camera_pose is not None:
             c_pose = camera_pose
-        elif os.path.isfile(cam_path):
-            c_pose = readCameraPose(cam_path)
+        elif os.path.isfile(self.cam_path):
+            c_pose = readCameraPose(self.cam_path, 0)
         else:
             c_pose = [17,0,4,0,np.pi/2,np.pi/2]    # Default Camera Pose
 
@@ -238,7 +212,7 @@ class Renderer():
         camera = cameraFromIntrinsics(makeIntrinsics(camera_intrin))
         cam_pose = makePose(*c_pose)
 
-        self.scene.add(camera, pose=cam_pose)
+        self.camera_node = self.scene.add(camera, pose=cam_pose)
 
         dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=15.0)
         
@@ -292,6 +266,8 @@ class Renderer():
             self.ds_poses = makePoses(coordsFromData(self.ds.ang, self.ds.pos))
         self.setObjectPoses(self.ds_poses[idx])
 
+        setPoses(self.scene, [self.camera_node], [makePose(*readCameraPose(self.cam_path,idx))])
+
 
     def getColorDict(self):
         out = {}
@@ -337,49 +313,48 @@ class Aligner():
     +/- - Increase/Decrease Step size
     """
 
-    def __init__(self,dataset='set6',skeleton='B'):
+    def __init__(
+            self,
+            mesh_list,
+            name_list,
+            dataset,
+            skeleton,
+            start_idx = None,
+            end_idx = None
+            ):
         # Load dataset
-        self.ds = Dataset(dataset,skeleton,load_seg= False, load_og=True, primary="og")
+        self.ds = Dataset(dataset, skeleton, load_seg= False, load_og=True, load_ply= False)
 
-        self.cam_path = os.path.join(self.ds.path,'camera_pose.json')
+        self.renderer = Renderer(mesh_list, dataset, skeleton, mode='seg_full',name_list=name_list)
+        self.cam_path = self.renderer.cam_path
 
-        # Read in camera pose if it's been written before
-        if os.path.isfile(self.cam_path):
-            self.readCameraPose()
-        else:
-            # Init pose, write
-            self.c_pose = [17,0,4,0,np.pi/2,np.pi/2]
-            self.saveCameraPose()
-
-        self.scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])
-        self.renderer = pyrender.OffscreenRenderer(1280, 720)
-
-        # Load meshes and poses
-        objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
-        self.meshes = loadModels(objs)
-        coords = self.loadCoords()
-        self.poses = makePoses(coords)
-
-        # Put items into scene
-        self.nodes = []
-        for mesh, pose in zip(self.meshes,self.poses[0]):
-            mesh.primitives[0].material = pyrender.MetallicRoughnessMaterial(metallicFactor=0)
-            self.nodes.append(self.scene.add(mesh, pose=pose))
-
-        # Make camera
-        camera = cameraFromIntrinsics(makeIntrinsics())
-        dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=15.0)
-
-        # Add in camera/light
-        self.camera_pose_arr = makePose(*self.c_pose) # X,Y,Z, Roll(+CW,CCW-), Tilt(+Up,Down-), Pan(+Left,Right-) 
-        self.cam = self.scene.add(camera, pose=self.camera_pose_arr)
-        self.light = self.scene.add(dl, pose=self.camera_pose_arr) # Add light at camera pos
-
-        self.scene.add(dl, pose=makePose(15,0,15,0,np.pi/4,np.pi/2)) # Add light above robot
-        self.scene.add(dl, pose=makePose(15,0,-15,0,3*np.pi/4,np.pi/2)) # Add light below robot
 
         # Image counter
         self.idx = 0
+        if start_idx is not None:
+            self.start_idx = start_idx
+        else:
+            self.start_idx = 0
+
+        if end_idx is not None:
+            self.end_idx = end_idx
+        else:
+            self.end_idx = self.ds.length - 1
+
+
+        # Read in camera pose if it's been written before
+        if os.path.isfile(self.cam_path):
+            self.readCameraPose(self.start_idx)
+        else:
+            # Init pose, write
+            self.c_pose = [14.25,.09,4.16,-.01,np.pi/2,np.pi/2]
+            a = np.zeros((self.ds.length,6))
+            for idx in range(self.ds.length):
+                a[idx] = self.c_pose
+            np.save(self.cam_path,a)
+
+
+
 
         # Movement steps
         self.xyz_steps = [.01,.05,.1,.25,.5,1,5,10]
@@ -387,24 +362,23 @@ class Aligner():
         self.step_loc = len(self.xyz_steps) - 4
 
 
+    def setCameraPose(self):
+        self.camera_pose_arr = makePose(*self.c_pose)
+        self.renderer.scene.set_pose(self.renderer.camera_node, self.camera_pose_arr)
+
 
     def run(self):
         ret = True
 
         while ret:
 
-            self.camera_pose_arr = makePose(*self.c_pose)
-            setPoses(self.scene,[self.cam, self.light],[self.camera_pose_arr,self.camera_pose_arr])
+            self.setCameraPose()
             real = self.ds.img[self.idx]
-            self.updatePoses()
-            render, depth = self.renderFrame(do_depth=True)
+            self.renderer.setPosesFromDS(self.idx)
+            render, depth = self.renderer.render()
             image = self.combineImages(real, render)
             image = self.addOverlay(image)
             cv2.imshow("Aligner", image)
-
-            depth_cmp = compare_depth(self.ds.ply[self.idx], render, depth)
-            cv2.imshow("Aligner_depth", depth_cmp)
-
 
             inp = cv2.waitKey(0)
             ret = self.moveCamera(inp)
@@ -431,6 +405,22 @@ class Aligner():
 
         if inp == ord('0'):
             return False
+        elif inp == ord('='):
+            self.step_loc += 1
+            if self.step_loc >= len(self.xyz_steps):
+                self.step_loc = len(self.xyz_steps) - 1
+            return True
+        elif inp == ord('-'):
+            self.step_loc -= 1
+            if self.step_loc < 0:
+                self.step_loc = 0
+            return True
+        elif inp == ord('k'):
+            self.increment(-5)
+            return True
+        elif inp == ord('l'):
+            self.increment(5)
+            return True
 
         if inp == ord('w'):
             self.c_pose[0] -= xyz_step
@@ -456,18 +446,6 @@ class Aligner():
             self.c_pose[5] += ang_step
         elif inp == ord('h'):
             self.c_pose[5] -= ang_step
-        elif inp == ord('='):
-            self.step_loc += 1
-            if self.step_loc >= len(self.xyz_steps):
-                self.step_loc = len(self.xyz_steps) - 1
-        elif inp == ord('-'):
-            self.step_loc -= 1
-            if self.step_loc < 0:
-                self.step_loc = 0
-        elif inp == ord('k'):
-            self.increment(-5)
-        elif inp == ord('l'):
-            self.increment(5)
 
         self.saveCameraPose()
         return True
@@ -491,84 +469,22 @@ class Aligner():
 
 
     def increment(self, step):
-        if not (self.idx + step >= self.ds.length) and not (self.idx + step < 0):
+        if not (self.idx + step >= self.end_idx) and not (self.idx + step < self.start_idx):
             self.idx += step
 
 
-    def renderFrame(self, do_depth = False):
-        color, depth = self.renderer.render(self.scene)
-        if do_depth:
-            return color, depth
-        else:
-            return color
-
-
     def saveCameraPose(self):
-        with open(self.cam_path,'w') as f:
-            json.dump({'pose':self.c_pose},f)
+        arr = np.load(self.cam_path)
+        for idx in range(self.start_idx, self.end_idx + 1):
+            arr[idx] = self.c_pose
+        np.save(self.cam_path, arr)
 
-    def readCameraPose(self):
-        with open(self.cam_path,'r') as f:
-            d = json.load(f)
-        self.c_pose = d['pose']
-
-
-    def updatePoses(self):
-        frame_poses = self.poses[self.idx]
-        setPoses(self.scene, self.nodes, frame_poses)
-
-
-    def loadCoords(self):
-        pos = self.ds.pos
-        ang = self.ds.ang
-        assert pos.shape[0] == ang.shape[0]
-
-        coord = np.zeros((pos.shape[0],6,6))
-
-        coord[:,1:6,2] = pos[:,:5,2] # z is equal
-        coord[:,1:6,0] = -1 * pos[:,:5,1] # x = -y
-        coord[:,1:6,1] = pos[:,:5,0] # y = x
-
-        # I'm dumb so these all use dm instead of m
-        coord[:,:,0:3] *= 10
-        for idx in range(1,6):
-            coord[:,idx,5] = ang[:,0]
-        coord[:,2,4] = -1 * ang[:,1]
-        coord[:,3,4] = -1 * ang[:,1] + ang[:,2]
-        coord[:,4,4] = -1 * ang[:,1] + ang[:,2] + np.pi/2
-        coord[:,5,4] = -1 * ang[:,1] + ang[:,2] + ang[:,4]
-
-        return coord
+    def readCameraPose(self,idx):
+        self.c_pose = np.load(self.cam_path)[idx]
 
 
 
 
-def compare_depth(ply, color, depth, ply_multiplier = -10):
-    ply_frame_data = np.copy(ply)
-    mask = makeMask(color)
-    ply_depth = np.zeros(depth.shape)
-
-    # Reproject pixels
-    intrin = makeIntrinsics()
-    ply_frame_data[:,0:2] = proj_point_to_pixel(intrin,ply_frame_data[:,2:5])
-    idx_arr = ply_frame_data[:,0:2].astype(int)
-    idx_arr[:,0] = np.clip(idx_arr[:,0],0,1279)
-    idx_arr[:,1] = np.clip(idx_arr[:,1],0,719)
-    for idx in range(len(ply_frame_data)):
-        ply_depth[idx_arr[idx,1],idx_arr[idx,0]] = ply_multiplier * ply_frame_data[idx,4]
 
 
-    diff_vec = np.subtract(depth,ply_depth)
-    diff = np.copy(diff_vec)
-    diff_vec.flatten()
-
-    # plt.hist(diff_vec)
-    # plt.show()
-
-    out = np.zeros((depth.shape[0], depth.shape[1],3), np.uint8)
-    for r in range(depth.shape[0]):
-        for c in [x for x in range(depth.shape[1]) if mask[r,x]]:
-            out[r,c] = normalize_and_interpolate(diff[r,c], -.5, .5)
-
-    return out
 
