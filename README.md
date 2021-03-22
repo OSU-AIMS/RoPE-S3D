@@ -15,30 +15,21 @@ Visualization uses the [Turbo Colormap](https://ai.googleblog.com/2019/08/turbo-
 
 ## Alignment
 
-Before running any automatic annotation, first align the dataset with the render using the Aligner class:
+Before running any automatic annotation, first align the dataset with the render using the Aligner:
 
-```python
-from robotpose.render import Aligner
-align = Aligner('example_dataset_name','example_skeleton_name')
-align.run()
+```bash
+python align.py dataset_name skeleton_name
 ```
 
-## Keypoints
+## Annotation
 
-To run automatic keypoint annotation, first align the dataset.
+To run automatic  annotation, first  align the dataset as described above.
 
-Then, use the AutomaticKeypointAnnotator class to annotate:
+Then, use the automatic annotation script:
 
-```python
-from robotpose.autoAnnotate import AutomaticKeypointAnnotator
-# Mesh information
-objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
-names = ['BASE','S','L','U','R','BT']
-anno = AutomaticKeypointAnnotator(objs, names, 'example_dataset_name','example_skeleton_name')
-anno.run()
+```bash
+python annotate_auto.py dataset_name skeleton_name
 ```
-
-
 
 
 # Installation
