@@ -173,7 +173,15 @@ def build(data_path, dest_path = None):
 
 
 class Dataset():
-    def __init__(self, name, skeleton=None, load_seg = True, load_og = False, primary = "seg", load_ply = True):
+    def __init__(
+            self, 
+            name, 
+            skeleton=None, 
+            load_seg = True, 
+            load_og = False, 
+            primary = "seg", 
+            load_ply = True
+            ):
         
         self.load_seg = load_seg
         self.load_og = load_og
@@ -228,6 +236,7 @@ class Dataset():
 
         
         self.path = ds_path
+        self.seg_anno_path = os.path.join(self.path,'seg_anno')
         self.name = ds_name
 
 

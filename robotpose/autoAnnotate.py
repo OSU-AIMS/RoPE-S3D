@@ -129,6 +129,56 @@ class SegmentationAnnotator():
         return contours
 
 
+class AutomaticSegmentationAnnotator():
+    def __init__(
+            self,
+            mesh_list,
+            names,
+            dataset,
+            skeleton,
+            mode = 'seg_full',
+            mesh_path = p.robot_cad,
+            mesh_type = '.obj',
+            camera_pose = None
+            ):
+
+        modes = ['seg_full','seg']
+        assert mode in modes, f"Mode must be one of: {modes}"
+
+        self.rend = Renderer(
+            mesh_list,
+            dataset,
+            skeleton,
+            name_list = names,
+            mode = mode,
+            mesh_path = mesh_path,
+            mesh_type = mesh_type,
+            camera_pose = camera_pose
+            )
+        color_dict = self.rend.getColorDict()
+        self.anno = SegmentationAnnotator(color_dict)
+
+        self.ds = Dataset(dataset, skeleton, load_seg = False, load_og=True, load_ply=False)
+
+        if not os.path.isdir(self.ds.seg_anno_path):
+            os.mkdir(self.ds.seg_anno_path)
+
+        
+
+    def run(self):
+
+        for frame in tqdm(range(self.ds.length),desc="Labeling Segmentation"):
+            self.rend.setPosesFromDS(frame)
+            color,depth = self.rend.render()
+            self.anno.annotate(self.ds.img[frame],color,os.path.join(self.ds.seg_anno_path,f"{frame:05d}.json"))
+            cv2.imshow("Automatic Segmentation Annotator", color)
+            cv2.waitKey(1)
+
+
+
+
+
+
 
 
 
