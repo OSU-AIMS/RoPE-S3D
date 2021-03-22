@@ -22,8 +22,8 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
     data_generator = DataGenerator(ds.deepposeds_path)
     print("Data Generator loaded")
 
-    model_path = os.path.join(p.models,os.path.basename(os.path.normpath(ds.deepposeds_path)).replace('.h5',f'_{model_type}.h5'))
-    model_path = os.path.join(p.models,f"{ds.name}__{ds.skeleton}__{model_type}.h5")
+    model_path = os.path.join(p.MODELS,os.path.basename(os.path.normpath(ds.deepposeds_path)).replace('.h5',f'_{model_type}.h5'))
+    model_path = os.path.join(p.MODELS,f"{ds.name}__{ds.skeleton}__{model_type}.h5")
 
     if os.path.isfile(model_path):
         model = load_model(model_path,generator=data_generator)

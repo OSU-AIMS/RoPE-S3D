@@ -24,15 +24,15 @@ B_angles = readLinkXData(4)
 
 # Load model, make predictions
 model = load_model(p.model_mult)
-reader = VideoReader(p.video)
+reader = VideoReader(p.VIDEO)
 predictions = model.predict(reader)
 pred_dict = predToDictList(predictions)
 pred_dict_xyz = predToXYZdict(pred_dict, ply_data)
 
 # Load video capture and make output
-cap = cv2.VideoCapture(p.video)
+cap = cv2.VideoCapture(p.VIDEO)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out = cv2.VideoWriter(p.video.replace(".avi","_overlay.avi"),fourcc, 12.5, (640*2,480))
+out = cv2.VideoWriter(p.VIDEO.replace(".avi","_overlay.avi"),fourcc, 12.5, (640*2,480))
 
 # Init predicted angle lists
 S_pred = []

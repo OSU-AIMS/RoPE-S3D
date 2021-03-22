@@ -137,7 +137,7 @@ class AutomaticSegmentationAnnotator():
             dataset,
             skeleton,
             mode = 'seg_full',
-            mesh_path = p.robot_cad,
+            mesh_path = p.ROBOT_CAD,
             mesh_type = '.obj',
             camera_pose = None
             ):
@@ -222,7 +222,7 @@ class AutomaticKeypointAnnotator():
             names,
             dataset,
             skeleton,
-            mesh_path = p.robot_cad,
+            mesh_path = p.ROBOT_CAD,
             mesh_type = '.obj',
             camera_pose = None
             ):

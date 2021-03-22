@@ -38,7 +38,7 @@ predictions = model.predict(reader)
 # Load video capture and make output
 cap = ds.vid
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out = cv2.VideoWriter(p.video.replace(".avi","_overlay.avi"),fourcc, 12.5, (ds.resolution[1]*2,ds.resolution[0]))
+out = cv2.VideoWriter(p.VIDEO.replace(".avi","_overlay.avi"),fourcc, 12.5, (ds.resolution[1]*2,ds.resolution[0]))
 
 ret, image = cap.read()
 

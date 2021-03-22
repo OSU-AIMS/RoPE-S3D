@@ -41,7 +41,7 @@ def cameraFromIntrinsics(rs_intrinsics):
     return pyrender.IntrinsicsCamera(cx=rs_intrinsics.ppx, cy=rs_intrinsics.ppy, fx=rs_intrinsics.fx, fy=rs_intrinsics.fy)
 
 
-def loadModels(obj_list, path = p.robot_cad, mode = 'pyrender',fileend='.obj'):
+def loadModels(obj_list, path = p.ROBOT_CAD, mode = 'pyrender',fileend='.obj'):
     """Returns mesh objects.
     Loads CAD models as trimesh or pyrender objects
     """
@@ -182,7 +182,7 @@ class Renderer():
             skeleton,
             name_list = None,
             mode = 'seg',
-            mesh_path = p.robot_cad,
+            mesh_path = p.ROBOT_CAD,
             mesh_type = '.obj',
             camera_pose = None,
             camera_intrin = '1280_720_color',

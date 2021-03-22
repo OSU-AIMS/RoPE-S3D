@@ -54,7 +54,7 @@ def build(data_path, dest_path = None):
 
     if dest_path is None:
         name = os.path.basename(os.path.normpath(data_path))
-        dest_path = os.path.join(p.datasets, name)
+        dest_path = os.path.join(p.DATASETS, name)
 
     # Make dataset folder if it does not already exist
     if not os.path.isdir(dest_path):
@@ -187,10 +187,10 @@ class Dataset():
         self.load_og = load_og
         self.load_ply = load_ply
 
-        compiled_datasets = [ f.path for f in os.scandir(p.datasets) if f.is_dir() and 'raw' not in str(f.path) and 'skeleton' not in str(f.path) ]
+        compiled_datasets = [ f.path for f in os.scandir(p.DATASETS) if f.is_dir() and 'raw' not in str(f.path) and 'skeleton' not in str(f.path) ]
         compiled_names = [ os.path.basename(os.path.normpath(x)) for x in compiled_datasets ]
 
-        uncompiled_datasets = [ f.path for f in os.scandir(os.path.join(p.datasets,'raw')) if str(f.path).endswith('.zip') ]
+        uncompiled_datasets = [ f.path for f in os.scandir(os.path.join(p.DATASETS,'raw')) if str(f.path).endswith('.zip') ]
         uncompiled_names = [ os.path.basename(os.path.normpath(x)) for x in uncompiled_datasets ]
 
         compiled_matches = [x for x in compiled_names if x.startswith(name)]
@@ -376,7 +376,7 @@ class Dataset():
                 src_dir = os.path.join(tempdir,os.listdir(tempdir)[0])
             
             # Get final dataset path
-            dest_dir = os.path.join(p.datasets,os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
+            dest_dir = os.path.join(p.DATASETS,os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
 
             # Build
             print("Attempting dataset build...\n\n")
@@ -390,15 +390,15 @@ class Dataset():
 
 
     def setSkeleton(self,skeleton_name):
-        for file in [x for x in os.listdir(p.skeletons) if x.endswith('.csv')]:
+        for file in [x for x in os.listdir(p.SKELETONS) if x.endswith('.csv')]:
             if skeleton_name in os.path.splitext(file)[0]:
                 self.skeleton = os.path.splitext(file)[0]
-                self.skeleton_path = os.path.join(p.skeletons, file)
+                self.skeleton_path = os.path.join(p.SKELETONS, file)
                 self.deepposeds_path = self.deepposeds_path.replace('.h5','_'+os.path.splitext(file)[0]+'.h5')
 
-        for file in [x for x in os.listdir(p.skeletons) if x.endswith('.json')]:
+        for file in [x for x in os.listdir(p.SKELETONS) if x.endswith('.json')]:
             if self.skeleton in os.path.splitext(file)[0]:
-                with open(os.path.join(p.skeletons, file),'r') as f:
+                with open(os.path.join(p.SKELETONS, file),'r') as f:
                     self.keypoint_data = json.load(f)
 
 
