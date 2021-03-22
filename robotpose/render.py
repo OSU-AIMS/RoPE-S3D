@@ -167,10 +167,8 @@ def setPoses(scene, nodes, poses):
         scene.set_pose(node,pose)
 
 
-def readCameraPose(path):
-    with open(path,'r') as f:
-        d = json.load(f)
-    return d['pose']
+def readCameraPose(path, idx):
+    return np.load(path)[idx]
 
 
 
@@ -200,12 +198,12 @@ class Renderer():
         if name_list is None:
             name_list = mesh_list
 
-        self.cam_path = os.path.join(self.ds.path,'camera_pose.json')
+        self.cam_path = os.path.join(self.ds.path,'camera_pose.npy')
          
         if camera_pose is not None:
             c_pose = camera_pose
         elif os.path.isfile(self.cam_path):
-            c_pose = readCameraPose(self.cam_path)
+            c_pose = readCameraPose(self.cam_path, 0)
         else:
             c_pose = [17,0,4,0,np.pi/2,np.pi/2]    # Default Camera Pose
 
@@ -268,6 +266,8 @@ class Renderer():
             self.ds_poses = makePoses(coordsFromData(self.ds.ang, self.ds.pos))
         self.setObjectPoses(self.ds_poses[idx])
 
+        setPoses(self.scene, [self.camera_node], [makePose(*readCameraPose(self.cam_path,idx))])
+
 
     def getColorDict(self):
         out = {}
@@ -318,7 +318,9 @@ class Aligner():
             mesh_list,
             name_list,
             dataset,
-            skeleton
+            skeleton,
+            start_idx = None,
+            end_idx = None
             ):
         # Load dataset
         self.ds = Dataset(dataset, skeleton, load_seg= False, load_og=True, load_ply= False)
@@ -326,16 +328,33 @@ class Aligner():
         self.renderer = Renderer(mesh_list, dataset, skeleton, mode='seg_full',name_list=name_list)
         self.cam_path = self.renderer.cam_path
 
-        # Read in camera pose if it's been written before
-        if os.path.isfile(self.cam_path):
-            self.readCameraPose()
-        else:
-            # Init pose, write
-            self.c_pose = [17,0,4,0,np.pi/2,np.pi/2]
-            self.saveCameraPose()
 
         # Image counter
         self.idx = 0
+        if start_idx is not None:
+            self.start_idx = start_idx
+        else:
+            self.start_idx = 0
+
+        if end_idx is not None:
+            self.end_idx = end_idx
+        else:
+            self.end_idx = self.ds.length - 1
+
+
+        # Read in camera pose if it's been written before
+        if os.path.isfile(self.cam_path):
+            self.readCameraPose(self.start_idx)
+        else:
+            # Init pose, write
+            self.c_pose = [14.25,.09,4.16,-.01,np.pi/2,np.pi/2]
+            a = np.zeros((self.ds.length,6))
+            for idx in range(self.ds.length):
+                a[idx] = self.c_pose
+            np.save(self.cam_path,a)
+
+
+
 
         # Movement steps
         self.xyz_steps = [.01,.05,.1,.25,.5,1,5,10]
@@ -450,49 +469,22 @@ class Aligner():
 
 
     def increment(self, step):
-        if not (self.idx + step >= self.ds.length) and not (self.idx + step < 0):
+        if not (self.idx + step >= self.end_idx) and not (self.idx + step < self.start_idx):
             self.idx += step
 
 
     def saveCameraPose(self):
-        with open(self.cam_path,'w') as f:
-            json.dump({'pose':self.c_pose},f, indent = 4)
+        arr = np.load(self.cam_path)
+        for idx in range(self.start_idx, self.end_idx + 1):
+            arr[idx] = self.c_pose
+        np.save(self.cam_path, arr)
 
-    def readCameraPose(self):
-        with open(self.cam_path,'r') as f:
-            d = json.load(f)
-        self.c_pose = d['pose']
-
-
+    def readCameraPose(self,idx):
+        self.c_pose = np.load(self.cam_path)[idx]
 
 
 
-# def compare_depth(ply, color, depth, ply_multiplier = -10):
-#     ply_frame_data = np.copy(ply)
-#     mask = makeMask(color)
-#     ply_depth = np.zeros(depth.shape)
-
-#     # Reproject pixels
-#     intrin = makeIntrinsics()
-#     ply_frame_data[:,0:2] = proj_point_to_pixel(intrin,ply_frame_data[:,2:5])
-#     idx_arr = ply_frame_data[:,0:2].astype(int)
-#     idx_arr[:,0] = np.clip(idx_arr[:,0],0,1279)
-#     idx_arr[:,1] = np.clip(idx_arr[:,1],0,719)
-#     for idx in range(len(ply_frame_data)):
-#         ply_depth[idx_arr[idx,1],idx_arr[idx,0]] = ply_multiplier * ply_frame_data[idx,4]
 
 
-#     diff_vec = np.subtract(depth,ply_depth)
-#     diff = np.copy(diff_vec)
-#     diff_vec.flatten()
 
-#     # plt.hist(diff_vec)
-#     # plt.show()
-
-#     out = np.zeros((depth.shape[0], depth.shape[1],3), np.uint8)
-#     for r in range(depth.shape[0]):
-#         for c in [x for x in range(depth.shape[1]) if mask[r,x]]:
-#             out[r,c] = normalize_and_interpolate(diff[r,c], -.5, .5)
-
-#     return out
 
