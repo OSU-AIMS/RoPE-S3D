@@ -1,9 +1,8 @@
 
+from robotpose.autoAnnotate import AutomaticKeypointAnnotator
 from robotpose.render import Aligner
 #test_render()
 #test_render_with_class()
-
-
 
 
 
@@ -36,4 +35,5 @@ def test_align():
     align.run()
 
 
-test_align()
+
+#test_align()
