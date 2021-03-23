@@ -110,7 +110,7 @@ class SegmentationAnnotator():
         )
 
         # Save image
-        cv2.imwrite(image, act_image_path)
+        cv2.imwrite(act_image_path, image)
 
 
 
