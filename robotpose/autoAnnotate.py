@@ -58,26 +58,18 @@ class SegmentationAnnotator():
     def setDict(self, color_dict):
         self.color_dict = color_dict
 
-    def annotate(self, image, render, path = None):
+    def annotate(self, image, render, path):
 
         f = LabelFile()
 
-        if type(image) is not str:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cv2.imwrite(os.path.join(tmpdir,'img.png'), image)
+            imageData = f.load_image_file(os.path.join(tmpdir,'img.png'))
 
-            assert path is not None, "Path must be specified if an image file is not used."
-
-            with tempfile.TemporaryDirectory() as tmpdir:
-                cv2.imwrite(os.path.join(tmpdir,'img.png'), image)
-                imageData = f.load_image_file(os.path.join(tmpdir,'img.png'))
-
-            act_image_path = 'img.png'
-            json_path = path
-            if not json_path.endswith('.json'):
-                json_path += '.json'
-        else:
-            imageData = f.load_image_file(image)
-            act_image_path = image
-            json_path = act_image_path.replace('.png','.json')
+        act_image_path = path + '.png'
+        json_path = path
+        if not json_path.endswith('.json'):
+            json_path += '.json'
 
 
         shapes = []
@@ -116,6 +108,11 @@ class SegmentationAnnotator():
             imageWidth = image.shape[1],
             imageData = imageData
         )
+
+        # Save image
+        cv2.imwrite(image, act_image_path)
+
+
 
 
 

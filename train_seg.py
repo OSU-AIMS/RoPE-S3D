@@ -23,7 +23,7 @@ def train(dataset, skeleton, batch, valid):
             shutil.rmtree(path)
         os.mkdir(path)
 
-    jsons = [x for x in os.listdir(ds.seg_anno_path) if x.endswith('.json')]
+    jsons = [x for x in os.listdir(ds.seg_anno_path) if x.endswith('.json') and 'test' not in x and 'train' not in x]
     random.shuffle(jsons)
 
     valid_size = int(len(jsons) * valid)
@@ -34,6 +34,7 @@ def train(dataset, skeleton, batch, valid):
         path = os.path.join(ds.seg_anno_path, folder)
         for file in lst:
             shutil.copy2(os.path.join(ds.seg_anno_path, file), os.path.join(path, file))
+            shutil.copy2(os.path.join(ds.seg_anno_path, file.replace('.json','.png')), os.path.join(path, file.replace('.json','.png')))
 
     print("Data Split.")
     default_model_path = r'models/segmentation/mask_rcnn_coco.h5'
