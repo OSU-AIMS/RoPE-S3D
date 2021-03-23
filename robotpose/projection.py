@@ -139,3 +139,28 @@ def proj_point_to_pixel(intrin, points, correct_distortion = False):
 
 
 
+
+
+def generateMaps(points, intrin_type = '1280_720_color'):
+    intrin = makeIntrinsics(intrin_type)
+
+    # Instead of an RGB/BGR array, this is an XYZ array
+    sum_arr = np.zeros((intrin.height, intrin.width, 3))
+    count_arr = np.zeros((intrin.height, intrin.width, 3))
+
+    points_idx = np.array(np.round(proj_point_to_pixel(intrin, points)), dtype=int)
+
+    points[:,2] *= -1
+
+    points_idx[:,0] = np.round(np.clip(points_idx[:,0],0,intrin.width-1))
+    points_idx[:,1] = np.round(np.clip(points_idx[:,1],0,intrin.height-1))
+
+    for pixel, loc in zip(points_idx,points):
+        px, py = pixel
+        sum_arr[py,px] += loc
+        count_arr[py,px] += [1]*3
+
+    arr = sum_arr / count_arr
+    arr = np.nan_to_num(arr,nan=0,posinf=0,neginf=0)
+
+    return arr
