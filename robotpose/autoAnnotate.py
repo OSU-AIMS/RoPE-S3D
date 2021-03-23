@@ -167,7 +167,7 @@ class AutomaticSegmentationAnnotator():
         for frame in tqdm(range(self.ds.length),desc="Labeling Segmentation"):
             self.rend.setPosesFromDS(frame)
             color,depth = self.rend.render()
-            self.anno.annotate(self.ds.img[frame],color,os.path.join(self.ds.seg_anno_path,f"{frame:05d}.json"))
+            self.anno.annotate(self.ds.img[frame],color,os.path.join(self.ds.seg_anno_path,f"{frame:05d}"))
             cv2.imshow("Automatic Segmentation Annotator", color)
             cv2.waitKey(1)
 
