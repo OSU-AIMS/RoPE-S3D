@@ -1,4 +1,5 @@
 #Show sample
+import json
 import pixellib
 from pixellib.custom_train import instance_custom_training
 import requests
@@ -6,12 +7,35 @@ import os
 from robotpose.dataset import Dataset
 import robotpose.paths as p
 import argparse
+import shutil
+import random
 
 
 
-def train(dataset, skeleton, batch):
+def train(dataset, skeleton, batch, valid):
     ds = Dataset(dataset, skeleton, load_seg=False, load_ply=False)
 
+    print("Splitting up data...")
+    # Split set into validation and train
+    for folder in ['train', 'test']:
+        path = os.path.join(ds.seg_anno_path, folder)
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        os.mkdir(path)
+
+    jsons = [x for x in os.listdir(ds.seg_anno_path) if x.endswith('.json')]
+    random.shuffle(jsons)
+
+    valid_size = int(len(jsons) * valid)
+    valid_list = jsons[:valid_size]
+    train_list = jsons[valid_size:]
+
+    for lst, folder in zip([valid_list, train_list],['test','train']):
+        path = os.path.join(ds.seg_anno_path, folder)
+        for file in lst:
+            shutil.copy2(os.path.join(ds.seg_anno_path, file), os.path.join(path, file))
+
+    print("Data Split.")
     default_model_path = r'models/segmentation/mask_rcnn_coco.h5'
 
     if not os.path.isfile(default_model_path):
@@ -35,6 +59,7 @@ if __name__ == "__main__":
     parser.add_argument('dataset', type=str, default="set6", help="The dataset to load to annotate. Can be a partial name.")
     parser.add_argument('skeleton', type=str, default="B", help="The skeleton to use for annotation.")
     parser.add_argument('--batch',type=int, choices=[1,2,4,8,12,16], default=2, help="Batch size for training")
+    parser.add_argument('--valid',type=float, default=.15, help="Validation size for training")
     args = parser.parse_args()
 
-    train(args.dataset, args.skeleton, args.batch)
+    train(args.dataset, args.skeleton, args.batch, args.valid)
