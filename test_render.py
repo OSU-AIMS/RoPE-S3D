@@ -8,7 +8,7 @@ from robotpose.render import Aligner, Renderer
 
 def test_render():
 
-    objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
+    objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS','MH5_BT_UNIFIED_AXIS']
     names = ['BASE','S','L','U','R','BT']
 
     r = Renderer(objs, 'set7', 'B',name_list=names)

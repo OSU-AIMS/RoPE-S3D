@@ -3,7 +3,7 @@ from robotpose.render import Aligner
 
 def align(dataset, skeleton):
 
-    objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS_NEW','MH5_BT_UNIFIED_AXIS']
+    objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS','MH5_BT_UNIFIED_AXIS']
     names = ['BASE','S','L','U','R','BT']
 
     align = Aligner(objs, names, dataset, skeleton)
