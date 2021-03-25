@@ -9,6 +9,8 @@
 
 import datetime
 import json
+import multiprocessing as mp
+from robotpose.projection import makeIntrinsics
 import numpy as np
 import os
 import time
@@ -17,8 +19,10 @@ import cv2
 from deepposekit.io import initialize_dataset
 from tqdm import tqdm
 
+from .multithread import crop
 from . import paths as p
 from .segmentation import RobotSegmenter
+from .utils import workerCount
 
 
 dataset_version = 2.0
@@ -101,15 +105,35 @@ def build(data_path, dest_path = None):
 
     segmenter = RobotSegmenter()
     segmented_img_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
+    mask_arr = np.zeros((length, img_height, img_width), dtype=bool)
+    rois = np.zeros((length, 4))
     ply_data = []
     crop_data = []
 
-    # Segment images and PLYS
-    for idx in tqdm(range(length),desc="Segmenting"):
-        ply_path = os.path.join(data_path,plys[idx])
-        segmented_img_arr[idx,:,:,:], ply, left_crop = segmenter.segmentImage(orig_img_arr[idx], ply_path)
-        ply_data.append(ply)
-        crop_data.append(left_crop)
+
+    # Segment images
+    for idx in tqdm(range(length),desc="Segmenting Images",colour='green'):
+        mask_arr[idx], rois[idx] = segmenter.segmentImage(orig_img_arr[idx])
+        crop_data.append(rois[idx,1])
+    
+    rois = rois.astype(int)
+
+    ply_paths = [os.path.join(data_path,x) for x in plys] 
+    crop_inputs = []
+    # Make iterable for pool
+    for idx in tqdm(range(length),desc="Making Pool Data", colour="yellow"):
+        crop_inputs.append((ply_paths[idx], orig_img_arr[idx], mask_arr[idx], rois[idx]))
+
+    print("Running Crop Pool...")
+    # Run pool to segment PLYs
+    with mp.Pool(workerCount()) as pool:
+        crop_outputs = pool.starmap(crop, crop_inputs)
+    print("Pool Complete")
+
+    for idx in tqdm(range(length),desc="Unpacking Pool Results"):
+        ply_data.append(crop_outputs[idx][1])
+        segmented_img_arr[idx] = crop_outputs[idx][0]
+    
 
     np.save(os.path.join(dest_path, 'crop_data.npy'), np.array(crop_data))
 
