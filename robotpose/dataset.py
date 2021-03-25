@@ -10,7 +10,6 @@
 import datetime
 import json
 import multiprocessing as mp
-from robotpose.projection import makeIntrinsics
 import numpy as np
 import os
 import time
@@ -25,25 +24,28 @@ from .segmentation import RobotSegmenter
 from .utils import workerCount
 
 
-dataset_version = 2.0
+dataset_version = 2.1
 """
 Version 1.0: 3/7/2021
     Began versioning.
     Compatible versions should include the same integer base (eg 1.0 and 1.4).
     Backwards-Incompatiblity should be marked by a new integer base (eg going from 1.4 to 2.0).
 
-Version 1.1: 3/7/2022
+Version 1.1: 3/7/2021
     Changed raw compilation from using folders to using zip files to save storage
 
-Version 1.2: 3/8/2022
+Version 1.2: 3/8/2021
     Added position parsing
 
-Version 1.3: 3/19/2022
+Version 1.3: 3/19/2021
     Added ability to not load images/ply data at all
     Added support for keypoint location information
 
-Version 2.0: 3/20/2022
+Version 2.0: 3/20/2021
     Added crop data to facilitate keypoint annotation
+
+Version 2.1: 3/24/2021
+    Added multithreading to dataset compilation
 
 """
 
@@ -90,7 +92,7 @@ def build(data_path, dest_path = None):
     orig_img_path = [os.path.join(data_path, x) for x in imgs]
 
     # Store images in array
-    for idx, path in tqdm(zip(range(length), orig_img_path),desc="Parsing 2D Images"):
+    for idx, path in tqdm(zip(range(length), orig_img_path),total=length,desc="Parsing 2D Images"):
         orig_img_arr[idx] = cv2.imread(path)
 
     # Save array
@@ -99,8 +101,8 @@ def build(data_path, dest_path = None):
     # Save as a video
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter(os.path.join(dest_path,"og_vid.avi"),fourcc, 15, (img_width,img_height))
-    for idx in range(length):
-        out.write(orig_img_arr[idx])
+    for img in orig_img_arr:
+        out.write(img)
     out.release()
 
     segmenter = RobotSegmenter()
@@ -110,12 +112,10 @@ def build(data_path, dest_path = None):
     ply_data = []
     crop_data = []
 
-
     # Segment images
-    for idx in tqdm(range(length),desc="Segmenting Images",colour='green'):
+    for idx in tqdm(range(length),desc="Segmenting Images",colour='red'):
         mask_arr[idx], rois[idx] = segmenter.segmentImage(orig_img_arr[idx])
         crop_data.append(rois[idx,1])
-    
     rois = rois.astype(int)
 
     ply_paths = [os.path.join(data_path,x) for x in plys] 
@@ -130,7 +130,7 @@ def build(data_path, dest_path = None):
         crop_outputs = pool.starmap(crop, crop_inputs)
     print("Pool Complete")
 
-    for idx in tqdm(range(length),desc="Unpacking Pool Results"):
+    for idx in tqdm(range(length),desc="Unpacking Pool Results", colour='green'):
         ply_data.append(crop_outputs[idx][1])
         segmented_img_arr[idx] = crop_outputs[idx][0]
     
