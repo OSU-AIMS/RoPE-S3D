@@ -12,11 +12,8 @@ import numpy as np
 from . import projection as proj
 
 
-
-
 def crop(ply_path, image, mask, roi):
 
-    #print(roi)
     # Open PLY
     cloud = o3d.io.read_point_cloud(ply_path)
     points = np.asarray(cloud.points)
@@ -32,12 +29,10 @@ def crop(ply_path, image, mask, roi):
     intrinsics = proj.makeIntrinsics()
     # Get pixel location of each point
     points_proj = proj.proj_point_to_pixel(intrinsics, points)
-    
 
     points_proj_idx = np.zeros(points_proj.shape,dtype=int)
     points_proj_idx[:,0] = np.round(np.clip(points_proj[:,0],0,1279))
     points_proj_idx[:,1] = np.round(np.clip(points_proj[:,1],0,719))
-
 
     for row in range(points_proj.shape[0]):
         if mask[points_proj_idx[row,1],points_proj_idx[row,0]]:
@@ -45,7 +40,6 @@ def crop(ply_path, image, mask, roi):
             points_proj[row,0] -= roi[1]
             points_proj[row,1] -= roi[0]
             crop_ply_data.append(np.append(points_proj[row,:], points[row,:]))
-
 
     mask_img = np.zeros((mask.shape[0],mask.shape[1],3))
     for idx in range(3):
