@@ -47,6 +47,9 @@ Version 2.0: 3/20/2021
 Version 2.1: 3/24/2021
     Added multithreading to dataset compilation
 
+Version 3.0: 3/24/2021
+    Switched PLY data over to aligned image arrays
+
 """
 
 
@@ -107,9 +110,9 @@ def build(data_path, dest_path = None):
 
     segmenter = RobotSegmenter()
     segmented_img_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
+    ply_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=float)
     mask_arr = np.zeros((length, img_height, img_width), dtype=bool)
     rois = np.zeros((length, 4))
-    ply_data = []
     crop_data = []
 
     # Segment images
@@ -131,7 +134,7 @@ def build(data_path, dest_path = None):
     print("Pool Complete")
 
     for idx in tqdm(range(length),desc="Unpacking Pool Results", colour='green'):
-        ply_data.append(crop_outputs[idx][1])
+        ply_arr[idx] = crop_outputs[idx][1]
         segmented_img_arr[idx] = crop_outputs[idx][0]
     
 
@@ -150,9 +153,7 @@ def build(data_path, dest_path = None):
     """
     Process PLY data
     """
-
-    ply_data_nd = np.array(ply_data, dtype=object)
-    np.save(os.path.join(dest_path,'ply.npy'),ply_data_nd)
+    np.save(os.path.join(dest_path,'ply.npy'),ply_arr)
 
 
     """
