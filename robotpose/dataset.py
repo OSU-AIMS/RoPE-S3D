@@ -300,7 +300,7 @@ class Dataset():
 
 
     def load(self, skeleton=None):
-        print("\nLoading Dataset:")
+        print("\nLoading Dataset...")
         # Read into JSON to get dataset settings
         with open(os.path.join(self.path, 'ds.json'), 'r') as f:
             d = json.load(f)
@@ -309,29 +309,24 @@ class Dataset():
 
         # Read in og images
         if self.load_og:
-            print("\tReading orig images...")
             self.og_img = np.load(os.path.join(self.path, 'og_img.npy'))
             self.og_vid = cv2.VideoCapture(os.path.join(self.path, 'og_vid.avi'))
 
         # Read in seg images
         if self.load_seg:
-            print("\tReading segmented images...")
             self.seg_img = np.load(os.path.join(self.path, 'seg_img.npy'))
             self.seg_vid = cv2.VideoCapture(os.path.join(self.path, 'seg_vid.avi'))
             self.crop_data = np.load(os.path.join(self.path, 'crop_data.npy'))
             
 
         # Read angles
-        print("\tReading joint angles...")
         self.ang = np.load(os.path.join(self.path, 'ang.npy'))
 
-        # Read angles
-        print("\tReading joint positions...")
+        # Read positions
         self.pos = np.load(os.path.join(self.path, 'pos.npy'))
 
         # Read in point data
         if self.load_ply:
-            print("\tReading 3D data...")
             ply_in = np.load(os.path.join(self.path, 'ply.npy'),allow_pickle=True)
             self.ply = []
             for entry in ply_in:
