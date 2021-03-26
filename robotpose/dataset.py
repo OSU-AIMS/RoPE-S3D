@@ -9,6 +9,7 @@
 
 import datetime
 import json
+import multiprocessing as mp
 import numpy as np
 import os
 import time
@@ -17,29 +18,37 @@ import cv2
 from deepposekit.io import initialize_dataset
 from tqdm import tqdm
 
+from .multithread import crop
 from . import paths as p
 from .segmentation import RobotSegmenter
+from .utils import workerCount
 
 
-dataset_version = 2.0
+dataset_version = 2.1
 """
 Version 1.0: 3/7/2021
     Began versioning.
     Compatible versions should include the same integer base (eg 1.0 and 1.4).
     Backwards-Incompatiblity should be marked by a new integer base (eg going from 1.4 to 2.0).
 
-Version 1.1: 3/7/2022
+Version 1.1: 3/7/2021
     Changed raw compilation from using folders to using zip files to save storage
 
-Version 1.2: 3/8/2022
+Version 1.2: 3/8/2021
     Added position parsing
 
-Version 1.3: 3/19/2022
+Version 1.3: 3/19/2021
     Added ability to not load images/ply data at all
     Added support for keypoint location information
 
-Version 2.0: 3/20/2022
+Version 2.0: 3/20/2021
     Added crop data to facilitate keypoint annotation
+
+Version 2.1: 3/24/2021
+    Added multithreading to dataset compilation
+
+Version 3.0: 3/24/2021
+    Switched PLY data over to aligned image arrays
 
 """
 
@@ -86,7 +95,7 @@ def build(data_path, dest_path = None):
     orig_img_path = [os.path.join(data_path, x) for x in imgs]
 
     # Store images in array
-    for idx, path in tqdm(zip(range(length), orig_img_path),desc="Parsing 2D Images"):
+    for idx, path in tqdm(zip(range(length), orig_img_path),total=length,desc="Parsing 2D Images"):
         orig_img_arr[idx] = cv2.imread(path)
 
     # Save array
@@ -95,21 +104,39 @@ def build(data_path, dest_path = None):
     # Save as a video
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter(os.path.join(dest_path,"og_vid.avi"),fourcc, 15, (img_width,img_height))
-    for idx in range(length):
-        out.write(orig_img_arr[idx])
+    for img in orig_img_arr:
+        out.write(img)
     out.release()
 
     segmenter = RobotSegmenter()
     segmented_img_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
-    ply_data = []
+    ply_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=float)
+    mask_arr = np.zeros((length, img_height, img_width), dtype=bool)
+    rois = np.zeros((length, 4))
     crop_data = []
 
-    # Segment images and PLYS
-    for idx in tqdm(range(length),desc="Segmenting"):
-        ply_path = os.path.join(data_path,plys[idx])
-        segmented_img_arr[idx,:,:,:], ply, left_crop = segmenter.segmentImage(orig_img_arr[idx], ply_path)
-        ply_data.append(ply)
-        crop_data.append(left_crop)
+    # Segment images
+    for idx in tqdm(range(length),desc="Segmenting Images",colour='red'):
+        mask_arr[idx], rois[idx] = segmenter.segmentImage(orig_img_arr[idx])
+        crop_data.append(rois[idx,1])
+    rois = rois.astype(int)
+
+    ply_paths = [os.path.join(data_path,x) for x in plys] 
+    crop_inputs = []
+    # Make iterable for pool
+    for idx in tqdm(range(length),desc="Making Pool Data", colour="yellow"):
+        crop_inputs.append((ply_paths[idx], orig_img_arr[idx], mask_arr[idx], rois[idx]))
+
+    print("Running Crop Pool...")
+    # Run pool to segment PLYs
+    with mp.Pool(workerCount()) as pool:
+        crop_outputs = pool.starmap(crop, crop_inputs)
+    print("Pool Complete")
+
+    for idx in tqdm(range(length),desc="Unpacking Pool Results", colour='green'):
+        ply_arr[idx] = crop_outputs[idx][1]
+        segmented_img_arr[idx] = crop_outputs[idx][0]
+    
 
     np.save(os.path.join(dest_path, 'crop_data.npy'), np.array(crop_data))
 
@@ -126,9 +153,7 @@ def build(data_path, dest_path = None):
     """
     Process PLY data
     """
-
-    ply_data_nd = np.array(ply_data, dtype=object)
-    np.save(os.path.join(dest_path,'ply.npy'),ply_data_nd)
+    np.save(os.path.join(dest_path,'ply.npy'),ply_arr)
 
 
     """
@@ -276,7 +301,7 @@ class Dataset():
 
 
     def load(self, skeleton=None):
-        print("\nLoading Dataset:")
+        print("\nLoading Dataset...")
         # Read into JSON to get dataset settings
         with open(os.path.join(self.path, 'ds.json'), 'r') as f:
             d = json.load(f)
@@ -285,29 +310,24 @@ class Dataset():
 
         # Read in og images
         if self.load_og:
-            print("\tReading orig images...")
             self.og_img = np.load(os.path.join(self.path, 'og_img.npy'))
             self.og_vid = cv2.VideoCapture(os.path.join(self.path, 'og_vid.avi'))
 
         # Read in seg images
         if self.load_seg:
-            print("\tReading segmented images...")
             self.seg_img = np.load(os.path.join(self.path, 'seg_img.npy'))
             self.seg_vid = cv2.VideoCapture(os.path.join(self.path, 'seg_vid.avi'))
             self.crop_data = np.load(os.path.join(self.path, 'crop_data.npy'))
             
 
         # Read angles
-        print("\tReading joint angles...")
         self.ang = np.load(os.path.join(self.path, 'ang.npy'))
 
-        # Read angles
-        print("\tReading joint positions...")
+        # Read positions
         self.pos = np.load(os.path.join(self.path, 'pos.npy'))
 
         # Read in point data
         if self.load_ply:
-            print("\tReading 3D data...")
             ply_in = np.load(os.path.join(self.path, 'ply.npy'),allow_pickle=True)
             self.ply = []
             for entry in ply_in:

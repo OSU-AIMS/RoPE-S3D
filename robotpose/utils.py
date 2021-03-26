@@ -21,9 +21,10 @@ import time
 from .projection import makeIntrinsics
 from .turbo_colormap import normalize_and_interpolate
 import matplotlib.pyplot as plt
+import multiprocessing as mp
 
 
-def limitMemory():
+def setMemoryGrowth():
     import tensorflow as tf
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
@@ -33,6 +34,10 @@ def limitMemory():
         except RuntimeError as e:
             print(e)
 
+
+def workerCount():
+    cpu_count = mp.cpu_count()
+    return int(min(cpu_count - 2, .75 * cpu_count))
 
 
 

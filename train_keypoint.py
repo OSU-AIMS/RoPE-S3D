@@ -1,5 +1,5 @@
 from json import load
-from robotpose.utils import limitMemory
+from robotpose.utils import setMemoryGrowth
 from robotpose.dataset import Dataset
 import tensorflow as tf
 import numpy as np
@@ -13,7 +13,7 @@ from robotpose import paths as p
 import os
 import argparse
 
-limitMemory()
+setMemoryGrowth()
 
 def run(dataset, skeleton, model_type, batch_size, valid_size):
 

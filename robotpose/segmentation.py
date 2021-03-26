@@ -24,7 +24,7 @@ from . import projection as proj
 
 class RobotSegmenter():
 
-    def __init__(self, resolution = (720,800), model_path = os.path.join(p.SEG_MODELS,'A.h5'), intrinsics = '1280_720_color'):
+    def __init__(self, resolution = (720,800), model_path = os.path.join(p.SEG_MODELS,'C.h5'), intrinsics = '1280_720_color'):
         self.master = custom_segmentation()
         self.master.inferConfig(num_classes= 1, class_names= ["BG", "mh5"])
         self.master.load_model(model_path)
@@ -36,7 +36,7 @@ class RobotSegmenter():
     def width(self):
         return self.crop_resolution[1]
 
-    def segmentImage(self, img, ply_path, debug=False):
+    def segmentImage(self, img):
         # Load image if given path
         if type(img) is str:
             image = cv2.imread(img)
@@ -49,7 +49,6 @@ class RobotSegmenter():
 
         # Detect image
         r, output = self.master.segmentImage(tmp, process_frame=True)
-
 
         # Get mask and roi
         mask = np.asarray(r['masks'])
@@ -116,99 +115,4 @@ class RobotSegmenter():
                     # Go down so many from row
                     mask[image.shape[0]-look_up_dist:image.shape[0]-look_up_dist+to_go,col] = True
 
-
-
-        """
-        Crop out PLY data
-        """
-
-        # Open PLY
-        cloud = o3d.io.read_point_cloud(ply_path)
-        points = np.asarray(cloud.points)
-
-        # Invert X Coords
-        points[:,0] = points[:,0] * -1
-
-        # Align XYZ points relative to the color camera instead of the depth camera
-        points[:,0] -= .0175
-
-        crop_ply_data = []
-
-
-        # Get pixel location of each point
-        points_proj = proj.proj_point_to_pixel(self.intrinsics, points)
-        
-        if debug:
-            ####################
-            temp = np.zeros((points_proj.shape[0],5))
-            temp[:,0:2] = points_proj
-            temp[:,2:5] = points
-            temp_show = np.zeros((720,1280,3),dtype=np.uint8)
-            cv2.imshow("Before",vizDepth_new(temp,temp_show))
-            cv2.waitKey(1)
-            ####################
-
-
-        points_proj_idx = np.zeros(points_proj.shape,dtype=int)
-        points_proj_idx[:,0] = np.round(np.clip(points_proj[:,0],0,1279))
-        points_proj_idx[:,1] = np.round(np.clip(points_proj[:,1],0,719))
-
-        if debug:
-            ####################
-            temp = np.zeros((points_proj.shape[0],5))
-            temp[:,0:2] = points_proj_idx
-            temp[:,2:5] = points
-            temp_show = np.zeros((720,1280,3),dtype=np.uint8)
-            vizDepth_new(temp,temp_show)
-            temp_show = temp_show *.5 + image *.5
-            cv2.imshow("Before_overlay",temp_show.astype(np.uint8))
-            cv2.waitKey(1)
-            ####################
-
-
-        for row in range(points_proj.shape[0]):
-            if mask[points_proj_idx[row,1],points_proj_idx[row,0]]:
-                # Shift based on ROI
-                points_proj[row,0] -= roi[1]
-                points_proj[row,1] -= roi[0]
-                crop_ply_data.append(np.append(points_proj[row,:], points[row,:]))
-
-        if debug:
-            ##############
-            temp_show = np.zeros((720,1280,3),dtype=np.uint8)
-            cv2.imshow("After",vizDepth_new(np.asarray(crop_ply_data),temp_show))
-            cv2.waitKey(1)
-            ##############
-
-        # ply_viz = np.zeros((720,1280,3),dtype=np.uint8)
-        # for row in range(len(crop_ply_data)):
-        #     pix = rs.rs2_project_point_to_pixel(self.intrinsics, crop_ply_data[row][2:5])
-        #     pix = [round(x) for x in pix] # round to ints
-
-        #     z = round(crop_ply_data[row][4] * -100)
-        #     ply_viz[pix[1],pix[0]] = (30,z,30)
-
-        # cv2.imshow("PLY VIZ", ply_viz)
-        # cv2.waitKey(0)
-
-
-        """
-        Get segmented image out
-        """
-        mask_img = np.zeros((mask.shape[0],mask.shape[1],3))
-        for idx in range(3):
-            mask_img[:,:,idx] = mask
-        output_image = np.multiply(image, mask_img).astype(np.uint8)
-        output_image = output_image[roi[0]:roi[2],roi[1]:roi[3]]
-
-        if debug:
-            #####################
-            temp_show_crop = temp_show[:,0:800]
-            temp_show_crop = output_image * .5 + temp_show_crop *.5
-            cv2.imshow("output_overlay",temp_show_crop.astype(np.uint8))
-            print("Cycle Complete")
-            cv2.waitKey(0)
-            ######################
-
-        return output_image, crop_ply_data, roi[1]
-
+        return mask, roi

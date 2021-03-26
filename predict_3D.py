@@ -19,7 +19,7 @@ from robotpose import paths as p
 from robotpose.dataset import Dataset
 from robotpose.utils import reject_outliers_iqr
 
-limitMemory()
+setMemoryGrowth()
 
 # Load dataset
 ds = Dataset('set6','B')
