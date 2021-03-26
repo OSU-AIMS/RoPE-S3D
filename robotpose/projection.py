@@ -140,6 +140,30 @@ def proj_point_to_pixel(intrin, points, correct_distortion = False):
 
 
 
+# /* Given pixel coordinates and depth in an image with no distortion or inverse distortion coefficients, compute the corresponding point in 3D space relative to the same camera */
+# static void rs2_deproject_pixel_to_point(float point[3], const struct rs2_intrinsics * intrin, const float pixel[2], float depth)
+# {
+def deproj_pixel_to_point(intrin, pixels, depths):
+    """
+    Python copy of the C++ realsense sdk function
+    https://github.com/IntelRealSense/librealsense/blob/master/include/librealsense2/rsutil.h
+    Can take arrays as inputs to speed up calculations
+    Expects n x 2 array of pixels to deproject
+    """
+    x = (pixels[0] - intrin.ppx) / intrin.fx
+    y = (pixels[1] - intrin.ppy) / intrin.fy
+
+    point = np.zeros((pixels.shpe[0],3))
+
+    point[0] = depths * x
+    point[1] = depths * y
+    point[2] = depths
+
+    return point
+
+
+
+
 
 def generateMaps(points, intrin_type = '1280_720_color'):
     intrin = makeIntrinsics(intrin_type)
