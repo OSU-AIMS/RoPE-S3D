@@ -1,4 +1,6 @@
+from robotpose.dataset import Dataset
 import numpy as np
+import cv2
 import open3d as o3d
 
 def main():
@@ -10,7 +12,15 @@ def main():
     o3d.visualization.draw_geometries([cloud]) # Visualize the point cloud
 
 
+def test():
+    ds = Dataset('set7','B')
+    for idx in range(ds.length):
+        cv2.imshow("test",np.abs(ds.ply[idx]))
+        cv2.waitKey(150)
+
+
 if __name__ == "__main__":
-    main()
+    #main()
+    test()
 
     

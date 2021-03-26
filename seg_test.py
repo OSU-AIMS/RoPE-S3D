@@ -1,7 +1,8 @@
 import cv2
 import os
 from robotpose.segmentation import RobotSegmenter
-a = RobotSegmenter(intrinsics='1280_720_color')
+import robotpose.paths as p
+a = RobotSegmenter(intrinsics='1280_720_color', model_path=os.path.join(p.SEG_MODELS,'C.h5'))
 for i in range(1,10):
     img, b = a.segmentImage(fr'data\raw\extracted\set6_slu\202103020008{i}_og.png',
         fr'data\raw\extracted\set6_slu\202103020008{i}_full.ply',

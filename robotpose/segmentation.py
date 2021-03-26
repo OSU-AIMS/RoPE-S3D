@@ -24,7 +24,7 @@ from . import projection as proj
 
 class RobotSegmenter():
 
-    def __init__(self, resolution = (720,800), model_path = os.path.join(p.SEG_MODELS,'A.h5'), intrinsics = '1280_720_color'):
+    def __init__(self, resolution = (720,800), model_path = os.path.join(p.SEG_MODELS,'C.h5'), intrinsics = '1280_720_color'):
         self.master = custom_segmentation()
         self.master.inferConfig(num_classes= 1, class_names= ["BG", "mh5"])
         self.master.load_model(model_path)

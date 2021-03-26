@@ -24,31 +24,32 @@ def crop(ply_path, image, mask, roi):
     # Align XYZ points relative to the color camera instead of the depth camera
     points[:,0] -= .0175
 
-    crop_ply_data = []
-
-    intrin = proj.makeIntrinsics()
     # Get pixel location of each point
+    intrin = proj.makeIntrinsics()
     points_proj = proj.proj_point_to_pixel(intrin, points)
 
-    points_proj_idx = np.zeros(points_proj.shape,dtype=int)
-    points_proj_idx[:,0] = np.round(np.clip(points_proj[:,0],0,1279))
-    points_proj_idx[:,1] = np.round(np.clip(points_proj[:,1],0,719))
+    points_proj[:,0] = np.round(np.clip(points_proj[:,0],0,1279))
+    points_proj[:,1] = np.round(np.clip(points_proj[:,1],0,719))
+    points_proj = np.array(points_proj, dtype=int)
 
     sum_arr = np.zeros((roi[2] - roi[0], roi[3] - roi[1], 3))
     count_arr = np.zeros((roi[2] - roi[0], roi[3] - roi[1], 3))
 
     for row in range(points_proj.shape[0]):
-        if mask[points_proj_idx[row,1],points_proj_idx[row,0]]:
+        if mask[points_proj[row,1],points_proj[row,0]]:
             # Shift based on ROI
-            x = int(points_proj_idx[row,0] - roi[1])
-            y = int(points_proj_idx[row,1] - roi[0])
+            x = int(points_proj[row,0] - roi[1])
+            y = int(points_proj[row,1] - roi[0])
             # Add to points
             sum_arr[y,x] += points[row]
             count_arr[y,x] += [1]*3
+
     
     count_arr[count_arr == 0] = 1   # Avoid dividing by 0
 
     ply_arr = sum_arr / count_arr
+
+    #ply_arr = smoothMapMask(ply_arr,mask,roi)
 
     mask_img = np.zeros((mask.shape[0],mask.shape[1],3))
     for idx in range(3):
@@ -62,39 +63,8 @@ def crop(ply_path, image, mask, roi):
 
 
 
-
-
-
-
-# def generateMap(points, intrin_type = '1280_720_color'):
-#     intrin = proj.makeIntrinsics(intrin_type)
-
-#     # Instead of an RGB/BGR array, this is an XYZ array
-#     sum_arr = np.zeros((intrin.height, intrin.width, 3))
-#     count_arr = np.zeros((intrin.height, intrin.width, 3))
-
-#     points_idx = np.array(np.round(proj.proj_point_to_pixel(intrin, points)), dtype=int)
-
-#     points[:,2] *= -1
-
-#     points_idx[:,0] = np.round(np.clip(points_idx[:,0],0,intrin.width-1))
-#     points_idx[:,1] = np.round(np.clip(points_idx[:,1],0,intrin.height-1))
-
-#     for pixel, loc in zip(points_idx,points):
-#         px, py = pixel
-#         sum_arr[py,px] += loc
-#         count_arr[py,px] += [1]*3
-
-#     arr = sum_arr / count_arr
-#     arr = np.nan_to_num(arr,nan=0,posinf=0,neginf=0)
-
-#     return arr
-
-
-
-
-
-def smoothMap2(map):
+def smoothMap(map, mask, roi):
+    mask = mask[roi[0]:roi[2],roi[1]:roi[3]]
     sum_arr = np.zeros(map.shape)
     count_arr = np.copy(sum_arr)
 
@@ -109,3 +79,37 @@ def smoothMap2(map):
     arr = sum_arr / count_arr
     arr = np.nan_to_num(arr,nan=0,posinf=0,neginf=0)
     return arr
+
+
+
+def smoothMapMask(map, mask, roi):
+    mask = mask[roi[0]:roi[2],roi[1]:roi[3]]
+    sum_arr = np.zeros(map.shape)
+    count_arr = np.copy(sum_arr)
+
+    radius = 0
+    while np.min(count_arr[np.where(mask == True)]) < 1:
+
+        weight = .25 ** radius
+
+        rc_min = radius
+        r_max = map.shape[0] - radius - 1
+        c_max = map.shape[1] - radius - 1
+
+        idx_arr = np.array(np.where(np.any(map,-1)), dtype=int)
+        #idx_arr[np.where(idx_arr[:,0] < rc_min),0] = 0
+        #idx_arr[np.where(idx_arr[:,0] > r_max),0] = 0
+        #idx_arr[np.where(idx_arr[:,1] < rc_min),1] = 0
+        #idx_arr[np.where(idx_arr[:,1] > c_max),1] = 0
+
+        #idx_arr = idx_arr[np.where(np.any(idx_arr,-1))]
+
+        print(idx_arr.shape)
+
+        for r,c in idx_arr:
+            sum_arr[r-radius:r+radius,c-radius:c+radius] += map[r,c] * weight
+            count_arr[r-radius:r+radius,c-radius:c+radius] += [weight] * 3
+
+    count_arr[count_arr == 0] = 1   # Avoid dividing by 0
+
+    return sum_arr / count_arr
