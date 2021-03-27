@@ -266,7 +266,7 @@ class Renderer():
 
     def setPosesFromDS(self, idx):
         if not hasattr(self,'ds_poses'):
-            self.ds_poses = makePoses(coordsFromData(self.ds.ang, self.ds.pos))
+            self.ds_poses = makePoses(coordsFromData(self.ds.angles, self.ds.positions))
         self.setObjectPoses(self.ds_poses[idx])
 
         setPoses(self.scene, [self.camera_node], [makePose(*readCameraPose(self.cam_path,idx))])
