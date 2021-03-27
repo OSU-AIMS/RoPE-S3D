@@ -94,15 +94,29 @@ def build(data_path):
     json_path = [os.path.join(data_path, x) for x in jsons]
     ang_arr = np.zeros((length, 6), dtype=float)
     pos_arr = np.zeros((length, 6, 3), dtype=float)
+    depth_scale = set()
+    intrin_depth = set()
+    intrin_color = set()
 
     for idx, path in tqdm(zip(range(length), json_path), desc="Parsing JSON Joint Angles and Positions"):
         with open(path, 'r') as f:
             d = json.load(f)
+        depth_scale.add(d['realsense_info']['depth_scale'])
+        intrin_depth.add(d['realsense_info']['intrin_depth'])
+        intrin_color.add(d['realsense_info']['intrin_color'])
+
         d = d['objects'][0]['joints']
 
         for sub_idx in range(6):
             ang_arr[idx,sub_idx] = d[sub_idx]['angle']
             pos_arr[idx,sub_idx] = d[sub_idx]['position']
+
+    assert len(depth_scale) == len(intrin_depth) ==  len(intrin_color) == 1,(
+        f'Camera settings must be uniform over the dataset.')
+
+    depth_scale = depth_scale.pop()
+    intrin_depth = intrin_depth.pop()
+    intrin_color = intrin_color.pop()
 
     """
     Parse Images
@@ -164,10 +178,14 @@ def build(data_path):
     file.attrs['type'] = 'full'
     file.attrs['original_resolution'] = orig_img_arr[0].shape
     file.attrs['segmented_resolution'] = segmented_img_arr[0].shape
+    file.attrs['depth_intrinsics'] = intrin_depth
+    file.attrs['color_intrinsics'] = intrin_color
+    file.attrs['depth_scale'] = depth_scale
     file.create_dataset('angles', data = ang_arr)
     file.create_dataset('positions', data = pos_arr)
     coord_grop = file.create_group('coordinates')
-    coord_grop.create_dataset('depthmaps', data = depthmap)
+    dm = coord_grop.create_dataset('depthmaps', data = depthmap)
+    dm.attrs['depth_scale'] = depth_scale
     coord_grop.create_dataset('pointmaps', data = pointmap)
     img_grp = file.create_group('images')
     img_grp.create_dataset('original', data = orig_img_arr)
