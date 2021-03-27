@@ -132,10 +132,14 @@ def build_full(data_path, name = None):
 
     # Create image array
     orig_img_arr = np.zeros((length, img_height, img_width, 3), dtype=np.uint8)
+    depthmap_arr = np.zeros((length, img_height, img_width, 3), dtype=np.uint8)
     
     for idx, path in tqdm(zip(range(length), orig_img_paths),total=length,desc="Parsing 2D Images"):
         orig_img_arr[idx] = cv2.imread(path)
+    for idx, path in tqdm(zip(range(length), map_paths),total=length,desc="Parsing Depthmaps"):
+        depthmap_arr[idx] = np.load(path)
 
+    depthmap_arr *= depth_scale
 
     segmenter = RobotSegmenter()
 
@@ -152,7 +156,7 @@ def build_full(data_path, name = None):
     # Make iterable for pool
     crop_inputs = []
     for idx in range(length):
-        crop_inputs.append((map_paths[idx], orig_img_arr[idx], mask_arr[idx], rois[idx]))
+        crop_inputs.append((depthmap_arr[idx], orig_img_arr[idx], mask_arr[idx], rois[idx]))
 
     # Run pool to segment PLYs
     print("Running Crop Pool...")
@@ -161,8 +165,8 @@ def build_full(data_path, name = None):
     print("Pool Complete")
 
     for idx in tqdm(range(length),desc="Unpacking Pool Results"):
-        pointmap[idx] = crop_outputs[idx][1]
         segmented_img_arr[idx] = crop_outputs[idx][0]
+        pointmap[idx] = crop_outputs[idx][1]
     
 
     # Write dataset
@@ -182,7 +186,7 @@ def build_full(data_path, name = None):
     file.create_dataset('angles', data = ang_arr)
     file.create_dataset('positions', data = pos_arr)
     coord_grop = file.create_group('coordinates')
-    dm = coord_grop.create_dataset('depthmaps', data = depthmap)
+    dm = coord_grop.create_dataset('depthmaps', data = depthmap_arr)
     dm.attrs['depth_scale'] = depth_scale
     coord_grop.create_dataset('pointmaps', data = pointmap)
     img_grp = file.create_group('images')
@@ -295,8 +299,8 @@ class Dataset():
             name,
             ds_type = 'full',
             skeleton = None,
-            force_recompile = False,
-            force_rebuild = False
+            recompile = False,
+            rebuild = False
             ):
 
         valid_types = ['full', 'train', 'validate', 'test']
@@ -315,58 +319,31 @@ class Dataset():
             pass
 
         
-        self.seg_anno_path = os.path.join(self.path,'seg_anno')
+        
 
         # Load dataset
         self.load(skeleton)
 
-        if force_recompile:
+        if recompile:
             #self.recompile()
             pass
 
 
 
-
-
-
-
     def load(self, skeleton=None):
         print("\nLoading Dataset...")
-        # Read into JSON to get dataset settings
-        with open(os.path.join(self.path, 'ds.json'), 'r') as f:
-            d = json.load(f)
-
-        self.length = d['frames']
-        
-
-        # Read in og images
-        if self.load_og:
-            self.og_img = np.load(os.path.join(self.path, 'og_img.npy'))
-            self.og_vid = cv2.VideoCapture(os.path.join(self.path, 'og_vid.avi'))
-
-        # Read in seg images
-        if self.load_seg:
-            self.seg_img = np.load(os.path.join(self.path, 'seg_img.npy'))
-            self.seg_vid = cv2.VideoCapture(os.path.join(self.path, 'seg_vid.avi'))
-            self.crop_data = np.load(os.path.join(self.path, 'crop_data.npy'))
-            
-
-        # Read angles
-        self.ang = np.load(os.path.join(self.path, 'ang.npy'))
-
-        # Read positions
-        self.pos = np.load(os.path.join(self.path, 'pos.npy'))
-
-        # Read in point data
-        if self.load_ply:
-            ply_in = np.load(os.path.join(self.path, 'ply.npy'),allow_pickle=True)
-            self.ply = []
-            for entry in ply_in:
-                entry = np.array(entry)
-                self.ply.append(entry)
+        file = h5py.File(self.dataset_path,'r')
+        self.attrs = dict(file.attrs)
+        self.angles = file['angles']
+        self.positions = file['positions']
+        self.pointmaps = file['coordinates/pointmaps']
+        self.og_img = file['images/original']
+        self.seg_img = file['images/segmented']
+        self.rois = file['images/rois']
 
         # Set deeppose dataset path
         self.deepposeds_path = os.path.join(self.path,'deeppose.h5')
+        self.seg_anno_path = os.path.join(self.path,'seg_anno')
 
         # If a skeleton is set, change paths accordingly
         if skeleton is not None:
@@ -375,11 +352,9 @@ class Dataset():
         print("Dataset Loaded.\n")
 
 
-
     def build(self,data_path):
         # Build dataset
         build_full(data_path)
-
 
 
     def build_from_zip(self, zip_path):
