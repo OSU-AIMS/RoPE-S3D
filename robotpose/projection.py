@@ -160,7 +160,7 @@ def deproj_pixel_to_point(intrin, pixels, depths):
 
 
 
-def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale, x_offset = 0, y_offset = 0):
+def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale = 0, x_offset = 0, y_offset = 0):
     """
     Deprojects an entire depthmap into a corresponding pointmap
     """
@@ -172,11 +172,13 @@ def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale, x_offset = 0, y_o
     r_idx = np.arange(depthmap.shape[0])
     c_idx = np.arange(depthmap.shape[1])
 
-    depthmap /= depth_scale
+    if depth_scale != 0:
+        depthmap *= depth_scale
     depths = depthmap[r_idx,c_idx]
 
-    x = (r_idx - intrin.ppx) / intrin.fx + x_offset
-    y = (c_idx - intrin.ppy) / intrin.fy + y_offset
+    ##################### Switch r and c?
+    x = (c_idx + x_offset - intrin.ppx) / intrin.fx 
+    y = (r_idx + y_offset - intrin.ppy) / intrin.fy 
 
     point_map[r_idx, c_idx, 0] = depths * x
     point_map[r_idx, c_idx, 1] = depths * y
