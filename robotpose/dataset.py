@@ -26,6 +26,7 @@ from .utils import workerCount
 
 
 INFO_JSON = os.path.join(p.DATASETS, 'datasets.json')
+CONFIG_JSON = os.path.join(p.DATASETS, 'dataset_config.json')
 
 DATASET_VERSION = 3.0
 """
@@ -248,69 +249,55 @@ def update_info():
         json.dump(info, f, indent=4)
                 
 
+def get_config():
+    if not os.path.isfile(CONFIG_JSON):
+        config = {
+            'split_ratios':{
+                'train': .70,
+                'validate': .20,
+                'test': .10
+            }
+        }
+        with open(CONFIG_JSON,'w') as f:
+            json.dump(config, f, indent=4)
 
+    with open(CONFIG_JSON, 'r') as f:
+        d = json.load(f)
+
+    return d
+
+    
 
 
 class Dataset():
     def __init__(
             self, 
             name,
-            type = 'full',
+            ds_type = 'full',
             skeleton = None,
-            force_recompile = False
+            force_recompile = False,
+            force_rebuild = False
             ):
 
-        compiled_datasets = [ f.path for f in os.scandir(p.DATASETS) if f.is_dir() and 'raw' not in str(f.path) and 'skeleton' not in str(f.path) ]
-        compiled_names = [ os.path.basename(os.path.normpath(x)) for x in compiled_datasets ]
+        valid_types = ['full', 'train', 'validate', 'test']
+        assert ds_type in valid_types, f"Invalid Type. Must be one of: {valid_types}"
 
-        uncompiled_datasets = [ f.path for f in os.scandir(os.path.join(p.DATASETS,'raw')) if str(f.path).endswith('.zip') ]
-        uncompiled_names = [ os.path.basename(os.path.normpath(x)) for x in uncompiled_datasets ]
+        update_info()
 
-        compiled_matches = [x for x in compiled_names if x.startswith(name)]
-        uncompiled_matches = [x for x in uncompiled_names if x.startswith(name)]
+        with open(INFO_JSON, 'r') as f:
+            d = json.load(f)
 
-        if len(compiled_matches) == 0:
-            # No compiled matches found, attempt to compile one
-            if len(uncompiled_matches) == 0:
-                # No matches found at all, list options
-                raise ValueError(f"No matching datasets found. The following are availble:\n\tCompiled: {compiled_names}\n\tUncompiled: {[x.replace('.zip','') for x in uncompiled_names]}")
-            if len(uncompiled_matches) > 1:
-                # Multiple matches found
-                raise ValueError(f"Multiple uncompiled sets were found with the given dataset name:\n\tGiven Name: {name}\n\tMatching Names: {uncompiled_matches}")
-            else:
-                # One uncompiled match found, compile
-                ds_name = uncompiled_matches[0].replace('.zip','')
-                print("No matching compiled datasets found.\nCompiling from raw data.\n\n")
-                ds_path = self.compile_from_zip([x for x in uncompiled_datasets if uncompiled_matches[0] in x][0])
-        elif len(compiled_matches) > 1:
-            # Multiple matches found, raise error
-            raise ValueError(f"Multiple compiled sets were found with the given dataset name:\n\tGiven Name: {name}\n\tMatching Names: {compiled_matches}")
+        if name in d[ds_type]['names']:
+            # Good job, it's here, load it
+            self.type = ds_type
         else:
-            # One match found, set
-            ds_name = compiled_matches[0]
-            ds_path = [x for x in compiled_datasets if compiled_matches[0] in x][0]
+            # Not here, rebuild
+            pass
 
-        # There is now a dataset chosen, validate
-        if self.validate(ds_path):
-            # Validation sucessful, set paths
-            self.path = ds_path
-            self.name = os.path.basename(os.path.normpath(ds_path))
-        else:
-            # Attempt a recompile
-            if len(uncompiled_matches) == 0:
-                raise ValueError(f"The chosen dataset could not be validated and raw data for a rebuild cannot be found.")
-            if len(uncompiled_matches) > 1:
-                raise ValueError(f"The chosen dataset could not be validated and multiple raw data files for a rebuild are found.")
-            else:
-                # Actually recompile
-                print("Dataset validation failed.\nAttempting recompile.\n\n")
-                ds_name = uncompiled_matches[0].replace('.zip','')
-                ds_path = self.compile_from_zip([x for x in uncompiled_datasets if uncompiled_matches[0] in x][0])
+    
 
         
-        self.path = ds_path
         self.seg_anno_path = os.path.join(self.path,'seg_anno')
-        self.name = ds_name
 
 
         # Load dataset
