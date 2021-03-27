@@ -25,6 +25,8 @@ from .segmentation import RobotSegmenter
 from .utils import workerCount
 
 
+INFO_JSON = os.path.join(p.DATASETS, 'datasets.json')
+
 DATASET_VERSION = 3.0
 """
 Version 1.0: 3/7/2021
@@ -64,16 +66,15 @@ def save_video(path, img_arr):
 
 
 
-def build(data_path, dest_path = None):
+def build(data_path):
     """
     Build dataset into usable format
     """
 
     build_start_time = time.time()
 
-    if dest_path is None:
-        name = os.path.basename(os.path.normpath(data_path))
-        dest_path = os.path.join(p.DATASETS, name)
+    name = os.path.basename(os.path.normpath(data_path))
+    dest_path = os.path.join(p.DATASETS, name)
 
     # Make dataset folder if it does not already exist
     if not os.path.isdir(dest_path):
@@ -154,6 +155,7 @@ def build(data_path, dest_path = None):
     # Write dataset
     dest_path = os.path.join(dest_path, name + '.h5')
     file = h5py.File(dest_path,'a')
+    file.attrs['name'] = name
     file.attrs['version'] = DATASET_VERSION
     file.attrs['length'] = length
     file.attrs['build_date'] = str(datetime.datetime.now())
@@ -175,6 +177,76 @@ def build(data_path, dest_path = None):
     save_video(os.path.join(dest_path,"og_vid.avi"), orig_img_arr)
     save_video(os.path.join(dest_path,"seg_vid.avi"), segmented_img_arr)
 
+
+
+def update_info():
+    uncompiled_paths = [ f.path for f in os.scandir(os.path.join(p.DATASETS,'raw')) if str(f.path).endswith('.zip') ]
+    uncompiled_names = [ os.path.basename(os.path.normpath(x)).replace('.zip','') for x in uncompiled_paths ]
+    compiled_full_paths = []
+    compiled_full_names = []
+    compiled_train_paths = []
+    compiled_train_names = []
+    compiled_validate_paths = []
+    compiled_validate_names = []
+    compiled_test_paths = []
+    compiled_test_names = []
+
+    for dirpath, subdirs, files in os.walk(p.DATASETS):
+        for file in files:
+
+            def full():
+                compiled_full_names.append(file.replace('.h5',''))
+                compiled_full_paths.append(os.path.join(dirpath, file))
+            def train():
+                compiled_train_names.append(file.replace('.h5',''))
+                compiled_train_paths.append(os.path.join(dirpath, file))
+            def validate():
+                compiled_validate_names.append(file.replace('.h5',''))
+                compiled_validate_paths.append(os.path.join(dirpath, file))
+            def test():
+                compiled_test_names.append(file.replace('.h5',''))
+                compiled_test_paths.append(os.path.join(dirpath, file))
+            switch = {
+                'full': full,
+                'train': train,
+                'validate': validate,
+                'test': test
+            }
+
+            if file.endswith('.h5'):
+                with h5py.File(os.path.join(dirpath, file),'r') as f:
+                    if 'type' in f.attrs:
+                        switch[f.attrs['type']]()
+                
+
+    info = {
+        'compiled':{
+            'full':{
+                'names': compiled_full_names,
+                'paths': compiled_full_paths
+            },
+            'train':{
+                'names': compiled_train_names,
+                'paths': compiled_train_paths
+            },
+            'validate':{
+                'names': compiled_validate_names,
+                'paths': compiled_validate_paths
+            },
+            'test':{
+                'names': compiled_test_names,
+                'paths': compiled_test_paths
+            }
+        },
+        'uncompiled':{
+            'names': uncompiled_names,
+            'paths': uncompiled_paths
+        }
+    }
+
+    with open(INFO_JSON,'w') as f:
+        json.dump(info, f, indent=4)
+                
 
 
 

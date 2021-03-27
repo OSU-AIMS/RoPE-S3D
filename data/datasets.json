@@ -1,0 +1,32 @@
+{
+    "compiled": {
+        "full": {
+            "names": [],
+            "paths": []
+        },
+        "train": {
+            "names": [],
+            "paths": []
+        },
+        "validate": {
+            "names": [],
+            "paths": []
+        },
+        "test": {
+            "names": [],
+            "paths": []
+        }
+    },
+    "uncompiled": {
+        "names": [
+            "set5_slu",
+            "set6_slu",
+            "set7_lu"
+        ],
+        "paths": [
+            "data/raw\\set5_slu.zip",
+            "data/raw\\set6_slu.zip",
+            "data/raw\\set7_lu.zip"
+        ]
+    }
+}
