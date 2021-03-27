@@ -196,7 +196,7 @@ class KeypointAnnotator():
             anno.append(self._getColorMidpoint(render, color))
 
         anno = np.array(anno)
-        anno[:,0] -= self.ds.crop_data[idx]
+        anno[:,0] -= self.ds.rois[idx,1] # This used to be crop data, so it would be rois[idx, 1]
 
         self.dpds['annotated'][idx] = np.array([True]*len(self.color_dict))
         self.dpds['annotations'][idx] = anno

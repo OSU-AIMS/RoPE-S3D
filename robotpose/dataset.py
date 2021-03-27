@@ -16,6 +16,7 @@ import time
 
 import cv2
 from deepposekit.io import initialize_dataset
+import h5py
 from tqdm import tqdm
 
 from .multithread import crop
@@ -24,7 +25,7 @@ from .segmentation import RobotSegmenter
 from .utils import workerCount
 
 
-dataset_version = 2.1
+DATASET_VERSION = 3.0
 """
 Version 1.0: 3/7/2021
     Began versioning.
@@ -54,6 +55,15 @@ Version 3.0: 3/24/2021
 
 
 
+def save_video(path, img_arr):
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter(path,fourcc, 15, (img_arr.shape[2],img_arr.shape[1]))
+    for img in img_arr:
+        out.write(img)
+    out.release()
+
+
+
 def build(data_path, dest_path = None):
     """
     Build dataset into usable format
@@ -78,6 +88,19 @@ def build(data_path, dest_path = None):
     length = len(imgs)
     assert len(jsons) == len(plys) == length, "Unequal number of images, jsons, or plys"
 
+    # Parse JSONs
+    json_path = [os.path.join(data_path, x) for x in jsons]
+    ang_arr = np.zeros((length, 6), dtype=float)
+    pos_arr = np.zeros((length, 6, 3), dtype=float)
+
+    for idx, path in tqdm(zip(range(length), json_path), desc="Parsing JSON Joint Angles and Positions"):
+        with open(path, 'r') as f:
+            d = json.load(f)
+        d = d['objects'][0]['joints']
+
+        for sub_idx in range(6):
+            ang_arr[idx,sub_idx] = d[sub_idx]['angle']
+            pos_arr[idx,sub_idx] = d[sub_idx]['position']
 
     """
     Parse Images
@@ -98,33 +121,23 @@ def build(data_path, dest_path = None):
     for idx, path in tqdm(zip(range(length), orig_img_path),total=length,desc="Parsing 2D Images"):
         orig_img_arr[idx] = cv2.imread(path)
 
-    # Save array
-    np.save(os.path.join(dest_path, 'og_img.npy'), orig_img_arr)
-
-    # Save as a video
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(os.path.join(dest_path,"og_vid.avi"),fourcc, 15, (img_width,img_height))
-    for img in orig_img_arr:
-        out.write(img)
-    out.release()
 
     segmenter = RobotSegmenter()
+
     segmented_img_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
-    ply_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=float)
+    pointmap = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.float64)
     mask_arr = np.zeros((length, img_height, img_width), dtype=bool)
     rois = np.zeros((length, 4))
-    crop_data = []
 
     # Segment images
     for idx in tqdm(range(length),desc="Segmenting Images",colour='red'):
         mask_arr[idx], rois[idx] = segmenter.segmentImage(orig_img_arr[idx])
-        crop_data.append(rois[idx,1])
     rois = rois.astype(int)
 
+    # Make iterable for pool
     ply_paths = [os.path.join(data_path,x) for x in plys] 
     crop_inputs = []
-    # Make iterable for pool
-    for idx in tqdm(range(length),desc="Making Pool Data", colour="yellow"):
+    for idx in range(length):
         crop_inputs.append((ply_paths[idx], orig_img_arr[idx], mask_arr[idx], rois[idx]))
 
     print("Running Crop Pool...")
@@ -133,65 +146,34 @@ def build(data_path, dest_path = None):
         crop_outputs = pool.starmap(crop, crop_inputs)
     print("Pool Complete")
 
-    for idx in tqdm(range(length),desc="Unpacking Pool Results", colour='green'):
-        ply_arr[idx] = crop_outputs[idx][1]
+    for idx in tqdm(range(length),desc="Unpacking Pool Results"):
+        pointmap[idx] = crop_outputs[idx][1]
         segmented_img_arr[idx] = crop_outputs[idx][0]
     
 
-    np.save(os.path.join(dest_path, 'crop_data.npy'), np.array(crop_data))
+    # Write dataset
+    dest_path = os.path.join(dest_path, name + '.h5')
+    file = h5py.File(dest_path,'a')
+    file.attrs['version'] = DATASET_VERSION
+    file.attrs['length'] = length
+    file.attrs['build_date'] = str(datetime.datetime.now())
+    file.attrs['compile_time'] = time.time() - build_start_time
+    file.attrs['type'] = 'full'
+    file.attrs['original_resolution'] = orig_img_arr[0].shape
+    file.attrs['segmented_resolution'] = segmented_img_arr[0].shape
+    file.create_dataset('angles', data = ang_arr)
+    file.create_dataset('positions', data = pos_arr)
+    coord_grop = file.create_group('coordinates')
+    coord_grop.create_dataset('depthmaps', data = depthmap)
+    coord_grop.create_dataset('pointmaps', data = pointmap)
+    img_grp = file.create_group('images')
+    img_grp.create_dataset('original', data = orig_img_arr)
+    img_grp.create_dataset('segmented', data = segmented_img_arr)
+    img_grp.create_dataset('rois', data = rois)
 
-    # Save segmented image array
-    np.save(os.path.join(dest_path, 'seg_img.npy'), segmented_img_arr)
-
-    # Save as a video (just for reference)
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(os.path.join(dest_path,"seg_vid.avi"),fourcc, 15, (segmenter.width(),segmenter.height()))
-    for idx in range(length):
-        out.write(segmented_img_arr[idx])
-    out.release()
-
-    """
-    Process PLY data
-    """
-    np.save(os.path.join(dest_path,'ply.npy'),ply_arr)
-
-
-    """
-    Parse JSONs
-    """
-    json_path = [os.path.join(data_path, x) for x in jsons]
-    ang_arr = np.zeros((length, 6), dtype=float)
-    pos_arr = np.zeros((length, 6, 3), dtype=float)
-
-    for idx, path in tqdm(zip(range(length), json_path), desc="Parsing JSON Joint Angles and Positions"):
-        # Open file
-        with open(path, 'r') as f:
-            d = json.load(f)
-        d = d['objects'][0]['joints']
-
-        # Put data in array
-        for sub_idx in range(6):
-            ang_arr[idx,sub_idx] = d[sub_idx]['angle']
-            pos_arr[idx,sub_idx] = d[sub_idx]['position']
-
-    # Save JSON data as npy
-    np.save(os.path.join(dest_path, 'ang.npy'), ang_arr)
-    np.save(os.path.join(dest_path, 'pos.npy'), pos_arr)
-
-    """
-    Write dataset info file
-    """
-    # Make json info file
-    info = {
-        "ds_ver": dataset_version,
-        "name": os.path.basename(os.path.normpath(dest_path)),
-        "frames": length,
-        "build_time": time.time() - build_start_time,
-        "last_build": str(datetime.datetime.now())
-    }
-
-    with open(os.path.join(dest_path,'ds.json'),'w') as file:
-        json.dump(info, file, indent=4, sort_keys= True)
+    # Save reference videos
+    save_video(os.path.join(dest_path,"og_vid.avi"), orig_img_arr)
+    save_video(os.path.join(dest_path,"seg_vid.avi"), segmented_img_arr)
 
 
 
@@ -200,17 +182,11 @@ def build(data_path, dest_path = None):
 class Dataset():
     def __init__(
             self, 
-            name, 
-            skeleton=None, 
-            load_seg = True, 
-            load_og = False, 
-            primary = "seg", 
-            load_ply = True
+            name,
+            type = 'full',
+            skeleton = None,
+            force_recompile = False
             ):
-        
-        self.load_seg = load_seg
-        self.load_og = load_og
-        self.load_ply = load_ply
 
         compiled_datasets = [ f.path for f in os.scandir(p.DATASETS) if f.is_dir() and 'raw' not in str(f.path) and 'skeleton' not in str(f.path) ]
         compiled_names = [ os.path.basename(os.path.normpath(x)) for x in compiled_datasets ]
@@ -268,35 +244,9 @@ class Dataset():
         # Load dataset
         self.load(skeleton)
 
-        # Set img/video info if it's set to load
-        if self.load_og or self.load_seg:
-            # Set paths, resolution
-            if self.load_og:
-                self.og_vid_path = os.path.join(self.path, 'og_vid.avi')
-                self.resolution_og = self.og_img.shape[1:3]
-                self.resolution = self.resolution_og
-            if self.load_seg:
-                self.seg_vid_path = os.path.join(self.path, 'seg_vid.avi')
-                self.resolution_seg = self.seg_img.shape[1:3]
-                self.resolution = self.resolution_seg
 
 
-            # Set primary image and video types
-            if self.load_seg and not self.load_og:
-                primary = "seg"
-            if self.load_og and not self.load_seg:
-                primary = "og"
 
-            if primary == "og":
-                self.img = self.og_img
-                self.vid = self.og_vid
-                self.vid_path = self.og_vid_path
-            else:
-                self.img = self.seg_img
-                self.vid = self.seg_vid
-                self.vid_path = self.seg_vid_path
-                if primary != "seg":
-                    print("Invalid primary media type selected.\nUsing seg.")
 
 
 
@@ -307,6 +257,7 @@ class Dataset():
             d = json.load(f)
 
         self.length = d['frames']
+        
 
         # Read in og images
         if self.load_og:
@@ -345,32 +296,9 @@ class Dataset():
 
 
     def validate(self, path):
-        """
-        Check that all required elements of the dataset are present
-        """
-        ang = os.path.isfile(os.path.join(path,'ang.npy'))
-        ds = os.path.isfile(os.path.join(path,'ds.json'))
-        ply = os.path.isfile(os.path.join(path,'ply.npy'))
-        seg_img = os.path.isfile(os.path.join(path,'seg_img.npy'))
-        crop_data = os.path.isfile(os.path.join(path,'crop_data.npy'))
-        og_img = os.path.isfile(os.path.join(path,'og_img.npy'))
-        seg_vid = os.path.isfile(os.path.join(path,'seg_vid.avi'))
-        og_vid = os.path.isfile(os.path.join(path,'og_vid.avi'))
-        
-        if ds:
-            with open(os.path.join(path, 'ds.json'), 'r') as f:
-                d = json.load(f)
+        # Check Versions
 
-            try:
-                if int(d['ds_ver']) != int(dataset_version):
-                    print(f"Dataset Out of Date:\n\tDataset version:{d['ds_ver']}\n\tCurrent version: {dataset_version}")
-                    return False
-            except KeyError:
-                print(f"Dataset Out of Date:\n\tDataset version: Unversioned\n\tCurrent version: {dataset_version}")
-                return False
-            
-
-        return ang and ds and ply and seg_img and og_img and seg_vid and og_vid and crop_data
+        return True
 
 
     def build(self,data_path):
@@ -449,12 +377,5 @@ class Dataset():
         else:
             return self.length  
 
-
     def __repr__(self):
         return f"RobotPose dataset of {self.length} frames. Using skeleton {self.skeleton}."
-
-    def og(self):
-        return self.load_og
-
-    def seg(self):
-        return self.load_seg

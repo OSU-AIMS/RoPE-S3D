@@ -191,9 +191,6 @@ def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale, x_offset = 0, y_o
 
 
 
-
-
-
 def generateMaps(points, intrin_type = '1280_720_color'):
     intrin = makeIntrinsics(intrin_type)
 
