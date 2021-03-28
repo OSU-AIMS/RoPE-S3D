@@ -16,6 +16,7 @@ import time
 
 import cv2
 from numpy.core.defchararray import join
+from numpy.lib.function_base import append, select
 from deepposekit.io import initialize_dataset
 import h5py
 from tqdm import tqdm
@@ -172,32 +173,33 @@ def build_full(data_path, name = None):
 
     # Write dataset
     dest_path = os.path.join(dest_path, name + '.h5')
-    file = h5py.File(dest_path,'a')
-    file.attrs['name'] = name
-    file.attrs['version'] = DATASET_VERSION
-    file.attrs['length'] = length
-    file.attrs['build_date'] = str(datetime.datetime.now())
-    file.attrs['compile_time'] = time.time() - build_start_time
-    file.attrs['type'] = 'full'
-    file.attrs['original_resolution'] = orig_img_arr[0].shape
-    file.attrs['segmented_resolution'] = segmented_img_arr[0].shape
-    file.attrs['depth_intrinsics'] = intrin_depth
-    file.attrs['color_intrinsics'] = intrin_color
-    file.attrs['depth_scale'] = depth_scale
-    file.create_dataset('angles', data = ang_arr)
-    file.create_dataset('positions', data = pos_arr)
-    coord_grop = file.create_group('coordinates')
-    dm = coord_grop.create_dataset('depthmaps', data = depthmap_arr)
-    dm.attrs['depth_scale'] = depth_scale
-    coord_grop.create_dataset('pointmaps', data = pointmap)
-    img_grp = file.create_group('images')
-    img_grp.create_dataset('original', data = orig_img_arr)
-    img_grp.create_dataset('segmented', data = segmented_img_arr)
-    img_grp.create_dataset('rois', data = rois)
-    path_grp = file.create_group('paths')
-    path_grp.create_dataset('jsons', data = np.array(jsons))
-    path_grp.create_dataset('depthmaps', data = np.array(maps))
-    path_grp.create_dataset('images', data = np.array(imgs))
+
+    with h5py.File(dest_path,'a') as file:
+        file.attrs['name'] = name
+        file.attrs['version'] = DATASET_VERSION
+        file.attrs['length'] = length
+        file.attrs['build_date'] = str(datetime.datetime.now())
+        file.attrs['compile_time'] = time.time() - build_start_time
+        file.attrs['type'] = 'full'
+        file.attrs['original_resolution'] = orig_img_arr[0].shape
+        file.attrs['segmented_resolution'] = segmented_img_arr[0].shape
+        file.attrs['depth_intrinsics'] = intrin_depth
+        file.attrs['color_intrinsics'] = intrin_color
+        file.attrs['depth_scale'] = depth_scale
+        file.create_dataset('angles', data = ang_arr)
+        file.create_dataset('positions', data = pos_arr)
+        coord_grop = file.create_group('coordinates')
+        dm = coord_grop.create_dataset('depthmaps', data = depthmap_arr)
+        dm.attrs['depth_scale'] = depth_scale
+        coord_grop.create_dataset('pointmaps', data = pointmap)
+        img_grp = file.create_group('images')
+        img_grp.create_dataset('original', data = orig_img_arr)
+        img_grp.create_dataset('segmented', data = segmented_img_arr)
+        img_grp.create_dataset('rois', data = rois)
+        path_grp = file.create_group('paths')
+        path_grp.create_dataset('jsons', data = np.array(jsons))
+        path_grp.create_dataset('depthmaps', data = np.array(maps))
+        path_grp.create_dataset('images', data = np.array(imgs))
 
     # Save reference videos
     save_video(os.path.join(dest_path,"og_vid.avi"), orig_img_arr)
@@ -295,7 +297,11 @@ def get_config():
 
 
 
-def stratified_dataset_split(joint_angles, size):
+def stratified_dataset_split(joint_angles):
+    """
+    This is best used whenever positions are assumed to be uniformly distributed,
+    as stratification will be more useful and representative.
+    """
     min_angs = np.min(joint_angles, 0)
     max_angs = np.max(joint_angles, 0)
     joint_moves = min_angs != max_angs
@@ -306,13 +312,12 @@ def stratified_dataset_split(joint_angles, size):
     test_size = int(config['split_ratios']['test'] * len(joint_angles))
     train_size = len(joint_angles) - valid_size - test_size
 
-    # Determine validation configuration
-    def generate_config_matrix(size):
+    # Determine configurations
+    def generate_zones(size):
         r = int(size ** (1 / moving_joints)) + 1
         cfg_mat = np.zeros((r ** moving_joints, moving_joints))
         
         for idx in range(moving_joints):
-            print(idx)
             cfg_mat[:,idx] = np.tile(np.repeat(np.arange(1,r+1), r ** idx), int((r ** (moving_joints))/r**(idx+1)))
 
         combos = np.prod(cfg_mat,1)
@@ -328,17 +333,122 @@ def stratified_dataset_split(joint_angles, size):
         else:
             return cfg_mat
 
-    print(generate_config_matrix(size))
-    
+    def sample(size, cfg_mat, used_indicies):
+        zone_arr = np.copy(cfg_mat)
+        zone_arr += 1
+        intervals = []
+        for idx in range(moving_joints):
+            intervals.append(np.linspace(min_angs[idx], max_angs[idx], int(zone_arr[idx])))
+
+        def make_sampling_arr():
+            sampling_arr = joint_angles[:, joint_moves == True]
+            np.delete(sampling_arr, used_indicies, 0)
+            return sampling_arr
+
+        idx_array = np.zeros((moving_joints,))
+
+        def update_idx_arr():
+            for idx in range(moving_joints):
+                if idx_array[idx] == cfg_mat[idx]:
+                    idx_array[idx] = 0
+                    if idx == moving_joints - 1:
+                        return False
+                    else:
+                        idx_array[idx + 1] += 1
+                        return True
+
+        def get_range_arr():
+            range_arr = np.zeros((moving_joints,2))
+            for idx in range(moving_joints):
+                range_arr[idx,0] = intervals[idx][idx_array[idx]]
+                range_arr[idx,1] = intervals[idx][idx_array[idx] + 1]
+            return range_arr
+
+        selected_idxs = []
+        while(update_idx_arr()):
+            range_arr = get_range_arr()
+            sampling_arr = make_sampling_arr()
+            for idx in range(moving_joints):
+                sampling_arr[sampling_arr[:,idx] >= range_arr[idx,0],:]
+                sampling_arr[sampling_arr[:,idx] <= range_arr[idx,1],:]
+
+            if len(sampling_arr) != 0:
+                c = np.random.choice(len(sampling_arr))
+                choice = sampling_arr[c]
+                actual = joint_angles[0]
+                actual[joint_moves == True] = choice
+                i = np.where((joint_angles == choice).all(axis=1))
+                selected_idxs.append(i)
+                used_indicies.append(i)
+
+            idx_array[0] += 1
+
+        # if len(selected_idxs) < size:
+        #     unused = [x for x in range(joint_angles.shape[0]) if x not in used_indicies]
+        #     extra = np.random.choice(unused, size - len(selected_idxs), replace=False)
+        #     selected_idxs.extend(extra)
+        #     used_indicies.extend(extra)
+        
+        return selected_idxs
        
+    used = []
+    test_idxs = sample(test_size, generate_zones(test_size), used)
+    valid_idxs = sample(valid_size, generate_zones(valid_size), used)
+    train_idxs = [x for x in range(joint_angles.shape[0]) if x not in used]
+
+    valid_idxs.sort()
+    test_idxs.sort()
+
+    return train_idxs, valid_idxs, test_idxs
+
+
+
+def simple_dataset_split(joint_angles):
+    """
+    This is best used whenever positions are assumed to be uniformly distributed,
+    as stratification will be more useful and representative.
+    """
+    min_angs = np.min(joint_angles, 0)
+    max_angs = np.max(joint_angles, 0)
+    joint_moves = min_angs != max_angs
+    moving_joints = np.sum(joint_moves)
+
+    config = get_config()
+    valid_size = int(config['split_ratios']['validate'] * len(joint_angles))
+    test_size = int(config['split_ratios']['test'] * len(joint_angles))
+    train_size = len(joint_angles) - valid_size - test_size
+
+    def sample(size, used):
+        selected = []
+        unused = [x for x in range(joint_angles.shape[0]) if x not in used]
+        intervals = np.linspace(min(unused),max(unused), int(len(unused)/size))
+        for idx in range(intervals - 1):
+            unused = [x for x in range(joint_angles.shape[0]) if x not in used]
+            pool = unused[unused >= intervals[idx]]
+            pool = pool[pool <= intervals[idx + 1]]
+            c = np.random.choice(pool)
+            used.append(c)
+            selected.append(c)
+
+        if len(selected) < size:
+            unused = [x for x in range(joint_angles.shape[0]) if x not in used]
+            extra = np.random.choice(unused, size - len(selected), replace=False)
+            selected.extend(extra)
+            used.extend(extra)
+
+    used = []
+    test_idxs = sample(test_size, used)
+    valid_idxs = sample(valid_size, used)
+    train_idxs = [x for x in range(joint_angles.shape[0]) if x not in used]
+
+    valid_idxs.sort()
+    test_idxs.sort()
+
+    return train_idxs, valid_idxs, test_idxs
 
 
 
 
-
-
-
-    
 
 
 class Dataset():
@@ -377,6 +487,9 @@ class Dataset():
             pass
 
 
+    
+
+
 
     def load(self, skeleton=None):
         print("\nLoading Dataset...")
@@ -396,7 +509,7 @@ class Dataset():
         # If a skeleton is set, change paths accordingly
         if skeleton is not None:
             self.setSkeleton(skeleton)
-        
+
         print("Dataset Loaded.\n")
 
 
@@ -424,6 +537,36 @@ class Dataset():
             # Build
             print("Attempting dataset build...\n\n")
             build_full(src_dir, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
+
+
+    def _writeSubset(self,sub_type,idxs):
+
+        subset_path = self.dataset_path.replace('.h5',f'_{sub_type}.h5')
+
+        with h5py.File(subset_path,'a') as file:
+            file.attrs = self.attrs
+
+            file.attrs['length'] = len(idxs)
+            file.attrs['build_date'] = str(datetime.datetime.now())
+            file.attrs['compile_time'] = 0
+            file.attrs['type'] = sub_type
+            file.create_dataset('angles', data = self.angles[idxs])
+            file.create_dataset('positions', data = self.positions[idxs])
+            coord_grop = file.create_group('coordinates')
+            coord_grop.create_dataset('pointmaps', data = self.pointmaps[idxs])
+            img_grp = file.create_group('images')
+            img_grp.create_dataset('original', data = self.og_img[idxs])
+            img_grp.create_dataset('segmented', data = self.seg_img[idxs])
+            img_grp.create_dataset('rois', data = self.rois[idxs])
+            path_grp = file.create_group('paths')
+
+            # These have to be copied directly from master
+            with h5py.File(self.dataset_path,'r') as master:
+                dm = coord_grop.create_dataset('depthmaps', data = master['coordinates/depthmaps'][idxs])
+                dm.attrs['depth_scale'] = self.attrs['depth_scale']
+                path_grp.create_dataset('jsons', data = master['paths/jsons'][idxs])
+                path_grp.create_dataset('depthmaps', data = master['paths/depthmaps'][idxs])
+                path_grp.create_dataset('images', data = master['paths/images'][idxs])
 
 
 
