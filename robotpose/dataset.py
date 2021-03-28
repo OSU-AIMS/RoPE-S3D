@@ -15,6 +15,7 @@ import os
 import time
 
 import cv2
+from numpy.core.defchararray import join
 from deepposekit.io import initialize_dataset
 import h5py
 from tqdm import tqdm
@@ -288,7 +289,54 @@ def get_config():
     with open(CONFIG_JSON, 'r') as f:
         d = json.load(f)
 
+    assert np.round(np.sum(list(d['split_ratios'].values())),5) == 1, f"Dataset Splits Must Sum To 1"
+
     return d
+
+
+
+def stratified_dataset_split(joint_angles, size):
+    min_angs = np.min(joint_angles, 0)
+    max_angs = np.max(joint_angles, 0)
+    joint_moves = min_angs != max_angs
+    moving_joints = np.sum(joint_moves)
+
+    config = get_config()
+    valid_size = int(config['split_ratios']['validate'] * len(joint_angles))
+    test_size = int(config['split_ratios']['test'] * len(joint_angles))
+    train_size = len(joint_angles) - valid_size - test_size
+
+    # Determine validation configuration
+    def generate_config_matrix(size):
+        r = int(size ** (1 / moving_joints)) + 1
+        cfg_mat = np.zeros((r ** moving_joints, moving_joints))
+        
+        for idx in range(moving_joints):
+            print(idx)
+            cfg_mat[:,idx] = np.tile(np.repeat(np.arange(1,r+1), r ** idx), int((r ** (moving_joints))/r**(idx+1)))
+
+        combos = np.prod(cfg_mat,1)
+        diff = np.abs(combos - size)
+        cfg_mat = cfg_mat[np.where(diff == np.min(diff))]
+
+        if cfg_mat.shape[0] != 1:
+            relative_weights = (max_angs - min_angs)[joint_moves]
+            weighted = cfg_mat / np.tile(relative_weights, (cfg_mat.shape[0],1))
+            scores = np.sum(weighted, 1)
+            minima = np.argmin(scores)
+            return cfg_mat[minima]
+        else:
+            return cfg_mat
+
+    print(generate_config_matrix(size))
+    
+       
+
+
+
+
+
+
 
     
 
