@@ -31,18 +31,19 @@ Data should be arranged as follows:
 |   |   └── ...
 |   |  
 |   |── set6_slu                     # Compilied by program
-|   |   |── ds.json
-|   |   |── ang.npy
-|   |   |── og_img.npy
-|   |   |── seg_img.npy
+|   |   |── set6_slu.h5
+|   |   |── set6_slu_train.h5
+|   |   |── set6_slu_validate.h5
+|   |   |── set6_slu_test.h5
 |   |   |── og_vid.avi
 |   |   |── seg_vid.avi
-|   |   |── ply.npy
 |   |   └── 
 |   |   
 |   |── skeletons                   # Created by user
 |   |   |── A.csv
 |   |   |── B.csv
+|   |   |── A.json
+|   |   |── B.json
 |   |   └── ...
 |   |   
 |   └── ...
