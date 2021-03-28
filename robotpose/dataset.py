@@ -16,8 +16,6 @@ import os
 import time
 
 import cv2
-from numpy.core.defchararray import join
-from numpy.lib.function_base import append, select
 from deepposekit.io import initialize_dataset
 import h5py
 from tqdm import tqdm
@@ -84,8 +82,6 @@ def build_full(data_path, name = None):
     if not os.path.isdir(dest_path):
         os.mkdir(dest_path)
 
-
-    
 
     # Build lists of files
     # jsons = [x for x in os.listdir(data_path) if x.endswith('.json')]
@@ -187,6 +183,7 @@ def build_full(data_path, name = None):
         file.attrs['version'] = DATASET_VERSION
         file.attrs['length'] = length
         file.attrs['build_date'] = str(datetime.datetime.now())
+        file.attrs['compile_date'] = str(datetime.datetime.now())
         file.attrs['compile_time'] = time.time() - build_start_time
         file.attrs['type'] = 'full'
         file.attrs['original_resolution'] = orig_img_arr[0].shape
@@ -538,7 +535,8 @@ class Dataset():
             matches = [name in x for x in available]
             if np.sum(matches) == 0:
                 raise ValueError(f"The requested dataset is not available\n{info}")
-
+            elif np.sum(matches) > 1:
+                raise ValueError(f"The requested dataset name is ambiguous\n{info}")
 
 
         # Load dataset
@@ -602,9 +600,6 @@ class Dataset():
             build_full(src_dir, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
 
 
-
-
-
     def _writeSubset(self,sub_type,idxs):
 
         subset_path = self.dataset_path.replace('.h5',f'_{sub_type}.h5')
@@ -613,7 +608,7 @@ class Dataset():
             file.attrs = self.attrs
 
             file.attrs['length'] = len(idxs)
-            file.attrs['build_date'] = str(datetime.datetime.now())
+            file.attrs['compile_date'] = str(datetime.datetime.now())
             file.attrs['compile_time'] = 0
             file.attrs['type'] = sub_type
             file.create_dataset('angles', data = self.angles[idxs])
@@ -677,4 +672,7 @@ class Dataset():
             return self.length  
 
     def __repr__(self):
-        return f"RobotPose dataset of {self.length} frames. Using skeleton {self.skeleton}."
+        return f"RobotPose dataset located at {self.dataset_path}."
+
+    def __str__(self):
+        return str(self.attrs)

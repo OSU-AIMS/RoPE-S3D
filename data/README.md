@@ -6,6 +6,13 @@ Place raw zip data in /data/raw/ before compiling.
 
 Compilation occurs automatically if loading of uncompiled dataset is attempted.
 
+*datasets.json* will automatically update whenever any instance of the
+```python 
+Dataset
+```
+class is instantiated.
+
+
 To compile a dataset manually, use the following function:
 ```python
 from robotpose.dataset import build
