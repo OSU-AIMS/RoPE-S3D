@@ -10,6 +10,7 @@
 import datetime
 import json
 import multiprocessing as mp
+from h5py._hl import dataset
 import numpy as np
 import os
 import time
@@ -83,10 +84,17 @@ def build_full(data_path, name = None):
     if not os.path.isdir(dest_path):
         os.mkdir(dest_path)
 
+
+    
+
     # Build lists of files
-    jsons = [x for x in os.listdir(data_path) if x.endswith('.json')]
-    maps = [x for x in os.listdir(data_path) if x.endswith('full.ply')]
-    imgs = [x for x in os.listdir(data_path) if x.endswith('og.png')]
+    # jsons = [x for x in os.listdir(data_path) if x.endswith('.json')]
+    # maps = [x for x in os.listdir(data_path) if x.endswith('full.ply')]
+    # imgs = [x for x in os.listdir(data_path) if x.endswith('og.png')]
+
+    jsons = [os.path.join(d,x) for r,d,x in os.walk(data_path) if x.endswith('.json')]
+    maps = [os.path.join(d,x) for r,d,x in os.walk(data_path) if x.endswith('.npy')]
+    imgs = [os.path.join(d,x) for r,d,x in os.walk(data_path) if x.endswith('.png')]
 
     json_paths = [os.path.join(data_path, x) for x in jsons]
     map_paths = [os.path.join(data_path,x) for x in maps] 
@@ -207,73 +215,7 @@ def build_full(data_path, name = None):
 
 
 
-def update_info():
-    uncompiled_paths = [ f.path for f in os.scandir(os.path.join(p.DATASETS,'raw')) if str(f.path).endswith('.zip') ]
-    uncompiled_names = [ os.path.basename(os.path.normpath(x)).replace('.zip','') for x in uncompiled_paths ]
-    compiled_full_paths = []
-    compiled_full_names = []
-    compiled_train_paths = []
-    compiled_train_names = []
-    compiled_validate_paths = []
-    compiled_validate_names = []
-    compiled_test_paths = []
-    compiled_test_names = []
 
-    for dirpath, subdirs, files in os.walk(p.DATASETS):
-        for file in files:
-
-            def full():
-                compiled_full_names.append(file.replace('.h5',''))
-                compiled_full_paths.append(os.path.join(dirpath, file))
-            def train():
-                compiled_train_names.append(file.replace('.h5',''))
-                compiled_train_paths.append(os.path.join(dirpath, file))
-            def validate():
-                compiled_validate_names.append(file.replace('.h5',''))
-                compiled_validate_paths.append(os.path.join(dirpath, file))
-            def test():
-                compiled_test_names.append(file.replace('.h5',''))
-                compiled_test_paths.append(os.path.join(dirpath, file))
-            switch = {
-                'full': full,
-                'train': train,
-                'validate': validate,
-                'test': test
-            }
-
-            if file.endswith('.h5'):
-                with h5py.File(os.path.join(dirpath, file),'r') as f:
-                    if 'type' in f.attrs:
-                        switch[f.attrs['type']]()
-                
-
-    info = {
-        'compiled':{
-            'full':{
-                'names': compiled_full_names,
-                'paths': compiled_full_paths
-            },
-            'train':{
-                'names': compiled_train_names,
-                'paths': compiled_train_paths
-            },
-            'validate':{
-                'names': compiled_validate_names,
-                'paths': compiled_validate_paths
-            },
-            'test':{
-                'names': compiled_test_names,
-                'paths': compiled_test_paths
-            }
-        },
-        'uncompiled':{
-            'names': uncompiled_names,
-            'paths': uncompiled_paths
-        }
-    }
-
-    with open(INFO_JSON,'w') as f:
-        json.dump(info, f, indent=4)
                 
 
 def get_config():
@@ -450,13 +392,129 @@ def simple_dataset_split(joint_angles):
 
 
 
+class DatasetInfo():
+    def __init__(self):
+        self._update()
+
+    def get(self):
+        with open(INFO_JSON, 'r') as f:
+            self.data = json.load(f)
+        return self.data
+
+    def __str__(self):
+        self.get()
+        datasets = set()
+        for t in ['full','train','validate','test']:
+            datasets.update(self.data['compiled'][t]['names'])
+        datasets.update(self.data['uncompiled']['names'])
+
+        datasets = list(datasets)
+        datasets.sort()
+
+        full = []
+        train = []
+        validate = []
+        test = []
+        raw = []
+        for ds in datasets:
+            full.append(ds in self.data['compiled']['full']['names'])
+            train.append(ds in self.data['compiled']['train']['names'])
+            validate.append(ds in self.data['compiled']['validate']['names'])
+            test.append(ds in self.data['compiled']['test']['names'])
+            raw.append(ds in self.data['uncompiled']['names'])
+
+
+        out = "\nAvailable Datasets:\n"
+        for idx in range(len(datasets)):
+            out += f"\t{datasets[idx]}:\t"
+            for ls, tag in zip([full,train,validate,test,raw],['Full','Train','Validate','Test','Raw']):
+                if ls[idx]:
+                    out += f"[{tag}] "
+            out += '\n'
+
+        return out
+
+    def __repr__(self):
+        return f"Dataset Information stored in {INFO_JSON}."
+
+    def _update(self):
+        uncompiled_paths = [ f.path for f in os.scandir(os.path.join(p.DATASETS,'raw')) if str(f.path).endswith('.zip') ]
+        uncompiled_names = [ os.path.basename(os.path.normpath(x)).replace('.zip','') for x in uncompiled_paths ]
+        compiled_full_paths = []
+        compiled_full_names = []
+        compiled_train_paths = []
+        compiled_train_names = []
+        compiled_validate_paths = []
+        compiled_validate_names = []
+        compiled_test_paths = []
+        compiled_test_names = []
+
+        for dirpath, subdirs, files in os.walk(p.DATASETS):
+            for file in files:
+
+                def full():
+                    compiled_full_names.append(file.replace('.h5',''))
+                    compiled_full_paths.append(os.path.join(dirpath, file))
+                def train():
+                    compiled_train_names.append(file.replace('.h5','').replace('_train',''))
+                    compiled_train_paths.append(os.path.join(dirpath, file))
+                def validate():
+                    compiled_validate_names.append(file.replace('.h5','').replace('_validate',''))
+                    compiled_validate_paths.append(os.path.join(dirpath, file))
+                def test():
+                    compiled_test_names.append(file.replace('.h5','').repalce('_test',''))
+                    compiled_test_paths.append(os.path.join(dirpath, file))
+                switch = {
+                    'full': full,
+                    'train': train,
+                    'validate': validate,
+                    'test': test
+                }
+
+                if file.endswith('.h5'):
+                    with h5py.File(os.path.join(dirpath, file),'r') as f:
+                        if 'type' in f.attrs:
+                            switch[f.attrs['type']]()
+                    
+
+        info = {
+            'compiled':{
+                'full':{
+                    'names': compiled_full_names,
+                    'paths': compiled_full_paths
+                },
+                'train':{
+                    'names': compiled_train_names,
+                    'paths': compiled_train_paths
+                },
+                'validate':{
+                    'names': compiled_validate_names,
+                    'paths': compiled_validate_paths
+                },
+                'test':{
+                    'names': compiled_test_names,
+                    'paths': compiled_test_paths
+                }
+            },
+            'uncompiled':{
+                'names': uncompiled_names,
+                'paths': uncompiled_paths
+            }
+        }
+
+        with open(INFO_JSON,'w') as f:
+            json.dump(info, f, indent=4)
+
+
+
+
 
 class Dataset():
     def __init__(
             self, 
             name,
-            ds_type = 'full',
             skeleton = None,
+            ds_type = 'full',
             recompile = False,
             rebuild = False
             ):
@@ -464,20 +522,24 @@ class Dataset():
         valid_types = ['full', 'train', 'validate', 'test']
         assert ds_type in valid_types, f"Invalid Type. Must be one of: {valid_types}"
 
-        update_info()
+        info = DatasetInfo()
 
-        with open(INFO_JSON, 'r') as f:
-            d = json.load(f)
+        d = info.get()
 
-        if name in d[ds_type]['names']:
+
+        if name in d['compiled'][ds_type]['names'] and not rebuild:
             # Good job, it's here, load it
             self.type = ds_type
+            self.dataset_path = d['compiled'][ds_type]['paths'][d['compiled'][ds_type]['names'].index(name)]
+            self.dataset_dir = os.path.dirname(self.dataset_path)
         else:
             # Not here, rebuild
-            pass
+            available = d['uncompiled']['names']
+            matches = [name in x for x in available]
+            if np.sum(matches) == 0:
+                raise ValueError(f"The requested dataset is not available\n{info}")
 
-        
-        
+
 
         # Load dataset
         self.load(skeleton)
@@ -503,8 +565,8 @@ class Dataset():
         self.rois = file['images/rois']
 
         # Set deeppose dataset path
-        self.deepposeds_path = os.path.join(self.path,'deeppose.h5')
-        self.seg_anno_path = os.path.join(self.path,'seg_anno')
+        self.deepposeds_path = os.path.join(self.dataset_dir,'deeppose.h5')
+        self.seg_anno_path = os.path.join(self.dataset_dir,'seg_anno')
 
         # If a skeleton is set, change paths accordingly
         if skeleton is not None:
@@ -516,6 +578,7 @@ class Dataset():
     def build(self,data_path):
         # Build dataset
         build_full(data_path)
+
 
 
     def build_from_zip(self, zip_path):
@@ -537,6 +600,9 @@ class Dataset():
             # Build
             print("Attempting dataset build...\n\n")
             build_full(src_dir, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
+
+
+
 
 
     def _writeSubset(self,sub_type,idxs):
