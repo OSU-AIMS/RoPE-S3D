@@ -10,7 +10,6 @@
 import datetime
 import json
 import multiprocessing as mp
-from h5py._hl import dataset
 import numpy as np
 import os
 import time
@@ -73,6 +72,7 @@ class Builder():
     def __init__(self):
         self.build_start_time = time.time()
 
+
     def build_full(self, data_path, name = None):
         self._set_dest_path(data_path, name)
         self._get_filepaths_from_data_dir(data_path)
@@ -80,6 +80,13 @@ class Builder():
         self._load_imgs_and_depthmaps()
         self._segment_images_and_maps()
         self._save_reference_videos()
+
+    def build_subset(self, src, sub_type, idxs):
+        self._read_full(src)
+        dst = src.replace('.h5',f'_{sub_type}.h5')
+        self._write_subset(dst, sub_type, idxs)
+
+
 
     def _set_dest_path(self, data_path, name):
         if name is None:
@@ -208,6 +215,85 @@ class Builder():
             path_grp.create_dataset('jsons', data = np.array(self.jsons))
             path_grp.create_dataset('depthmaps', data = np.array(self.maps))
             path_grp.create_dataset('images', data = np.array(self.imgs))
+
+    def _read_full(self, path):
+        with h5py.File(path,'r') as file:
+            self.attrs = file.attrs
+            self.name = file.attrs['name']
+            self.length = file.attrs['length']
+
+            self.intrin_depth = file.attrs['depth_intrinsics']
+            self.intrin_color = file.attrs['color_intrinsics']
+            self.depth_scale = file.attrs['depth_scale']
+            self.ang_arr = file['angles']
+            self.pos_arr = file['positions']
+            self.depthmap_arr = file['coordinates/depthmaps']
+            self.pointmap = file['coordinates/pointmaps']
+
+            self.orig_img_arr = file['images/original']
+            self.segmented_img_arr = file['images/segmented']
+            self.rois = file['images/rois']
+
+            self.jsons = file['paths/jsons']
+            self.maps = file['paths/depthmaps']
+            self.imgs = file['paths/images']
+
+    def _write_subset(self,path,sub_type,idxs):
+        """Create a derivative dataset from a full dataset, using a subset of the data."""
+
+        with h5py.File(path,'a') as file:
+            file.attrs = self.attrs
+            file.attrs['length'] = len(idxs)
+            file.attrs['compile_date'] = str(datetime.datetime.now())
+            file.attrs['compile_time'] = 0
+            file.attrs['type'] = sub_type
+            file.create_dataset('angles', data = self.ang_arr[idxs])
+            file.create_dataset('positions', data = self.pos_arr[idxs])
+            coord_grop = file.create_group('coordinates')
+            dm = coord_grop.create_dataset('depthmaps', data = self.depthmap_arr[idxs])
+            dm.attrs['depth_scale'] = self.depth_scale
+            coord_grop.create_dataset('pointmaps', data = self.pointmap[idxs])
+            img_grp = file.create_group('images')
+            img_grp.create_dataset('original', data = self.orig_img_arr[idxs])
+            img_grp.create_dataset('segmented', data = self.segmented_img_arr[idxs])
+            img_grp.create_dataset('rois', data = self.rois[idxs])
+            path_grp = file.create_group('paths')
+            path_grp.create_dataset('jsons', data = np.array(self.jsons[idxs]))
+            path_grp.create_dataset('depthmaps', data = np.array(self.maps[idxs]))
+            path_grp.create_dataset('images', data = np.array(self.imgs[idxs]))
+
+        
+    def weld(self, path_a, path_b, dst_dir, name):
+        a = h5py.File(path_a,'r')
+        b = h5py.File(path_b,'r')
+        dst = h5py.File(path_a,'r')
+
+        a_attrs = a.attrs
+        b_attrs = b.attrs
+
+        for attribute in ['version','original_resolution','segmented_resolution','depth_intrinsics','color_intrinsics','depth_scale']:
+            assert a_attrs[attribute] == b_attrs[attribute], f"{attribute} must be equal to join datasets"
+
+        a_len = a.attrs['length']
+        b_len = b.attrs['length']
+        self.length = a_len + b_len
+
+        self.name = name
+        self.dest_path = dst_dir
+
+        self.ang_arr = np.vstack((a['angles'],b['angles']))
+        self.pos_arr = np.vstack((a['positions'],b['positions']))
+        self.depthmap_arr = np.vstack((a['coordinates/depthmaps'],b['coordinates/depthmaps']))
+        self.pointmap = np.vstack((a['coordinates/pointmaps'],b['coordinates/pointmaps']))
+        self.orig_img_arr = np.vstack((a['images/original'],b['images/original']))
+        self.segmented_img_arr = np.vstack((a['images/segmented'],b['images/segmented']))
+        self.rois = np.vstack((a['images/rois'],b['images/rois']))
+        self.jsons = np.vstack((a['paths/jsons'],b['paths/jsons']))
+        self.maps = np.vstack((a['paths/depthmaps'],b['paths/depthmaps']))
+        self.imgs = np.vstack((a['paths/images'],b['paths/images']))
+
+        self._save_full()
+
 
 
 
@@ -341,8 +427,6 @@ class Builder():
 #         path_grp.create_dataset('jsons', data = np.array(jsons))
 #         path_grp.create_dataset('depthmaps', data = np.array(maps))
 #         path_grp.create_dataset('images', data = np.array(imgs))
-
-
 
 
 
@@ -751,35 +835,38 @@ class Dataset():
             bob.build_full(src_dir, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
 
 
-    def _writeSubset(self,sub_type,idxs):
-        """Create a derivative dataset from a full dataset, using a subset of the data."""
+    def writeSubset(self, sub_type, idxs):
+        bob = Builder()
+        bob.build_subset(self.dataset_path, sub_type, idxs)
+    # def _writeSubset(self,sub_type,idxs):
+    #     """Create a derivative dataset from a full dataset, using a subset of the data."""
 
-        subset_path = self.dataset_path.replace('.h5',f'_{sub_type}.h5')
+    #     subset_path = self.dataset_path.replace('.h5',f'_{sub_type}.h5')
 
-        with h5py.File(subset_path,'a') as file:
-            file.attrs = self.attrs
+    #     with h5py.File(subset_path,'a') as file:
+    #         file.attrs = self.attrs
 
-            file.attrs['length'] = len(idxs)
-            file.attrs['compile_date'] = str(datetime.datetime.now())
-            file.attrs['compile_time'] = 0
-            file.attrs['type'] = sub_type
-            file.create_dataset('angles', data = self.angles[idxs])
-            file.create_dataset('positions', data = self.positions[idxs])
-            coord_grop = file.create_group('coordinates')
-            coord_grop.create_dataset('pointmaps', data = self.pointmaps[idxs])
-            img_grp = file.create_group('images')
-            img_grp.create_dataset('original', data = self.og_img[idxs])
-            img_grp.create_dataset('segmented', data = self.seg_img[idxs])
-            img_grp.create_dataset('rois', data = self.rois[idxs])
-            path_grp = file.create_group('paths')
+    #         file.attrs['length'] = len(idxs)
+    #         file.attrs['compile_date'] = str(datetime.datetime.now())
+    #         file.attrs['compile_time'] = 0
+    #         file.attrs['type'] = sub_type
+    #         file.create_dataset('angles', data = self.angles[idxs])
+    #         file.create_dataset('positions', data = self.positions[idxs])
+    #         coord_grop = file.create_group('coordinates')
+    #         coord_grop.create_dataset('pointmaps', data = self.pointmaps[idxs])
+    #         img_grp = file.create_group('images')
+    #         img_grp.create_dataset('original', data = self.og_img[idxs])
+    #         img_grp.create_dataset('segmented', data = self.seg_img[idxs])
+    #         img_grp.create_dataset('rois', data = self.rois[idxs])
+    #         path_grp = file.create_group('paths')
 
-            # These have to be copied directly from master
-            with h5py.File(self.dataset_path,'r') as master:
-                dm = coord_grop.create_dataset('depthmaps', data = master['coordinates/depthmaps'][idxs])
-                dm.attrs['depth_scale'] = self.attrs['depth_scale']
-                path_grp.create_dataset('jsons', data = master['paths/jsons'][idxs])
-                path_grp.create_dataset('depthmaps', data = master['paths/depthmaps'][idxs])
-                path_grp.create_dataset('images', data = master['paths/images'][idxs])
+    #         # These have to be copied directly from master
+    #         with h5py.File(self.dataset_path,'r') as master:
+    #             dm = coord_grop.create_dataset('depthmaps', data = master['coordinates/depthmaps'][idxs])
+    #             dm.attrs['depth_scale'] = self.attrs['depth_scale']
+    #             path_grp.create_dataset('jsons', data = master['paths/jsons'][idxs])
+    #             path_grp.create_dataset('depthmaps', data = master['paths/depthmaps'][idxs])
+    #             path_grp.create_dataset('images', data = master['paths/images'][idxs])
 
 
 
