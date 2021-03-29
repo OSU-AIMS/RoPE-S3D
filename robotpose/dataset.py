@@ -29,7 +29,7 @@ from .utils import workerCount
 INFO_JSON = os.path.join(p.DATASETS, 'datasets.json')
 CONFIG_JSON = os.path.join(p.DATASETS, 'dataset_config.json')
 
-DATASET_VERSION = 3.0
+DATASET_VERSION = 4.0
 """
 Version 1.0: 3/7/2021
     Began versioning.
@@ -55,6 +55,8 @@ Version 2.1: 3/24/2021
 Version 3.0: 3/24/2021
     Switched PLY data over to aligned image arrays
 
+Version 4.0: 3/29/2021
+    Switched to using .h5 format for datasets
 """
 
 
@@ -71,20 +73,30 @@ class Builder():
     def __init__(self):
         self.build_start_time = time.time()
 
-    def build_full(self, data_path):
+    def build_full(self, data_path, name = None):
+        self._set_dest_path(data_path, name)
         self._get_filepaths_from_data_dir(data_path)
         self._load_json_data()
         self._load_imgs_and_depthmaps()
         self._segment_images_and_maps()
+        self._save_reference_videos()
+
+    def _set_dest_path(self, data_path, name):
+        if name is None:
+            name = os.path.basename(os.path.normpath(data_path))
+        self.dest_path = os.path.join(p.DATASETS, name)
+        self.name = name
+        if not os.path.isdir(self.dest_path):
+            os.mkdir(self.dest_path)
 
     def _get_filepaths_from_data_dir(self, data_path):
-        self.jsons = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.json')]
-        self.maps = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.npy')]
-        self.imgs = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.png')]
+        self.jsons_p = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.json')]
+        self.maps_p = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.npy')]
+        self.imgs_p = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.png')]
 
-        self.json_paths = [os.path.join(data_path, x) for x in self.jsons]
-        self.map_paths = [os.path.join(data_path,x) for x in self.maps] 
-        self.orig_img_paths = [os.path.join(data_path, x) for x in self.imgs]
+        self.jsons = [x.replace(data_path,'') for x in self.jsons_p]
+        self.maps = [x.replace(data_path,'') for x in self.maps_p]
+        self.imgs = [x.replace(data_path,'') for x in self.imgs_p]
 
         # Make sure overall dataset length is the same for each file type
         self.length = len(self.imgs)
@@ -99,7 +111,7 @@ class Builder():
         intrin_color = set()
 
         # Parse JSONs
-        for idx, path in tqdm(zip(range(length), self.json_paths), desc="Parsing JSON Joint Angles and Positions"):
+        for idx, path in tqdm(zip(range(length), self.jsons_p), desc="Parsing JSON Joint Angles and Positions"):
             with open(path, 'r') as f:
                 d = json.load(f)
             depth_scale.add(d['realsense_info']['depth_scale'])
@@ -120,16 +132,16 @@ class Builder():
 
 
     def _load_imgs_and_depthmaps(self):
-        img = cv2.imread(self.orig_img_paths[0])
+        img = cv2.imread(self.imgs[0])
         self.img_height, self.img_width = img.shape
 
         # Create image array
         self.orig_img_arr = np.zeros((self.length, self.img_height, self.img_width, 3), dtype=np.uint8)
         self.depthmap_arr = np.zeros((self.length, self.img_height, self.img_width, 3), dtype=np.uint8)
 
-        for idx, path in tqdm(zip(range(length), self.orig_img_paths),total=self.length,desc="Parsing 2D Images"):
+        for idx, path in tqdm(zip(range(length), self.imgs_p),total=self.length,desc="Parsing 2D Images"):
             self.orig_img_arr[idx] = cv2.imread(path)
-        for idx, path in tqdm(zip(range(length), self.map_paths),total=self.length,desc="Parsing Depthmaps"):
+        for idx, path in tqdm(zip(range(length), self.maps_p),total=self.length,desc="Parsing Depthmaps"):
             self.depthmap_arr[idx] = np.load(path)
 
         self.depthmap_arr *= self.depth_scale
@@ -162,146 +174,173 @@ class Builder():
             self.segmented_img_arr[idx] = crop_outputs[idx][0]
             self.pointmap[idx] = crop_outputs[idx][1]
 
+    def _save_reference_videos(self):
+        save_video(os.path.join(self.dest_path,"og_vid.avi"), self.orig_img_arr)
+        save_video(os.path.join(self.dest_path,"seg_vid.avi"), self.segmented_img_arr)
+
+    def _save_full(self):
+        dest = os.path.join(self.dest_path, self.name + '.h5')
+
+        with h5py.File(dest,'a') as file:
+            file.attrs['name'] = self.name
+            file.attrs['version'] = DATASET_VERSION
+            file.attrs['length'] = self.length
+            file.attrs['build_date'] = str(datetime.datetime.now())
+            file.attrs['compile_date'] = str(datetime.datetime.now())
+            file.attrs['compile_time'] = time.time() - self.build_start_time
+            file.attrs['type'] = 'full'
+            file.attrs['original_resolution'] = self.orig_img_arr[0].shape
+            file.attrs['segmented_resolution'] = self.segmented_img_arr[0].shape
+            file.attrs['depth_intrinsics'] = self.intrin_depth
+            file.attrs['color_intrinsics'] = self.intrin_color
+            file.attrs['depth_scale'] = self.depth_scale
+            file.create_dataset('angles', data = self.ang_arr)
+            file.create_dataset('positions', data = self.pos_arr)
+            coord_grop = file.create_group('coordinates')
+            dm = coord_grop.create_dataset('depthmaps', data = self.depthmap_arr)
+            dm.attrs['depth_scale'] = self.depth_scale
+            coord_grop.create_dataset('pointmaps', data = self.pointmap)
+            img_grp = file.create_group('images')
+            img_grp.create_dataset('original', data = self.orig_img_arr)
+            img_grp.create_dataset('segmented', data = self.segmented_img_arr)
+            img_grp.create_dataset('rois', data = self.rois)
+            path_grp = file.create_group('paths')
+            path_grp.create_dataset('jsons', data = np.array(self.jsons))
+            path_grp.create_dataset('depthmaps', data = np.array(self.maps))
+            path_grp.create_dataset('images', data = np.array(self.imgs))
 
 
-def build_full(data_path, name = None):
-    """
-    Build full dataset into usable format.
 
-    Stores dataset in the directory specified in paths.py.
-    """
-    build_start_time = time.time()
+# def build_full(data_path, name = None):
+#     """
+#     Build full dataset into usable format.
 
-    if name is None:
-        name = os.path.basename(os.path.normpath(data_path))
-    dest_path = os.path.join(p.DATASETS, name)
+#     Stores dataset in the directory specified in paths.py.
+#     """
+#     build_start_time = time.time()
 
-    # Make dataset folder if it does not already exist
-    if not os.path.isdir(dest_path):
-        os.mkdir(dest_path)
+#     if name is None:
+#         name = os.path.basename(os.path.normpath(data_path))
+#     dest_path = os.path.join(p.DATASETS, name)
+
+#     # Make dataset folder if it does not already exist
+#     if not os.path.isdir(dest_path):
+#         os.mkdir(dest_path)
 
 
-    # Build lists of files
-    # jsons = [x for x in os.listdir(data_path) if x.endswith('.json')]
-    # maps = [x for x in os.listdir(data_path) if x.endswith('full.ply')]
-    # imgs = [x for x in os.listdir(data_path) if x.endswith('og.png')]
+#     # Build lists of files
+#     jsons = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.json')]
+#     maps = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.npy')]
+#     imgs = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.png')]
 
-    jsons = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.json')]
-    maps = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.npy')]
-    imgs = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.png')]
-
-    json_paths = [os.path.join(data_path, x) for x in jsons]
-    map_paths = [os.path.join(data_path,x) for x in maps] 
-    orig_img_paths = [os.path.join(data_path, x) for x in imgs]
-
-    # Make sure overall dataset length is the same for each file type
-    length = len(imgs)
-    assert len(jsons) == len(maps) == length, "Unequal number of images, jsons, or maps"
+#     # Make sure overall dataset length is the same for each file type
+#     length = len(imgs)
+#     assert len(jsons) == len(maps) == length, "Unequal number of images, jsons, or maps"
     
     
-    ang_arr = np.zeros((length, 6), dtype=float)
-    pos_arr = np.zeros((length, 6, 3), dtype=float)
-    depth_scale = set()
-    intrin_depth = set()
-    intrin_color = set()
+#     ang_arr = np.zeros((length, 6), dtype=float)
+#     pos_arr = np.zeros((length, 6, 3), dtype=float)
+#     depth_scale = set()
+#     intrin_depth = set()
+#     intrin_color = set()
 
-    # Parse JSONs
-    for idx, path in tqdm(zip(range(length), json_paths), desc="Parsing JSON Joint Angles and Positions"):
-        with open(path, 'r') as f:
-            d = json.load(f)
-        depth_scale.add(d['realsense_info']['depth_scale'])
-        intrin_depth.add(d['realsense_info']['intrin_depth'])
-        intrin_color.add(d['realsense_info']['intrin_color'])
+#     # Parse JSONs
+#     for idx, path in tqdm(zip(range(length), jsons), desc="Parsing JSON Joint Angles and Positions"):
+#         with open(path, 'r') as f:
+#             d = json.load(f)
+#         depth_scale.add(d['realsense_info']['depth_scale'])
+#         intrin_depth.add(d['realsense_info']['intrin_depth'])
+#         intrin_color.add(d['realsense_info']['intrin_color'])
 
-        d = d['objects'][0]['joints']
+#         d = d['objects'][0]['joints']
 
-        for sub_idx in range(6):
-            ang_arr[idx,sub_idx] = d[sub_idx]['angle']
-            pos_arr[idx,sub_idx] = d[sub_idx]['position']
+#         for sub_idx in range(6):
+#             ang_arr[idx,sub_idx] = d[sub_idx]['angle']
+#             pos_arr[idx,sub_idx] = d[sub_idx]['position']
 
-    assert len(depth_scale) == len(intrin_depth) ==  len(intrin_color) == 1,f'Camera settings must be uniform over the dataset.'
+#     assert len(depth_scale) == len(intrin_depth) ==  len(intrin_color) == 1,f'Camera settings must be uniform over the dataset.'
 
-    depth_scale = depth_scale.pop()
-    intrin_depth = intrin_depth.pop()
-    intrin_color = intrin_color.pop()
+#     depth_scale = depth_scale.pop()
+#     intrin_depth = intrin_depth.pop()
+#     intrin_color = intrin_color.pop()
     
-    # Get image dims
-    img = cv2.imread(orig_img_paths[0])
-    img_height, img_width = img.shape
+#     # Get image dims
+#     img = cv2.imread(imgs[0])
+#     img_height, img_width = img.shape
 
-    # Create image array
-    orig_img_arr = np.zeros((length, img_height, img_width, 3), dtype=np.uint8)
-    depthmap_arr = np.zeros((length, img_height, img_width, 3), dtype=np.uint8)
+#     # Create image array
+#     orig_img_arr = np.zeros((length, img_height, img_width, 3), dtype=np.uint8)
+#     depthmap_arr = np.zeros((length, img_height, img_width, 3), dtype=np.uint8)
     
-    for idx, path in tqdm(zip(range(length), orig_img_paths),total=length,desc="Parsing 2D Images"):
-        orig_img_arr[idx] = cv2.imread(path)
-    for idx, path in tqdm(zip(range(length), map_paths),total=length,desc="Parsing Depthmaps"):
-        depthmap_arr[idx] = np.load(path)
+#     for idx, path in tqdm(zip(range(length), imgs),total=length,desc="Parsing 2D Images"):
+#         orig_img_arr[idx] = cv2.imread(path)
+#     for idx, path in tqdm(zip(range(length), maps),total=length,desc="Parsing Depthmaps"):
+#         depthmap_arr[idx] = np.load(path)
 
-    depthmap_arr *= depth_scale
+#     depthmap_arr *= depth_scale
     
-    segmenter = RobotSegmenter()
+#     segmenter = RobotSegmenter()
 
-    segmented_img_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
-    pointmap = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.float64)
-    mask_arr = np.zeros((length, img_height, img_width), dtype=bool)
-    rois = np.zeros((length, 4))
+#     segmented_img_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
+#     pointmap = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.float64)
+#     mask_arr = np.zeros((length, img_height, img_width), dtype=bool)
+#     rois = np.zeros((length, 4))
 
-    # Segment images
-    for idx in tqdm(range(length),desc="Segmenting Images",colour='red'):
-        mask_arr[idx], rois[idx] = segmenter.segmentImage(orig_img_arr[idx])
-    rois = rois.astype(int)
+#     # Segment images
+#     for idx in tqdm(range(length),desc="Segmenting Images",colour='red'):
+#         mask_arr[idx], rois[idx] = segmenter.segmentImage(orig_img_arr[idx])
+#     rois = rois.astype(int)
 
-    # Make iterable for pool
-    crop_inputs = []
-    for idx in range(length):
-        crop_inputs.append((depthmap_arr[idx], orig_img_arr[idx], mask_arr[idx], rois[idx]))
+#     # Make iterable for pool
+#     crop_inputs = []
+#     for idx in range(length):
+#         crop_inputs.append((depthmap_arr[idx], orig_img_arr[idx], mask_arr[idx], rois[idx]))
 
-    # Run pool to segment PLYs
-    print("Running Crop Pool...")
-    with mp.Pool(workerCount()) as pool:
-        crop_outputs = pool.starmap(crop, crop_inputs)
-    print("Pool Complete")
+#     # Run pool to segment PLYs
+#     print("Running Crop Pool...")
+#     with mp.Pool(workerCount()) as pool:
+#         crop_outputs = pool.starmap(crop, crop_inputs)
+#     print("Pool Complete")
 
-    for idx in tqdm(range(length),desc="Unpacking Pool Results"):
-        segmented_img_arr[idx] = crop_outputs[idx][0]
-        pointmap[idx] = crop_outputs[idx][1]
+#     for idx in tqdm(range(length),desc="Unpacking Pool Results"):
+#         segmented_img_arr[idx] = crop_outputs[idx][0]
+#         pointmap[idx] = crop_outputs[idx][1]
     
 
-    # Save reference videos
-    save_video(os.path.join(dest_path,"og_vid.avi"), orig_img_arr)
-    save_video(os.path.join(dest_path,"seg_vid.avi"), segmented_img_arr)
+#     # Save reference videos
+#     save_video(os.path.join(dest_path,"og_vid.avi"), orig_img_arr)
+#     save_video(os.path.join(dest_path,"seg_vid.avi"), segmented_img_arr)
 
-    # Write dataset
-    dest_path = os.path.join(dest_path, name + '.h5')
+#     # Write dataset
+#     dest_path = os.path.join(dest_path, name + '.h5')
 
-    with h5py.File(dest_path,'a') as file:
-        file.attrs['name'] = name
-        file.attrs['version'] = DATASET_VERSION
-        file.attrs['length'] = length
-        file.attrs['build_date'] = str(datetime.datetime.now())
-        file.attrs['compile_date'] = str(datetime.datetime.now())
-        file.attrs['compile_time'] = time.time() - build_start_time
-        file.attrs['type'] = 'full'
-        file.attrs['original_resolution'] = orig_img_arr[0].shape
-        file.attrs['segmented_resolution'] = segmented_img_arr[0].shape
-        file.attrs['depth_intrinsics'] = intrin_depth
-        file.attrs['color_intrinsics'] = intrin_color
-        file.attrs['depth_scale'] = depth_scale
-        file.create_dataset('angles', data = ang_arr)
-        file.create_dataset('positions', data = pos_arr)
-        coord_grop = file.create_group('coordinates')
-        dm = coord_grop.create_dataset('depthmaps', data = depthmap_arr)
-        dm.attrs['depth_scale'] = depth_scale
-        coord_grop.create_dataset('pointmaps', data = pointmap)
-        img_grp = file.create_group('images')
-        img_grp.create_dataset('original', data = orig_img_arr)
-        img_grp.create_dataset('segmented', data = segmented_img_arr)
-        img_grp.create_dataset('rois', data = rois)
-        path_grp = file.create_group('paths')
-        path_grp.create_dataset('jsons', data = np.array(jsons))
-        path_grp.create_dataset('depthmaps', data = np.array(maps))
-        path_grp.create_dataset('images', data = np.array(imgs))
+#     with h5py.File(dest_path,'a') as file:
+#         file.attrs['name'] = name
+#         file.attrs['version'] = DATASET_VERSION
+#         file.attrs['length'] = length
+#         file.attrs['build_date'] = str(datetime.datetime.now())
+#         file.attrs['compile_date'] = str(datetime.datetime.now())
+#         file.attrs['compile_time'] = time.time() - build_start_time
+#         file.attrs['type'] = 'full'
+#         file.attrs['original_resolution'] = orig_img_arr[0].shape
+#         file.attrs['segmented_resolution'] = segmented_img_arr[0].shape
+#         file.attrs['depth_intrinsics'] = intrin_depth
+#         file.attrs['color_intrinsics'] = intrin_color
+#         file.attrs['depth_scale'] = depth_scale
+#         file.create_dataset('angles', data = ang_arr)
+#         file.create_dataset('positions', data = pos_arr)
+#         coord_grop = file.create_group('coordinates')
+#         dm = coord_grop.create_dataset('depthmaps', data = depthmap_arr)
+#         dm.attrs['depth_scale'] = depth_scale
+#         coord_grop.create_dataset('pointmaps', data = pointmap)
+#         img_grp = file.create_group('images')
+#         img_grp.create_dataset('original', data = orig_img_arr)
+#         img_grp.create_dataset('segmented', data = segmented_img_arr)
+#         img_grp.create_dataset('rois', data = rois)
+#         path_grp = file.create_group('paths')
+#         path_grp.create_dataset('jsons', data = np.array(jsons))
+#         path_grp.create_dataset('depthmaps', data = np.array(maps))
+#         path_grp.create_dataset('images', data = np.array(imgs))
 
 
 
@@ -662,6 +701,7 @@ class Dataset():
         print("\nLoading Dataset...")
         file = h5py.File(self.dataset_path,'r')
         self.attrs = dict(file.attrs)
+        self.length = self.attrs['length']
         self.angles = file['angles']
         self.positions = file['positions']
         self.pointmaps = file['coordinates/pointmaps']
@@ -686,8 +726,8 @@ class Dataset():
 
 
     def build(self,data_path):
-        # Build dataset
-        build_full(data_path)
+        bob = Builder()
+        bob.build_full(data_path)
 
 
     def build_from_zip(self, zip_path):
@@ -706,9 +746,9 @@ class Dataset():
             if len(os.listdir(tempdir)) == 1:
                 src_dir = os.path.join(tempdir,os.listdir(tempdir)[0])
 
-            # Build
             print("Attempting dataset build...\n\n")
-            build_full(src_dir, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
+            bob = Builder()
+            bob.build_full(src_dir, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
 
 
     def _writeSubset(self,sub_type,idxs):
