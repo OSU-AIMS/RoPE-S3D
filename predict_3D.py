@@ -32,7 +32,7 @@ U_angles = ds.angles[:,2]
 B_angles = ds.angles[:,4]
 
 # Load model, make predictions
-model = load_model(r'C:\Users\exley\OneDrive\Documents\GitHub\DeepPoseRobot\models\set6_slu__B__CutMobilenet.h5')
+model = load_model(os.path.join(os.getcwd(),r'models\set6_slu__B__CutMobilenet.h5'))
 reader = VideoReader(ds.vid_path)
 predictions = model.predict(reader)
 
