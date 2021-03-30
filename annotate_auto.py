@@ -1,7 +1,4 @@
 import argparse
-
-from cv2 import data
-from robotpose import render
 from robotpose.render import Renderer
 from robotpose.autoAnnotate import AutomaticKeypointAnnotator, AutomaticSegmentationAnnotator
 
@@ -12,7 +9,7 @@ def label(dataset, skeleton):
 
     rend = Renderer(objs, dataset, skeleton, names)
 
-    key = AutomaticKeypointAnnotator(objs, names, dataset, skeleton, render = rend)
+    key = AutomaticKeypointAnnotator(objs, names, dataset, skeleton, renderer = rend)
     key.run()
 
     del key

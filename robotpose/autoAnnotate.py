@@ -7,6 +7,8 @@
 #
 # Author: Adam Exley
 
+import multiprocessing as mp
+from robotpose.utils import workerCount
 import numpy as np
 import os
 import tempfile
@@ -115,8 +117,6 @@ class SegmentationAnnotator():
 
 
 
-
-
     def _mask_color(self,image, color):
         mask = np.zeros(image.shape[0:2], dtype=np.uint8)
         mask[np.where(np.all(image == color, axis=-1))] = 255
@@ -171,18 +171,26 @@ class AutomaticSegmentationAnnotator():
 
     def run(self):
 
-        for frame in tqdm(range(self.ds.length),desc="Labeling Segmentation"):
+        color_imgs = []
+
+        for frame in tqdm(range(self.ds.length),desc="Rendering Segmentation Masks"):
             self.rend.setPosesFromDS(frame)
             color,depth = self.rend.render()
-            self.anno.annotate(self.ds.img[frame],color,os.path.join(self.ds.seg_anno_path,f"{frame:05d}"))
+            color_imgs.append(color)
+            #self.anno.annotate(self.ds.img[frame],color,os.path.join(self.ds.seg_anno_path,f"{frame:05d}"))
             cv2.imshow("Automatic Segmentation Annotator", color)
             cv2.waitKey(1)
 
+        cv2.destroyAllWindows()
+        inputs = []
 
+        for frame in range(self.ds.length):
+            inputs.append((self.ds.img[frame],color_imgs[frame],os.path.join(self.ds.seg_anno_path,f"{frame:05d}")))
 
-
-
-
+        print("Starting Segmentation Pool...")
+        with mp.Pool(workerCount()) as pool:
+            pool.starmap(self.anno.annotate, inputs)
+        print("Pool Complete")
 
 
 
@@ -214,7 +222,6 @@ class KeypointAnnotator():
         avg_y = np.mean(coords[0])
         avg_x = np.mean(coords[1])
         return [avg_x, avg_y]
-
 
 
 
@@ -251,10 +258,12 @@ class AutomaticKeypointAnnotator():
         self.anno = KeypointAnnotator(color_dict,dataset,skeleton)
 
     def run(self):
-        
-        for frame in tqdm(range(self.anno.ds.length),desc="Labeling Keypoints"):
+
+        for frame in tqdm(range(self.anno.ds.length),desc="Annotating Keypoints"):
             self.rend.setPosesFromDS(frame)
             color,depth = self.rend.render()
             self.anno.annotate(color,frame)
             cv2.imshow("Automatic Keypoint Annotator", color)
             cv2.waitKey(1)
+
+        cv2.destroyAllWindows()
