@@ -7,6 +7,8 @@
 #
 # Author: Adam Exley
 
+import multiprocessing as mp
+from robotpose.utils import workerCount
 import numpy as np
 import os
 import tempfile
@@ -19,6 +21,7 @@ from tqdm import tqdm
 from .dataset import Dataset
 from .render import Renderer
 from . import paths as p
+from robotpose import render
 
 def makeMask(image):
     mask = np.zeros(image.shape[0:2], dtype=np.uint8)
@@ -114,8 +117,6 @@ class SegmentationAnnotator():
 
 
 
-
-
     def _mask_color(self,image, color):
         mask = np.zeros(image.shape[0:2], dtype=np.uint8)
         mask[np.where(np.all(image == color, axis=-1))] = 255
@@ -136,22 +137,28 @@ class AutomaticSegmentationAnnotator():
             mode = 'seg_full',
             mesh_path = p.ROBOT_CAD,
             mesh_type = '.obj',
-            camera_pose = None
+            camera_pose = None,
+            renderer = None
             ):
 
         modes = ['seg_full','seg']
         assert mode in modes, f"Mode must be one of: {modes}"
 
-        self.rend = Renderer(
-            mesh_list,
-            dataset,
-            skeleton,
-            name_list = names,
-            mode = mode,
-            mesh_path = mesh_path,
-            mesh_type = mesh_type,
-            camera_pose = camera_pose
-            )
+        if renderer is None:
+            self.rend = Renderer(
+                mesh_list,
+                dataset,
+                skeleton,
+                name_list = names,
+                mode = mode,
+                mesh_path = mesh_path,
+                mesh_type = mesh_type,
+                camera_pose = camera_pose
+                )
+        else:
+            self.rend = renderer
+            self.rend.setMode(mode)
+
         color_dict = self.rend.getColorDict()
         self.anno = SegmentationAnnotator(color_dict)
 
@@ -164,18 +171,26 @@ class AutomaticSegmentationAnnotator():
 
     def run(self):
 
-        for frame in tqdm(range(self.ds.length),desc="Labeling Segmentation"):
+        color_imgs = []
+
+        for frame in tqdm(range(self.ds.length),desc="Rendering Segmentation Masks"):
             self.rend.setPosesFromDS(frame)
             color,depth = self.rend.render()
-            self.anno.annotate(self.ds.img[frame],color,os.path.join(self.ds.seg_anno_path,f"{frame:05d}"))
+            color_imgs.append(color)
+            #self.anno.annotate(self.ds.img[frame],color,os.path.join(self.ds.seg_anno_path,f"{frame:05d}"))
             cv2.imshow("Automatic Segmentation Annotator", color)
             cv2.waitKey(1)
 
+        cv2.destroyAllWindows()
+        inputs = []
 
+        for frame in range(self.ds.length):
+            inputs.append((self.ds.img[frame],color_imgs[frame],os.path.join(self.ds.seg_anno_path,f"{frame:05d}")))
 
-
-
-
+        print("Starting Segmentation Pool...")
+        with mp.Pool(workerCount()) as pool:
+            pool.starmap(self.anno.annotate, inputs)
+        print("Pool Complete")
 
 
 
@@ -210,7 +225,6 @@ class KeypointAnnotator():
 
 
 
-
 class AutomaticKeypointAnnotator():
     
     def __init__(
@@ -221,27 +235,35 @@ class AutomaticKeypointAnnotator():
             skeleton,
             mesh_path = p.ROBOT_CAD,
             mesh_type = '.obj',
-            camera_pose = None
+            camera_pose = None,
+            renderer = None
             ):
         
-        self.rend = Renderer(
-            mesh_list,
-            dataset,
-            skeleton,
-            name_list = names,
-            mode = 'key',
-            mesh_path = mesh_path,
-            mesh_type = mesh_type,
-            camera_pose = camera_pose
-            )
+        if renderer is None:
+            self.rend = Renderer(
+                mesh_list,
+                dataset,
+                skeleton,
+                name_list = names,
+                mode = 'key',
+                mesh_path = mesh_path,
+                mesh_type = mesh_type,
+                camera_pose = camera_pose
+                )
+        else:
+            self.rend = renderer
+            self.rend.setMode('key')
+
         color_dict = self.rend.getColorDict()
         self.anno = KeypointAnnotator(color_dict,dataset,skeleton)
 
     def run(self):
-        
-        for frame in tqdm(range(self.anno.ds.length),desc="Labeling Keypoints"):
+
+        for frame in tqdm(range(self.anno.ds.length),desc="Annotating Keypoints"):
             self.rend.setPosesFromDS(frame)
             color,depth = self.rend.render()
             self.anno.annotate(color,frame)
             cv2.imshow("Automatic Keypoint Annotator", color)
             cv2.waitKey(1)
+
+        cv2.destroyAllWindows()
