@@ -54,10 +54,10 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
 
     print("Model Set")
 
-    # logger = Logger(validation_batch_size=batch_size,
-    #     # filepath saves the logger data to a .h5 file
-    #     filepath=p.log
-    # )
+    logger = Logger(validation_batch_size=batch_size,
+        # filepath saves the logger data to a .h5 file
+        filepath=p.LOG
+    )
     reduce_lr = ReduceLROnPlateau(monitor="val_loss", factor=0.2, verbose=1, patience=20)
 
     model_checkpoint = ModelCheckpoint(
@@ -76,7 +76,7 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
         verbose=1
     )
 
-    callbacks = [early_stop, reduce_lr, model_checkpoint]
+    callbacks = [logger, early_stop, reduce_lr, model_checkpoint]
     print("Callbacks set")
 
     model.fit(
