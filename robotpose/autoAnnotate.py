@@ -19,6 +19,7 @@ from tqdm import tqdm
 from .dataset import Dataset
 from .render import Renderer
 from . import paths as p
+from robotpose import render
 
 def makeMask(image):
     mask = np.zeros(image.shape[0:2], dtype=np.uint8)
@@ -136,22 +137,28 @@ class AutomaticSegmentationAnnotator():
             mode = 'seg_full',
             mesh_path = p.ROBOT_CAD,
             mesh_type = '.obj',
-            camera_pose = None
+            camera_pose = None,
+            renderer = None
             ):
 
         modes = ['seg_full','seg']
         assert mode in modes, f"Mode must be one of: {modes}"
 
-        self.rend = Renderer(
-            mesh_list,
-            dataset,
-            skeleton,
-            name_list = names,
-            mode = mode,
-            mesh_path = mesh_path,
-            mesh_type = mesh_type,
-            camera_pose = camera_pose
-            )
+        if renderer is None:
+            self.rend = Renderer(
+                mesh_list,
+                dataset,
+                skeleton,
+                name_list = names,
+                mode = mode,
+                mesh_path = mesh_path,
+                mesh_type = mesh_type,
+                camera_pose = camera_pose
+                )
+        else:
+            self.rend = renderer
+            self.rend.setMode(mode)
+
         color_dict = self.rend.getColorDict()
         self.anno = SegmentationAnnotator(color_dict)
 
@@ -221,19 +228,25 @@ class AutomaticKeypointAnnotator():
             skeleton,
             mesh_path = p.ROBOT_CAD,
             mesh_type = '.obj',
-            camera_pose = None
+            camera_pose = None,
+            renderer = None
             ):
         
-        self.rend = Renderer(
-            mesh_list,
-            dataset,
-            skeleton,
-            name_list = names,
-            mode = 'key',
-            mesh_path = mesh_path,
-            mesh_type = mesh_type,
-            camera_pose = camera_pose
-            )
+        if renderer is None:
+            self.rend = Renderer(
+                mesh_list,
+                dataset,
+                skeleton,
+                name_list = names,
+                mode = 'key',
+                mesh_path = mesh_path,
+                mesh_type = mesh_type,
+                camera_pose = camera_pose
+                )
+        else:
+            self.rend = renderer
+            self.rend.setMode('key')
+
         color_dict = self.rend.getColorDict()
         self.anno = KeypointAnnotator(color_dict,dataset,skeleton)
 
