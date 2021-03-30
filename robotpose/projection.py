@@ -23,7 +23,10 @@ FLT_EPSILON = 1
 
 def makeIntrinsics(preset = '1280_720_color'):
     """
-    Make Realsense Intrinsics from presets
+    Make Realsense Intrinsics from presets that are commonly used.
+
+    Arguments:
+    preset: string of the preset to use
     """
 
     valid = ['1280_720_color', '1280_720_depth','640_480_color','640_480_depth']
@@ -45,6 +48,13 @@ def makeIntrinsics(preset = '1280_720_color'):
 def intrin(resolution, pp, f, model, coeffs):
     """
     Makes psuedo-intrinsics for the realsense camera used.
+
+    Arguments:
+    resolution: Camera resolution (tuple)
+    pp: pixels per meter (tuple)(x,y)
+    f: focal plan position (tuple)(x,y)
+    model: distortion model to use (rs.distortion)
+    coeffs: distortion coeffs
     """
     a = rs.intrinsics()
     a.width = max(resolution)
@@ -63,10 +73,15 @@ def intrin(resolution, pp, f, model, coeffs):
 
 def proj_point_to_pixel(intrin, points, correct_distortion = False):
     """
-    Python copy of the C++ realsense sdk function
+    Python copy of the C++ realsense sdk function.
+
+    Expects n x 3 array of points to project.
     https://github.com/IntelRealSense/librealsense/blob/master/include/librealsense2/rsutil.h
-    Can take arrays as inputs to speed up calculations
-    Expects n x 3 array of points to project
+
+    Arguments:
+    intrin: camera intrinsics (rs.intrinsics)
+    points: n x 3 array of points to project in x,y,z format
+    correct_distortion: bool, use distorsion correction of intrinsics
     """
     x = points[0] / points[2]
     y = points[1] / points[2]
@@ -81,9 +96,7 @@ def proj_point_to_pixel(intrin, points, correct_distortion = False):
             dy = y + 2*intrin.coeffs[3]*x*y + intrin.coeffs[2]*(r_two + 2*np.square(y))
             x = dx
             y = dy
-
         elif intrin.model == rs.distortion.brown_conrady:
-
             r_two = np.square(x) + np.square(y)
             f = 1 + intrin.coeffs[0] * r_two + intrin.coeffs[1] * np.square(r_two) + intrin.coeffs[4] * np.power(r_two,3)
             xf = x*f
@@ -119,10 +132,14 @@ def proj_point_to_pixel(intrin, points, correct_distortion = False):
 
 def proj_point_to_pixel_map(intrin, points):
     """
-    Python copy of the C++ realsense sdk function
-    https://github.com/IntelRealSense/librealsense/blob/master/include/librealsense2/rsutil.h
-    Can take arrays as inputs to speed up calculations
-    Expects n x 3 array of points to project
+    Creates an indexmap from a pointmap.
+
+    Adaptation of proj_point_to_pixel().
+    Cannot correct distortion.
+
+    Arguments:
+    intrin: intrinsics to use for projection
+    points:  a x b x 3 array of points structured as x,y,z
     """
     x = points[...,0] / points[...,2]
     y = points[...,1] / points[...,2]
@@ -146,10 +163,14 @@ def proj_point_to_pixel_map(intrin, points):
 
 def deproj_pixel_to_point(intrin, pixels, depths):
     """
-    Python copy of the C++ realsense sdk function
+    Python copy of the C++ realsense sdk function.
+
     https://github.com/IntelRealSense/librealsense/blob/master/include/librealsense2/rsutil.h
-    Can take arrays as inputs to speed up calculations
-    Expects n x 2 array of pixels to deproject
+
+    Arguments:
+    intrin: camera intrinsics (rs.intrinsics)
+    pixels: n x 2 array of points to project in x,y
+    depths: array of depths
     """
     x = (pixels[0] - intrin.ppx) / intrin.fx
     y = (pixels[1] - intrin.ppy) / intrin.fy
@@ -167,7 +188,13 @@ def deproj_pixel_to_point(intrin, pixels, depths):
 
 def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale = 0, x_offset = 0, y_offset = 0):
     """
-    Deprojects an entire depthmap into a corresponding pointmap
+    BROKEN
+    Deprojects an entire depthmap into a corresponding pointmap, assuming the same camera intrinsics
+
+    Arguments:
+    intrin: intrinsics to use to project
+    depthmap: depthmap to project
+    depth_scale: Multiplier to apply to depthmap if not already applied
     """
 
     depthmap = np.array(depthmap)
@@ -195,7 +222,13 @@ def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale = 0, x_offset = 0,
 
 def deproj_depthmap_to_pointmap_different(intrin_d, intrin_c, depthmap, depth_scale = 0):
     """
-    Deprojects an entire depthmap into a corresponding pointmap
+    Deprojects an entire depthmap into a corresponding pointmap with differing intrinsics
+
+    Arguments:
+    intrin_d: input depth intrinsics
+    intirn_c: output color intrinsics
+    depthmap: depthmap to project
+    depth_scale: multipler to apply to depthmap if not already applied
     """
 
     depthmap = np.array(depthmap, dtype=np.float64)
@@ -232,32 +265,26 @@ def deproj_depthmap_to_pointmap_different(intrin_d, intrin_c, depthmap, depth_sc
 
 
 
+# def generateMaps(points, intrin_type = '1280_720_color'):
+#     intrin = makeIntrinsics(intrin_type)
 
+#     # Instead of an RGB/BGR array, this is an XYZ array
+#     sum_arr = np.zeros((intrin.height, intrin.width, 3))
+#     count_arr = np.zeros((intrin.height, intrin.width, 3))
 
+#     points_idx = np.array(np.round(proj_point_to_pixel(intrin, points)), dtype=int)
 
+#     points[:,2] *= -1
 
+#     points_idx[:,0] = np.round(np.clip(points_idx[:,0],0,intrin.width-1))
+#     points_idx[:,1] = np.round(np.clip(points_idx[:,1],0,intrin.height-1))
 
+#     for pixel, loc in zip(points_idx,points):
+#         px, py = pixel
+#         sum_arr[py,px] += loc
+#         count_arr[py,px] += [1]*3
 
-def generateMaps(points, intrin_type = '1280_720_color'):
-    intrin = makeIntrinsics(intrin_type)
+#     arr = sum_arr / count_arr
+#     arr = np.nan_to_num(arr,nan=0,posinf=0,neginf=0)
 
-    # Instead of an RGB/BGR array, this is an XYZ array
-    sum_arr = np.zeros((intrin.height, intrin.width, 3))
-    count_arr = np.zeros((intrin.height, intrin.width, 3))
-
-    points_idx = np.array(np.round(proj_point_to_pixel(intrin, points)), dtype=int)
-
-    points[:,2] *= -1
-
-    points_idx[:,0] = np.round(np.clip(points_idx[:,0],0,intrin.width-1))
-    points_idx[:,1] = np.round(np.clip(points_idx[:,1],0,intrin.height-1))
-
-    for pixel, loc in zip(points_idx,points):
-        px, py = pixel
-        sum_arr[py,px] += loc
-        count_arr[py,px] += [1]*3
-
-    arr = sum_arr / count_arr
-    arr = np.nan_to_num(arr,nan=0,posinf=0,neginf=0)
-
-    return arr
+#     return arr
