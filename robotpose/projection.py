@@ -68,71 +68,51 @@ def proj_point_to_pixel(intrin, points, correct_distortion = False):
     Can take arrays as inputs to speed up calculations
     Expects n x 3 array of points to project
     """
-    x = points[:,0] / points[:,2]
-    y = points[:,1] / points[:,2]
+    x = points[...,0] / points[...,2]
+    y = points[...,1] / points[...,2]
 
     if correct_distortion:
         if intrin.model == rs.distortion.inverse_brown_conrady or intrin.model == rs.distortion.modified_brown_conrady:
-
             r_two = np.square(x) + np.square(y)
-
             f = 1 + intrin.coeffs[0] * r_two + intrin.coeffs[0] * np.square(r_two) + intrin.coeffs[4] * np.power(r_two,3)
-
             x *= f
             y *= f
-
             dx = x + 2*intrin.coeffs[2]*x*y + intrin.coeffs[3]*(r_two + 2*np.square(x))
             dy = y + 2*intrin.coeffs[3]*x*y + intrin.coeffs[2]*(r_two + 2*np.square(y))
-
             x = dx
             y = dy
 
         elif intrin.model == rs.distortion.brown_conrady:
 
             r_two = np.square(x) + np.square(y)
-
             f = 1 + intrin.coeffs[0] * r_two + intrin.coeffs[1] * np.square(r_two) + intrin.coeffs[4] * np.power(r_two,3)
-
             xf = x*f
             yf = y*f
-
             dx = xf + 2 * intrin.coeffs[2] * x*y + intrin.coeffs[3] * (r_two + 2 * np.square(x))
             dy = yf + 2 * intrin.coeffs[3] * x*y + intrin.coeffs[2] * (r_two + 2 * np.square(y))
-
             x = dx
             y = dy
-
         elif intrin.model == rs.distortion.ftheta:
             r = np.sqrt(np.square(x) + np.square(y))
-
             if r < FLT_EPSILON:
                 r = FLT_EPSILON
-
             rd = (1.0 / intrin.coeffs[0] * np.arctan(2 * r* np.tan(intrin.coeffs[0] / 2.0)))
-
             x *= rd / r
             y *= rd / r
-
         elif intrin.model == rs.distortion.kannala_brandt4:
-
             r = np.sqrt(np.square(x) + np.square(y))
-
             if (r < FLT_EPSILON):
                 r = FLT_EPSILON
-
             theta = np.arctan(r)
-
             theta_two = np.square(theta)
-
             series = 1 + theta_two*(intrin.coeffs[0] + theta_two*(intrin.coeffs[1] + theta_two*(intrin.coeffs[2] + theta_two*intrin.coeffs[3])))
-
             rd = theta*series
             x *= rd / r
             y *= rd / r
 
-    pixel = np.zeros((points.shape[0],2))
-    pixel[:,0] = x * intrin.fx + intrin.ppx
-    pixel[:,1] = y * intrin.fy + intrin.ppy
+    pixel = np.zeros((points.shape[:-2],2))
+    pixel[...,0] = x * intrin.fx + intrin.ppx
+    pixel[...,1] = y * intrin.fy + intrin.ppy
 
     return pixel
 
@@ -185,6 +165,11 @@ def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale = 0, x_offset = 0,
     point_map[r_idx, c_idx, 2] = depths
 
     return point_map
+
+
+
+
+
 
 
 
