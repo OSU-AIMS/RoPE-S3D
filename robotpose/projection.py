@@ -68,8 +68,8 @@ def proj_point_to_pixel(intrin, points, correct_distortion = False):
     Can take arrays as inputs to speed up calculations
     Expects n x 3 array of points to project
     """
-    x = points[...,0] / points[...,2]
-    y = points[...,1] / points[...,2]
+    x = points[0] / points[2]
+    y = points[1] / points[2]
 
     if correct_distortion:
         if intrin.model == rs.distortion.inverse_brown_conrady or intrin.model == rs.distortion.modified_brown_conrady:
@@ -110,9 +110,34 @@ def proj_point_to_pixel(intrin, points, correct_distortion = False):
             x *= rd / r
             y *= rd / r
 
-    pixel = np.zeros((points.shape[:-2],2))
+    pixel = np.zeros((points.shape[0],2))
+    pixel[0] = x * intrin.fx + intrin.ppx
+    pixel[1] = y * intrin.fy + intrin.ppy
+
+    return pixel
+
+
+def proj_point_to_pixel_map(intrin, points):
+    """
+    Python copy of the C++ realsense sdk function
+    https://github.com/IntelRealSense/librealsense/blob/master/include/librealsense2/rsutil.h
+    Can take arrays as inputs to speed up calculations
+    Expects n x 3 array of points to project
+    """
+    x = points[...,0] / points[...,2]
+    y = points[...,1] / points[...,2]
+
+    x = np.nan_to_num(x)
+    y = np.nan_to_num(y)
+
+    pixel = np.zeros((*points.shape[0:2],2))
     pixel[...,0] = x * intrin.fx + intrin.ppx
     pixel[...,1] = y * intrin.fy + intrin.ppy
+
+    pixel = pixel.astype(int)
+
+    pixel[...,0] = np.clip(pixel[...,0],0,719)
+    pixel[...,1] = np.clip(pixel[...,1],0,1279)
 
     return pixel
 
@@ -167,6 +192,42 @@ def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale = 0, x_offset = 0,
     return point_map
 
 
+
+def deproj_depthmap_to_pointmap_different(intrin_d, intrin_c, depthmap, depth_scale = 0):
+    """
+    Deprojects an entire depthmap into a corresponding pointmap
+    """
+
+    depthmap = np.array(depthmap, dtype=np.float64)
+
+    point_map = np.zeros((*depthmap.shape,3))
+
+    r_idx = np.repeat(np.arange(depthmap.shape[0]),1280)
+    c_idx = np.tile(np.arange(depthmap.shape[1]),720)
+
+    if depth_scale != 0:
+        depthmap *= depth_scale
+    #depths = depthmap[r_idx,c_idx]
+    depths = depthmap.flatten()
+
+    ##################### Switch r and c?
+    x = (c_idx - intrin_d.ppx) / intrin_d.fx 
+    y = (r_idx - intrin_d.ppy) / intrin_d.fy 
+
+    point_map[r_idx, c_idx, 0] = depths * x
+    point_map[r_idx, c_idx, 1] = depths * y
+    point_map[r_idx, c_idx, 2] = depths
+
+    point_map[...,0] -= .0175   # Correct placement
+
+    pixel_map = proj_point_to_pixel_map(intrin_c,point_map)
+    np.save('pixel.npy',pixel_map)
+    cvt_pointmap = np.zeros((intrin_c.height, intrin_c.width,3))
+    for r in range(pixel_map.shape[0]):
+        for c in range(pixel_map.shape[1]):
+            cvt_pointmap[pixel_map[r,c,0],pixel_map[r,c,1]] = point_map[r,c]
+    
+    return cvt_pointmap
 
 
 
