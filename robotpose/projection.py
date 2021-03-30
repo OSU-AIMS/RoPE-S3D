@@ -221,7 +221,6 @@ def deproj_depthmap_to_pointmap_different(intrin_d, intrin_c, depthmap, depth_sc
     point_map[...,0] -= .0175   # Correct placement
 
     pixel_map = proj_point_to_pixel_map(intrin_c,point_map)
-    np.save('pixel.npy',pixel_map)
     cvt_pointmap = np.zeros((intrin_c.height, intrin_c.width,3))
     for r in range(pixel_map.shape[0]):
         for c in range(pixel_map.shape[1]):
