@@ -53,15 +53,31 @@ def contourImg(image):
 
 
 class SegmentationAnnotator():
+    """
+    Creates labelme-compatible annotation jsons and pngs for renders.
+    """
 
     def __init__(self, color_dict = None):
         if color_dict is not None:
             self.color_dict = color_dict
 
     def setDict(self, color_dict):
+        """ Set color dict if not specified in init"""
         self.color_dict = color_dict
 
     def annotate(self, image, render, path):
+        """
+        Annotates an image given a rendering
+
+        Args:
+            image (ndarray):
+                The image to be annotated.
+            render (ndarray):
+                The generated rendering for the image.
+            path (str):
+                The location to save the annotation to.
+                Do not include file extensions.
+        """
 
         f = LabelFile()
 
@@ -118,11 +134,13 @@ class SegmentationAnnotator():
 
 
     def _mask_color(self,image, color):
+        """ Return mask of where a certain color is"""
         mask = np.zeros(image.shape[0:2], dtype=np.uint8)
         mask[np.where(np.all(image == color, axis=-1))] = 255
         return mask
 
     def _get_contour(self,image, color):
+        """ Return contour of a given color """
         contours, hierarchy = cv2.findContours(self._mask_color(image, color), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         return contours
 
