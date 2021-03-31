@@ -141,11 +141,13 @@ def proj_point_to_pixel_map(intrin, points):
     intrin: intrinsics to use for projection
     points:  a x b x 3 array of points structured as x,y,z
     """
+    points[...,2] = points[...,2][points[...,2] == 0] = 1   # Avoid dividing by 0
     x = points[...,0] / points[...,2]
     y = points[...,1] / points[...,2]
 
-    x = np.nan_to_num(x)
-    y = np.nan_to_num(y)
+    x = np.nan_to_num(x).astype(np.float64)
+    y = np.nan_to_num(y).astype(np.float64)
+
 
     pixel = np.zeros((*points.shape[0:2],2))
     pixel[...,0] = x * intrin.fx + intrin.ppx
@@ -197,20 +199,21 @@ def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale = 0, x_offset = 0,
     depth_scale: Multiplier to apply to depthmap if not already applied
     """
 
-    depthmap = np.array(depthmap)
+    depthmap = np.array(depthmap, dtype=np.float64)
 
     point_map = np.zeros((*depthmap.shape,3))
 
-    r_idx = np.arange(depthmap.shape[0])
-    c_idx = np.arange(depthmap.shape[1])
+    r_idx = np.repeat(np.arange(depthmap.shape[0]),1280)
+    c_idx = np.tile(np.arange(depthmap.shape[1]),720)
 
     if depth_scale != 0:
         depthmap *= depth_scale
-    depths = depthmap[r_idx,c_idx]
+    #depths = depthmap[r_idx,c_idx]
+    depths = depthmap.flatten()
 
     ##################### Switch r and c?
-    x = (c_idx + x_offset - intrin.ppx) / intrin.fx 
-    y = (r_idx + y_offset - intrin.ppy) / intrin.fy 
+    x = (r_idx - intrin.ppx) / intrin.fx 
+    y = (c_idx - intrin.ppy) / intrin.fy 
 
     point_map[r_idx, c_idx, 0] = depths * x
     point_map[r_idx, c_idx, 1] = depths * y
@@ -244,8 +247,8 @@ def deproj_depthmap_to_pointmap_different(intrin_d, intrin_c, depthmap, depth_sc
     depths = depthmap.flatten()
 
     ##################### Switch r and c?
-    x = (c_idx - intrin_d.ppx) / intrin_d.fx 
-    y = (r_idx - intrin_d.ppy) / intrin_d.fy 
+    x = (r_idx - intrin_d.ppx) / intrin_d.fx 
+    y = (c_idx - intrin_d.ppy) / intrin_d.fy 
 
     point_map[r_idx, c_idx, 0] = depths * x
     point_map[r_idx, c_idx, 1] = depths * y

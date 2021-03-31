@@ -45,52 +45,54 @@ class RobotSegmenter():
 
         image = np.asarray(image)
         tmp = np.copy(image)
-
-
         # Detect image
         r, output = self.master.segmentImage(tmp, process_frame=True)
 
         # Get mask and roi
         mask = np.asarray(r['masks'])
-        mask = mask[:,:,0]
-        roi = r['rois'][0] # Y1,X1,Y2,X2
 
-        init_roi = np.asarray(roi)
+        if mask.shape[2] == 0:
+            # Make a fake mask
+            mask = np.ones((tmp.shape[0:2]), dtype=bool)
+            height, width = tmp.shape[0:2]
+            roi = [
+                (height-self.crop_resolution[0])/2,
+                (width-self.crop_resolution[1])/2,
+                (height-self.crop_resolution[0])/2 + self.crop_resolution[0],
+                (width-self.crop_resolution[1])/2 + self.crop_resolution[1],
+                ]
+        else:
+            roi = r['rois'][0] # Y1,X1,Y2,X2
+            mask = mask[:,:,0]
 
-        """
-        Get ROI to be the same as the crop size
-        """
-        # Expand ROI up and down
-        while roi[2] - roi[0] < self.crop_resolution[0]:
-            # Expand Up
-            if roi[0] > 0:
-                roi[0] -= 1
-            
-            #Expand Down
-            if roi[2] < image.shape[0]:
-                roi[2] += 1
+            # Expand ROI up and down
+            while roi[2] - roi[0] < self.crop_resolution[0]:
+                # Expand Up
+                if roi[0] > 0:
+                    roi[0] -= 1
+                #Expand Down
+                if roi[2] < image.shape[0]:
+                    roi[2] += 1
 
-        # Make sure ROI is exact crop size needed
-        while roi[2] - roi[0] > self.crop_resolution[0]:
-            roi[0] += 1
+            # Make sure ROI is exact crop size needed
+            while roi[2] - roi[0] > self.crop_resolution[0]:
+                roi[0] += 1
 
+            # Expand ROI left and right
+            while roi[3] - roi[1] < self.crop_resolution[1]:
+                # Expand Left
+                if roi[1] > 0:
+                    roi[1] -= 1
+                #Expand Right
+                if roi[3] < image.shape[1]:
+                    roi[3] += 1
 
-        # Expand ROI left and right
-        while roi[3] - roi[1] < self.crop_resolution[1]:
-            # Expand Left
-            if roi[1] > 0:
-                roi[1] -= 1
-            
-            #Expand Right
-            if roi[3] < image.shape[1]:
-                roi[3] += 1
+            # Make sure ROI is exact crop size needed
+            while roi[3] - roi[1] > self.crop_resolution[1]:
+                roi[1] += 1
 
-        # Make sure ROI is exact crop size needed
-        while roi[3] - roi[1] > self.crop_resolution[1]:
-            roi[1] += 1
-
-        assert roi[3] - roi[1] == self.crop_resolution[1], "ROI Crop Width Incorrect"
-        assert roi[2] - roi[0] == self.crop_resolution[0], "ROI Crop Height Incorrect"
+        assert roi[3] - roi[1] == self.crop_resolution[1], f"ROI Crop Width Incorrect. {roi[3] - roi[1]} != {self.crop_resolution[1]}"
+        assert roi[2] - roi[0] == self.crop_resolution[0], f"ROI Crop Height Incorrect.{roi[2] - roi[0]} != {self.crop_resolution[0]}"
 
 
         """

@@ -13,9 +13,9 @@ def main():
 
 
 def test():
-    ds = Dataset('set7','B')
+    ds = Dataset('set0','B')
     for idx in range(ds.length):
-        cv2.imshow("test",np.abs(ds.ply[idx]))
+        cv2.imshow("test",np.abs(ds.pointmaps[idx,...,2]-2))
         cv2.waitKey(150)
 
 

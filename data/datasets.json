@@ -1,8 +1,12 @@
 {
     "compiled": {
         "full": {
-            "names": [],
-            "paths": []
+            "names": [
+                "set0"
+            ],
+            "paths": [
+                "data/set0\\set0.h5"
+            ]
         },
         "train": {
             "names": [],
@@ -19,12 +23,14 @@
     },
     "uncompiled": {
         "names": [
-            "set5_slu",
+            "bigboi",
+            "set0",
             "set6_slu",
             "set7_lu"
         ],
         "paths": [
-            "data/raw\\set5_slu.zip",
+            "data/raw\\bigboi.zip",
+            "data/raw\\set0.zip",
             "data/raw\\set6_slu.zip",
             "data/raw\\set7_lu.zip"
         ]
