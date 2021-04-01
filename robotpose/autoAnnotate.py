@@ -180,7 +180,7 @@ class AutomaticSegmentationAnnotator():
         color_dict = self.rend.getColorDict()
         self.anno = SegmentationAnnotator(color_dict)
 
-        self.ds = Dataset(dataset, skeleton, load_seg = False, load_og=True, load_ply=False)
+        self.ds = Dataset(dataset, skeleton)
 
         if not os.path.isdir(self.ds.seg_anno_path):
             os.mkdir(self.ds.seg_anno_path)
@@ -216,7 +216,7 @@ class KeypointAnnotator():
 
     def __init__(self, color_dict, dataset, skeleton):
         self.color_dict = color_dict
-        self.ds = Dataset(dataset, skeleton, load_ply=False)
+        self.ds = Dataset(dataset, skeleton)
         self.ds.makeDeepPoseDS()    # Make sure there is already a valid deeppose DS for the DS
         self.dpds = h5py.File(self.ds.deepposeds_path, 'r+')
 
@@ -229,7 +229,7 @@ class KeypointAnnotator():
             anno.append(self._getColorMidpoint(render, color))
 
         anno = np.array(anno)
-        anno[:,0] -= self.ds.crop_data[idx]
+        anno[:,0] -= self.ds.rois[idx,1] # This used to be crop data, so it would be rois[idx, 1]
 
         self.dpds['annotated'][idx] = np.array([True]*len(self.color_dict))
         self.dpds['annotations'][idx] = anno

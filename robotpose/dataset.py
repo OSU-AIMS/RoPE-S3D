@@ -7,24 +7,21 @@
 #
 # Author: Adam Exley
 
-import datetime
 import json
-import multiprocessing as mp
 import numpy as np
 import os
-import time
 
-import cv2
 from deepposekit.io import initialize_dataset
-from tqdm import tqdm
+import h5py
 
-from .multithread import crop
 from . import paths as p
-from .segmentation import RobotSegmenter
-from .utils import workerCount
+from .building import Builder
 
 
-dataset_version = 2.1
+INFO_JSON = os.path.join(p.DATASETS, 'datasets.json')
+CONFIG_JSON = os.path.join(p.DATASETS, 'dataset_config.json')
+
+DATASET_VERSION = 4.0
 """
 Version 1.0: 3/7/2021
     Began versioning.
@@ -50,336 +47,397 @@ Version 2.1: 3/24/2021
 Version 3.0: 3/24/2021
     Switched PLY data over to aligned image arrays
 
+Version 4.0: 3/29/2021
+    Switched to using .h5 format for datasets
 """
+                
+
+def get_config():
+    """Get dataset splits from config JSON"""
+
+    if not os.path.isfile(CONFIG_JSON):
+        config = {
+            'split_ratios':{
+                'train': .70,
+                'validate': .20,
+                'test': .10
+            }
+        }
+        with open(CONFIG_JSON,'w') as f:
+            json.dump(config, f, indent=4)
+
+    with open(CONFIG_JSON, 'r') as f:
+        d = json.load(f)
+
+    assert np.round(np.sum(list(d['split_ratios'].values())),5) == 1, f"Dataset Splits Must Sum To 1"
+
+    return d
 
 
 
-def build(data_path, dest_path = None):
+def stratified_dataset_split(joint_angles):
     """
-    Build dataset into usable format
+    This is best used whenever positions are assumed to be uniformly distributed,
+    as stratification will be more useful and representative.
     """
+    min_angs = np.min(joint_angles, 0)
+    max_angs = np.max(joint_angles, 0)
+    joint_moves = min_angs != max_angs
+    moving_joints = np.sum(joint_moves)
 
-    build_start_time = time.time()
+    config = get_config()
+    valid_size = int(config['split_ratios']['validate'] * len(joint_angles))
+    test_size = int(config['split_ratios']['test'] * len(joint_angles))
+    train_size = len(joint_angles) - valid_size - test_size
 
-    if dest_path is None:
-        name = os.path.basename(os.path.normpath(data_path))
-        dest_path = os.path.join(p.DATASETS, name)
+    # Determine configurations
+    def generate_zones(size):
+        r = int(size ** (1 / moving_joints)) + 1
+        cfg_mat = np.zeros((r ** moving_joints, moving_joints))
+        
+        for idx in range(moving_joints):
+            cfg_mat[:,idx] = np.tile(np.repeat(np.arange(1,r+1), r ** idx), int((r ** (moving_joints))/r**(idx+1)))
 
-    # Make dataset folder if it does not already exist
-    if not os.path.isdir(dest_path):
-        os.mkdir(dest_path)
+        combos = np.prod(cfg_mat,1)
+        diff = np.abs(combos - size)
+        cfg_mat = cfg_mat[np.where(diff == np.min(diff))]
 
-    # Build lists of files
-    jsons = [x for x in os.listdir(data_path) if x.endswith('.json')]
-    plys = [x for x in os.listdir(data_path) if x.endswith('full.ply')]
-    imgs = [x for x in os.listdir(data_path) if x.endswith('og.png')]
+        if cfg_mat.shape[0] != 1:
+            relative_weights = (max_angs - min_angs)[joint_moves]
+            weighted = cfg_mat / np.tile(relative_weights, (cfg_mat.shape[0],1))
+            scores = np.sum(weighted, 1)
+            minima = np.argmin(scores)
+            return cfg_mat[minima]
+        else:
+            return cfg_mat
 
-    # Make sure overall dataset length is the same for each file type
-    length = len(imgs)
-    assert len(jsons) == len(plys) == length, "Unequal number of images, jsons, or plys"
+    def sample(size, cfg_mat, used_indicies):
+        zone_arr = np.copy(cfg_mat)
+        zone_arr += 1
+        intervals = []
+        for idx in range(moving_joints):
+            intervals.append(np.linspace(min_angs[idx], max_angs[idx], int(zone_arr[idx])))
+
+        def make_sampling_arr():
+            sampling_arr = joint_angles[:, joint_moves == True]
+            np.delete(sampling_arr, used_indicies, 0)
+            return sampling_arr
+
+        idx_array = np.zeros((moving_joints,))
+
+        def update_idx_arr():
+            for idx in range(moving_joints):
+                if idx_array[idx] == cfg_mat[idx]:
+                    idx_array[idx] = 0
+                    if idx == moving_joints - 1:
+                        return False
+                    else:
+                        idx_array[idx + 1] += 1
+                        return True
+
+        def get_range_arr():
+            range_arr = np.zeros((moving_joints,2))
+            for idx in range(moving_joints):
+                range_arr[idx,0] = intervals[idx][idx_array[idx]]
+                range_arr[idx,1] = intervals[idx][idx_array[idx] + 1]
+            return range_arr
+
+        selected_idxs = []
+        while(update_idx_arr()):
+            range_arr = get_range_arr()
+            sampling_arr = make_sampling_arr()
+            for idx in range(moving_joints):
+                sampling_arr[sampling_arr[:,idx] >= range_arr[idx,0],:]
+                sampling_arr[sampling_arr[:,idx] <= range_arr[idx,1],:]
+
+            if len(sampling_arr) != 0:
+                c = np.random.choice(len(sampling_arr))
+                choice = sampling_arr[c]
+                actual = joint_angles[0]
+                actual[joint_moves == True] = choice
+                i = np.where((joint_angles == choice).all(axis=1))
+                selected_idxs.append(i)
+                used_indicies.append(i)
+
+            idx_array[0] += 1
+
+        # if len(selected_idxs) < size:
+        #     unused = [x for x in range(joint_angles.shape[0]) if x not in used_indicies]
+        #     extra = np.random.choice(unused, size - len(selected_idxs), replace=False)
+        #     selected_idxs.extend(extra)
+        #     used_indicies.extend(extra)
+        
+        return selected_idxs
+       
+    used = []
+    test_idxs = sample(test_size, generate_zones(test_size), used)
+    valid_idxs = sample(valid_size, generate_zones(valid_size), used)
+    train_idxs = [x for x in range(joint_angles.shape[0]) if x not in used]
+
+    valid_idxs.sort()
+    test_idxs.sort()
+
+    return train_idxs, valid_idxs, test_idxs
 
 
+
+def simple_dataset_split(joint_angles):
     """
-    Parse Images
+    This is best used whenever positions are assumed to be uniformly distributed,
+    as stratification will be more useful and representative.
     """
+    min_angs = np.min(joint_angles, 0)
+    max_angs = np.max(joint_angles, 0)
+    joint_moves = min_angs != max_angs
+    moving_joints = np.sum(joint_moves)
 
-    # Get image dims
-    img = cv2.imread(os.path.join(data_path,imgs[0]))
-    img_height = img.shape[0]
-    img_width = img.shape[1]
+    config = get_config()
+    valid_size = int(config['split_ratios']['validate'] * len(joint_angles))
+    test_size = int(config['split_ratios']['test'] * len(joint_angles))
+    train_size = len(joint_angles) - valid_size - test_size
 
-    # Create image array
-    orig_img_arr = np.zeros((length, img_height, img_width, 3), dtype=np.uint8)
+    def sample(size, used):
+        selected = []
+        unused = [x for x in range(joint_angles.shape[0]) if x not in used]
+        intervals = np.linspace(min(unused),max(unused), int(len(unused)/size))
+        for idx in range(intervals - 1):
+            unused = [x for x in range(joint_angles.shape[0]) if x not in used]
+            pool = unused[unused >= intervals[idx]]
+            pool = pool[pool <= intervals[idx + 1]]
+            c = np.random.choice(pool)
+            used.append(c)
+            selected.append(c)
 
-    # Get paths for each image
-    orig_img_path = [os.path.join(data_path, x) for x in imgs]
+        if len(selected) < size:
+            unused = [x for x in range(joint_angles.shape[0]) if x not in used]
+            extra = np.random.choice(unused, size - len(selected), replace=False)
+            selected.extend(extra)
+            used.extend(extra)
 
-    # Store images in array
-    for idx, path in tqdm(zip(range(length), orig_img_path),total=length,desc="Parsing 2D Images"):
-        orig_img_arr[idx] = cv2.imread(path)
+    used = []
+    test_idxs = sample(test_size, used)
+    valid_idxs = sample(valid_size, used)
+    train_idxs = [x for x in range(joint_angles.shape[0]) if x not in used]
 
-    # Save array
-    np.save(os.path.join(dest_path, 'og_img.npy'), orig_img_arr)
+    valid_idxs.sort()
+    test_idxs.sort()
 
-    # Save as a video
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(os.path.join(dest_path,"og_vid.avi"),fourcc, 15, (img_width,img_height))
-    for img in orig_img_arr:
-        out.write(img)
-    out.release()
-
-    segmenter = RobotSegmenter()
-    segmented_img_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
-    ply_arr = np.zeros((length, segmenter.height(), segmenter.width(), 3), dtype=float)
-    mask_arr = np.zeros((length, img_height, img_width), dtype=bool)
-    rois = np.zeros((length, 4))
-    crop_data = []
-
-    # Segment images
-    for idx in tqdm(range(length),desc="Segmenting Images",colour='red'):
-        mask_arr[idx], rois[idx] = segmenter.segmentImage(orig_img_arr[idx])
-        crop_data.append(rois[idx,1])
-    rois = rois.astype(int)
-
-    ply_paths = [os.path.join(data_path,x) for x in plys] 
-    crop_inputs = []
-    # Make iterable for pool
-    for idx in tqdm(range(length),desc="Making Pool Data", colour="yellow"):
-        crop_inputs.append((ply_paths[idx], orig_img_arr[idx], mask_arr[idx], rois[idx]))
-
-    print("Running Crop Pool...")
-    # Run pool to segment PLYs
-    with mp.Pool(workerCount()) as pool:
-        crop_outputs = pool.starmap(crop, crop_inputs)
-    print("Pool Complete")
-
-    for idx in tqdm(range(length),desc="Unpacking Pool Results", colour='green'):
-        ply_arr[idx] = crop_outputs[idx][1]
-        segmented_img_arr[idx] = crop_outputs[idx][0]
-    
-
-    np.save(os.path.join(dest_path, 'crop_data.npy'), np.array(crop_data))
-
-    # Save segmented image array
-    np.save(os.path.join(dest_path, 'seg_img.npy'), segmented_img_arr)
-
-    # Save as a video (just for reference)
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(os.path.join(dest_path,"seg_vid.avi"),fourcc, 15, (segmenter.width(),segmenter.height()))
-    for idx in range(length):
-        out.write(segmented_img_arr[idx])
-    out.release()
-
-    """
-    Process PLY data
-    """
-    np.save(os.path.join(dest_path,'ply.npy'),ply_arr)
+    return train_idxs, valid_idxs, test_idxs
 
 
-    """
-    Parse JSONs
-    """
-    json_path = [os.path.join(data_path, x) for x in jsons]
-    ang_arr = np.zeros((length, 6), dtype=float)
-    pos_arr = np.zeros((length, 6, 3), dtype=float)
 
-    for idx, path in tqdm(zip(range(length), json_path), desc="Parsing JSON Joint Angles and Positions"):
-        # Open file
-        with open(path, 'r') as f:
-            d = json.load(f)
-        d = d['objects'][0]['joints']
 
-        # Put data in array
-        for sub_idx in range(6):
-            ang_arr[idx,sub_idx] = d[sub_idx]['angle']
-            pos_arr[idx,sub_idx] = d[sub_idx]['position']
 
-    # Save JSON data as npy
-    np.save(os.path.join(dest_path, 'ang.npy'), ang_arr)
-    np.save(os.path.join(dest_path, 'pos.npy'), pos_arr)
+class DatasetInfo():
+    def __init__(self):
+        self._update()
 
-    """
-    Write dataset info file
-    """
-    # Make json info file
-    info = {
-        "ds_ver": dataset_version,
-        "name": os.path.basename(os.path.normpath(dest_path)),
-        "frames": length,
-        "build_time": time.time() - build_start_time,
-        "last_build": str(datetime.datetime.now())
-    }
+    def get(self):
+        with open(INFO_JSON, 'r') as f:
+            self.data = json.load(f)
+        return self.data
 
-    with open(os.path.join(dest_path,'ds.json'),'w') as file:
-        json.dump(info, file, indent=4, sort_keys= True)
+    def __str__(self):
+        self.get()
+        datasets = set()
+        for t in ['full','train','validate','test']:
+            datasets.update(self.data['compiled'][t]['names'])
+        datasets.update(self.data['uncompiled']['names'])
+
+        datasets = list(datasets)
+        datasets.sort()
+
+        full = []
+        train = []
+        validate = []
+        test = []
+        raw = []
+        for ds in datasets:
+            full.append(ds in self.data['compiled']['full']['names'])
+            train.append(ds in self.data['compiled']['train']['names'])
+            validate.append(ds in self.data['compiled']['validate']['names'])
+            test.append(ds in self.data['compiled']['test']['names'])
+            raw.append(ds in self.data['uncompiled']['names'])
+
+
+        out = "\nAvailable Datasets:\n"
+        for idx in range(len(datasets)):
+            out += f"\t{datasets[idx]}:\t"
+            for ls, tag in zip([full,train,validate,test,raw],['Full','Train','Validate','Test','Raw']):
+                if ls[idx]:
+                    out += f"[{tag}] "
+            out += '\n'
+
+        return out
+
+    def __repr__(self):
+        return f"Dataset Information stored in {INFO_JSON}."
+
+    def _update(self):
+        uncompiled_paths = [ f.path for f in os.scandir(os.path.join(p.DATASETS,'raw')) if str(f.path).endswith('.zip') ]
+        uncompiled_names = [ os.path.basename(os.path.normpath(x)).replace('.zip','') for x in uncompiled_paths ]
+        compiled_full_paths = []
+        compiled_full_names = []
+        compiled_train_paths = []
+        compiled_train_names = []
+        compiled_validate_paths = []
+        compiled_validate_names = []
+        compiled_test_paths = []
+        compiled_test_names = []
+
+        for dirpath, subdirs, files in os.walk(p.DATASETS):
+            for file in files:
+
+                def full():
+                    compiled_full_names.append(file.replace('.h5',''))
+                    compiled_full_paths.append(os.path.join(dirpath, file))
+                def train():
+                    compiled_train_names.append(file.replace('.h5','').replace('_train',''))
+                    compiled_train_paths.append(os.path.join(dirpath, file))
+                def validate():
+                    compiled_validate_names.append(file.replace('.h5','').replace('_validate',''))
+                    compiled_validate_paths.append(os.path.join(dirpath, file))
+                def test():
+                    compiled_test_names.append(file.replace('.h5','').replace('_test',''))
+                    compiled_test_paths.append(os.path.join(dirpath, file))
+                switch = {
+                    'full': full,
+                    'train': train,
+                    'validate': validate,
+                    'test': test
+                }
+
+                if file.endswith('.h5'):
+                    with h5py.File(os.path.join(dirpath, file),'r') as f:
+                        if 'type' in f.attrs:
+                            switch[f.attrs['type']]()
+                    
+
+        info = {
+            'compiled':{
+                'full':{
+                    'names': compiled_full_names,
+                    'paths': compiled_full_paths
+                },
+                'train':{
+                    'names': compiled_train_names,
+                    'paths': compiled_train_paths
+                },
+                'validate':{
+                    'names': compiled_validate_names,
+                    'paths': compiled_validate_paths
+                },
+                'test':{
+                    'names': compiled_test_names,
+                    'paths': compiled_test_paths
+                }
+            },
+            'uncompiled':{
+                'names': uncompiled_names,
+                'paths': uncompiled_paths
+            }
+        }
+
+        with open(INFO_JSON,'w') as f:
+            json.dump(info, f, indent=4)
 
 
 
 
 
 class Dataset():
+    """
+    Class to access, build, and use data.
+    """
+
     def __init__(
             self, 
-            name, 
-            skeleton=None, 
-            load_seg = True, 
-            load_og = False, 
-            primary = "seg", 
-            load_ply = True
+            name,
+            skeleton = None,
+            ds_type = 'full',
+            recompile = False,
+            rebuild = False
             ):
-        
-        self.load_seg = load_seg
-        self.load_og = load_og
-        self.load_ply = load_ply
+        """
+        Create a dataset instance, loading/building/compiling it if needed.
 
-        compiled_datasets = [ f.path for f in os.scandir(p.DATASETS) if f.is_dir() and 'raw' not in str(f.path) and 'skeleton' not in str(f.path) ]
-        compiled_names = [ os.path.basename(os.path.normpath(x)) for x in compiled_datasets ]
+        Arguments:
+        name: A string corresponding to the entire, or the start of, a dataset name.
+        skeleton: A string corresponding to the skeleton to load for the dataset.
+        ds_type: The type of dataset to load. Full, train, validate, or test.
+        recompile: Using the same raw files, generate intermediate data again.
+        rebuild: Recreate entirely usng different allocations of files
+        """
 
-        uncompiled_datasets = [ f.path for f in os.scandir(os.path.join(p.DATASETS,'raw')) if str(f.path).endswith('.zip') ]
-        uncompiled_names = [ os.path.basename(os.path.normpath(x)) for x in uncompiled_datasets ]
+        valid_types = ['full', 'train', 'validate', 'test']
+        assert ds_type in valid_types, f"Invalid Type. Must be one of: {valid_types}"
 
-        compiled_matches = [x for x in compiled_names if x.startswith(name)]
-        uncompiled_matches = [x for x in uncompiled_names if x.startswith(name)]
+        info = DatasetInfo()
 
-        if len(compiled_matches) == 0:
-            # No compiled matches found, attempt to compile one
-            if len(uncompiled_matches) == 0:
-                # No matches found at all, list options
-                raise ValueError(f"No matching datasets found. The following are availble:\n\tCompiled: {compiled_names}\n\tUncompiled: {[x.replace('.zip','') for x in uncompiled_names]}")
-            if len(uncompiled_matches) > 1:
-                # Multiple matches found
-                raise ValueError(f"Multiple uncompiled sets were found with the given dataset name:\n\tGiven Name: {name}\n\tMatching Names: {uncompiled_matches}")
-            else:
-                # One uncompiled match found, compile
-                ds_name = uncompiled_matches[0].replace('.zip','')
-                print("No matching compiled datasets found.\nCompiling from raw data.\n\n")
-                ds_path = self.compile_from_zip([x for x in uncompiled_datasets if uncompiled_matches[0] in x][0])
-        elif len(compiled_matches) > 1:
-            # Multiple matches found, raise error
-            raise ValueError(f"Multiple compiled sets were found with the given dataset name:\n\tGiven Name: {name}\n\tMatching Names: {compiled_matches}")
+        d = info.get()
+
+
+        if name in d['compiled'][ds_type]['names'] and not rebuild:
+            # Good job, it's here, load it
+            self.type = ds_type
+            self.dataset_path = d['compiled'][ds_type]['paths'][d['compiled'][ds_type]['names'].index(name)]
+            self.dataset_dir = os.path.dirname(self.dataset_path)
         else:
-            # One match found, set
-            ds_name = compiled_matches[0]
-            ds_path = [x for x in compiled_datasets if compiled_matches[0] in x][0]
-
-        # There is now a dataset chosen, validate
-        if self.validate(ds_path):
-            # Validation sucessful, set paths
-            self.path = ds_path
-            self.name = os.path.basename(os.path.normpath(ds_path))
-        else:
-            # Attempt a recompile
-            if len(uncompiled_matches) == 0:
-                raise ValueError(f"The chosen dataset could not be validated and raw data for a rebuild cannot be found.")
-            if len(uncompiled_matches) > 1:
-                raise ValueError(f"The chosen dataset could not be validated and multiple raw data files for a rebuild are found.")
+            # Not here, rebuild
+            available = d['uncompiled']['names']
+            matches = [name in x for x in available]
+            if np.sum(matches) == 0:
+                raise ValueError(f"The requested dataset is not available\n{info}")
+            elif np.sum(matches) > 1:
+                raise ValueError(f"The requested dataset name is ambiguous\n{info}")
             else:
-                # Actually recompile
-                print("Dataset validation failed.\nAttempting recompile.\n\n")
-                ds_name = uncompiled_matches[0].replace('.zip','')
-                ds_path = self.compile_from_zip([x for x in uncompiled_datasets if uncompiled_matches[0] in x][0])
-
-        
-        self.path = ds_path
-        self.seg_anno_path = os.path.join(self.path,'seg_anno')
-        self.name = ds_name
+                self.dataset_path = self.build_from_zip(d['uncompiled']['paths'][matches.index(True)])
+                self.dataset_dir = os.path.dirname(self.dataset_path)
 
 
         # Load dataset
         self.load(skeleton)
 
-        # Set img/video info if it's set to load
-        if self.load_og or self.load_seg:
-            # Set paths, resolution
-            if self.load_og:
-                self.og_vid_path = os.path.join(self.path, 'og_vid.avi')
-                self.resolution_og = self.og_img.shape[1:3]
-                self.resolution = self.resolution_og
-            if self.load_seg:
-                self.seg_vid_path = os.path.join(self.path, 'seg_vid.avi')
-                self.resolution_seg = self.seg_img.shape[1:3]
-                self.resolution = self.resolution_seg
-
-
-            # Set primary image and video types
-            if self.load_seg and not self.load_og:
-                primary = "seg"
-            if self.load_og and not self.load_seg:
-                primary = "og"
-
-            if primary == "og":
-                self.img = self.og_img
-                self.vid = self.og_vid
-                self.vid_path = self.og_vid_path
-            else:
-                self.img = self.seg_img
-                self.vid = self.seg_vid
-                self.vid_path = self.seg_vid_path
-                if primary != "seg":
-                    print("Invalid primary media type selected.\nUsing seg.")
+        if recompile:
+            #self.recompile()
+            pass    
 
 
 
     def load(self, skeleton=None):
         print("\nLoading Dataset...")
-        # Read into JSON to get dataset settings
-        with open(os.path.join(self.path, 'ds.json'), 'r') as f:
-            d = json.load(f)
-
-        self.length = d['frames']
-
-        # Read in og images
-        if self.load_og:
-            self.og_img = np.load(os.path.join(self.path, 'og_img.npy'))
-            self.og_vid = cv2.VideoCapture(os.path.join(self.path, 'og_vid.avi'))
-
-        # Read in seg images
-        if self.load_seg:
-            self.seg_img = np.load(os.path.join(self.path, 'seg_img.npy'))
-            self.seg_vid = cv2.VideoCapture(os.path.join(self.path, 'seg_vid.avi'))
-            self.crop_data = np.load(os.path.join(self.path, 'crop_data.npy'))
-            
-
-        # Read angles
-        self.ang = np.load(os.path.join(self.path, 'ang.npy'))
-
-        # Read positions
-        self.pos = np.load(os.path.join(self.path, 'pos.npy'))
-
-        # Read in point data
-        if self.load_ply:
-            ply_in = np.load(os.path.join(self.path, 'ply.npy'),allow_pickle=True)
-            self.ply = []
-            for entry in ply_in:
-                entry = np.array(entry)
-                self.ply.append(entry)
+        file = h5py.File(self.dataset_path,'r')
+        self.attrs = dict(file.attrs)
+        self.length = self.attrs['length']
+        self.angles = file['angles']
+        self.positions = file['positions']
+        self.pointmaps = file['coordinates/pointmaps']
+        self.og_img = file['images/original']
+        self.seg_img = file['images/segmented']
+        self.rois = file['images/rois']
 
         # Set deeppose dataset path
-        self.deepposeds_path = os.path.join(self.path,'deeppose.h5')
+        self.deepposeds_path = os.path.join(self.dataset_dir,'deeppose.h5')
+        self.seg_anno_path = os.path.join(self.dataset_dir,'seg_anno')
 
         # If a skeleton is set, change paths accordingly
         if skeleton is not None:
             self.setSkeleton(skeleton)
-        
+
         print("Dataset Loaded.\n")
 
 
-    def validate(self, path):
-        """
-        Check that all required elements of the dataset are present
-        """
-        ang = os.path.isfile(os.path.join(path,'ang.npy'))
-        ds = os.path.isfile(os.path.join(path,'ds.json'))
-        ply = os.path.isfile(os.path.join(path,'ply.npy'))
-        seg_img = os.path.isfile(os.path.join(path,'seg_img.npy'))
-        crop_data = os.path.isfile(os.path.join(path,'crop_data.npy'))
-        og_img = os.path.isfile(os.path.join(path,'og_img.npy'))
-        seg_vid = os.path.isfile(os.path.join(path,'seg_vid.avi'))
-        og_vid = os.path.isfile(os.path.join(path,'og_vid.avi'))
-        
-        if ds:
-            with open(os.path.join(path, 'ds.json'), 'r') as f:
-                d = json.load(f)
+    def recompile(self):
+        pass
 
-            try:
-                if int(d['ds_ver']) != int(dataset_version):
-                    print(f"Dataset Out of Date:\n\tDataset version:{d['ds_ver']}\n\tCurrent version: {dataset_version}")
-                    return False
-            except KeyError:
-                print(f"Dataset Out of Date:\n\tDataset version: Unversioned\n\tCurrent version: {dataset_version}")
-                return False
-            
-
-        return ang and ds and ply and seg_img and og_img and seg_vid and og_vid and crop_data
 
 
     def build(self,data_path):
-        # Build dataset
-        build(data_path)
+        bob = Builder()
+        bob.build_full(data_path)
 
 
-
-    def compile_from_zip(self, zip_path):
+    def build_from_zip(self, zip_path):
         """
         Build dataset from a tempdir that is the extracted data
         """
@@ -394,19 +452,15 @@ class Dataset():
             src_dir = tempdir
             if len(os.listdir(tempdir)) == 1:
                 src_dir = os.path.join(tempdir,os.listdir(tempdir)[0])
-            
-            # Get final dataset path
-            dest_dir = os.path.join(p.DATASETS,os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
 
-            # Build
             print("Attempting dataset build...\n\n")
-            build(src_dir, dest_dir)
-
-        return dest_dir
-
+            bob = Builder()
+            return bob.build_full(src_dir, DATASET_VERSION, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
 
 
-
+    def writeSubset(self, sub_type, idxs):
+        bob = Builder()
+        bob.build_subset(self.dataset_path, sub_type, idxs)
 
 
     def setSkeleton(self,skeleton_name):
@@ -449,12 +503,8 @@ class Dataset():
         else:
             return self.length  
 
-
     def __repr__(self):
-        return f"RobotPose dataset of {self.length} frames. Using skeleton {self.skeleton}."
+        return f"RobotPose dataset located at {self.dataset_path}."
 
-    def og(self):
-        return self.load_og
-
-    def seg(self):
-        return self.load_seg
+    def __str__(self):
+        return str(self.attrs)

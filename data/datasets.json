@@ -1,0 +1,40 @@
+{
+    "compiled": {
+        "full": {
+            "names": [
+                "bigboi",
+                "set0"
+            ],
+            "paths": [
+                "data/bigboi\\bigboi.h5",
+                "data/set0\\set0.h5"
+            ]
+        },
+        "train": {
+            "names": [],
+            "paths": []
+        },
+        "validate": {
+            "names": [],
+            "paths": []
+        },
+        "test": {
+            "names": [],
+            "paths": []
+        }
+    },
+    "uncompiled": {
+        "names": [
+            "bigboi",
+            "set0",
+            "set6_slu",
+            "set7_lu"
+        ],
+        "paths": [
+            "data/raw\\bigboi.zip",
+            "data/raw\\set0.zip",
+            "data/raw\\set6_slu.zip",
+            "data/raw\\set7_lu.zip"
+        ]
+    }
+}

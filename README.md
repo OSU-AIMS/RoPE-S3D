@@ -2,14 +2,19 @@
 
 To see rendering examples, open [Render_Examples.md](https://github.com/AdamExley/DeepPoseRobot/blob/main/Render_Examples.md)
 
-This is an adaptation of both [DeepPoseKit](deepposekit.org) and [PixelLib](https://github.com/ayoolaolafenwa/PixelLib) to predict robot joint angles.
+This is an adaptation of both [DeepPoseKit](https://deepposekit.org) and [PixelLib](https://github.com/ayoolaolafenwa/PixelLib) to predict robot joint angles.
 
 The robot is isolated from the background using PixelLib and then the keypoint locations of the robot are predicted using a DeepPoseKit model.
 
-
 Visualization uses the [Turbo Colormap](https://ai.googleblog.com/2019/08/turbo-improved-rainbow-colormap-for.html).
 
-3D Rendering is done via [Pyrender](https://github.com/mmatl/pyrender).
+3D Rendering is done via [Pyrender](https://github.com/mmatl/pyrender), while facilitates automatic keypoint and segmentation annotation
+
+# Datasets
+
+Datasets are expected to contain RGB images in a ```.png``` format with accopanying depthmaps in a ```.npy``` array file, and a ```.json``` information file.
+
+More information can be found in the ```data``` folder README.
 
 # Automatic Annotation
 
