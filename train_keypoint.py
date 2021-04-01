@@ -17,7 +17,7 @@ setMemoryGrowth()
 
 def run(dataset, skeleton, model_type, batch_size, valid_size):
 
-    ds = Dataset(dataset,skeleton,load_seg=False,load_ply=False)
+    ds = Dataset(dataset,skeleton)
     print("Dataset loaded")
     data_generator = DataGenerator(ds.deepposeds_path)
     print("Data Generator loaded")
@@ -29,8 +29,14 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
         model = load_model(model_path,generator=data_generator)
     else:
 
+
+        if model_type == "LEAP":
+            ds_fac = 1
+        else:
+            ds_fac = 2
+
         train_generator = TrainingGenerator(generator=data_generator,
-                                        downsample_factor=0,
+                                        downsample_factor=ds_fac,
                                         augmenter=None,
                                         sigma=5,
                                         validation_split=valid_size, 
@@ -91,8 +97,8 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--set', type=str, default="set3", help="The dataset to load to annotate. Can be a partial name.")
-    parser.add_argument('--skeleton', '--skele', type=str, default="A", help="The skeleton to use for annotation.")
+    parser.add_argument('set', type=str, default="set6", help="The dataset to load to annotate. Can be a partial name.")
+    parser.add_argument('skeleton', type=str, default="B", help="The skeleton to use for annotation.")
     parser.add_argument('--model', type=str, choices=["CutResnet","CutMobilenet","CutDensenet","StackedDensenet","LEAP","StackedHourglass"],
                         default='LEAP', help="The type of model to train."
                         )

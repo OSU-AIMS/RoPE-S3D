@@ -2,9 +2,11 @@
     "compiled": {
         "full": {
             "names": [
+                "bigboi",
                 "set0"
             ],
             "paths": [
+                "data/bigboi\\bigboi.h5",
                 "data/set0\\set0.h5"
             ]
         },

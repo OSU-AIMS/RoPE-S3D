@@ -13,7 +13,7 @@ import random
 
 
 def train(dataset, skeleton, batch, valid):
-    ds = Dataset(dataset, skeleton, load_seg=False, load_ply=False)
+    ds = Dataset(dataset, skeleton)
 
     print("Splitting up data...")
     # Split set into validation and train
