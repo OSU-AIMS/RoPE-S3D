@@ -14,18 +14,18 @@ turbo_colormap_data = [[0.18995,0.07176,0.23217],[0.19483,0.08339,0.26149],[0.19
 # If some of your values may lie outside the [0,1] range, use interpolate_or_clip() to highlight them.
 
 def interpolate(x, colormap=turbo_colormap_data):
-  x = max(0.0, min(1.0, x))
-  a = int(x*255.0)
-  b = min(255, a + 1)
-  f = x*255.0 - a
-  return [colormap[a][0] + (colormap[b][0] - colormap[a][0]) * f,
-          colormap[a][1] + (colormap[b][1] - colormap[a][1]) * f,
-          colormap[a][2] + (colormap[b][2] - colormap[a][2]) * f]
+    x = max(0.0, min(1.0, x))
+    a = int(x*255.0)
+    b = min(255, a + 1)
+    f = x*255.0 - a
+    return [colormap[a][0] + (colormap[b][0] - colormap[a][0]) * f,
+            colormap[a][1] + (colormap[b][1] - colormap[a][1]) * f,
+            colormap[a][2] + (colormap[b][2] - colormap[a][2]) * f]
 
 def interpolate_or_clip(x, colormap=turbo_colormap_data):
-  if   x < 0.0: return [0.0, 0.0, 0.0]
-  elif x > 1.0: return [1.0, 1.0, 1.0]
-  else: return interpolate(x, colormap)
+    if   x < 0.0: return [0.0, 0.0, 0.0]
+    elif x > 1.0: return [1.0, 1.0, 1.0]
+    else: return interpolate(x, colormap)
 
 # The following functions
 # Copyright 2021 OSU CDME
@@ -34,7 +34,36 @@ def interpolate_or_clip(x, colormap=turbo_colormap_data):
 # Author: Adam Exley
 
 def normalize_and_interpolate(x, x_min, x_max):
-  x = (x - x_min) / (x_max - x_min)
-  if x < 0.0: x = 0.0
-  elif x > 1.0: x = 1.0
-  return [int(c * 255) for c in interpolate(x)]
+    x = (x - x_min) / (x_max - x_min)
+    if x < 0.0: x = 0.0
+    elif x > 1.0: x = 1.0
+    return [int(c * 255) for c in interpolate(x)]
+
+import numpy as np
+
+def color_array(x, mn=None, mx=None, colormap=turbo_colormap_data):
+    colormap = np.array(colormap)
+
+
+    x = x.astype(np.float64)
+    
+    if mn is None:
+        mn = np.min(x)
+    if mx is None:
+        mx = np.max(x)
+    x = (x - mn)/(mx - mn)
+    x = np.clip(x,0,1)
+
+    a = np.array(x*255.0, dtype=int)
+    b = np.clip(a+1, 0, 255)
+
+    f_ = x*255.0 - a
+    f = np.zeros((*f_.shape,3))
+    for idx in range(3):
+        f[...,idx] = f_ 
+    out = np.zeros((x.shape[0], x.shape[1],3), dtype=np.float64)
+    out = colormap[a] + (colormap[b] - colormap[a]) * f
+    out *= 255
+    out = out.astype(np.uint8)
+
+    return out
