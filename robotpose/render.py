@@ -7,9 +7,9 @@
 #
 # Author: Adam Exley
 
-import json
 import numpy as np
 import os
+import time
 
 import cv2
 import trimesh
@@ -193,7 +193,7 @@ class Renderer():
         self.robot_name = robot_name
 
         # Load dataset
-        self.ds = Dataset(dataset, skeleton, load_seg=False, load_og=False, load_ply=False)
+        self.ds = Dataset(dataset, skeleton)
 
         # Load meshes
         print("Loading Meshes")
@@ -201,7 +201,7 @@ class Renderer():
         if name_list is None:
             name_list = mesh_list
 
-        self.cam_path = os.path.join(self.ds.path,'camera_pose.npy')
+        self.cam_path = os.path.join(self.ds.dataset_dir,'camera_pose.npy')
          
         if camera_pose is not None:
             c_pose = camera_pose
@@ -329,7 +329,7 @@ class Aligner():
             end_idx = None
             ):
         # Load dataset
-        self.ds = Dataset(dataset, skeleton, load_seg= False, load_og=True, load_ply= False)
+        self.ds = Dataset(dataset, skeleton)
 
         self.renderer = Renderer(mesh_list, dataset, skeleton, mode='seg_full',name_list=name_list)
         self.cam_path = self.renderer.cam_path
@@ -379,7 +379,7 @@ class Aligner():
         while ret:
 
             self.setCameraPose()
-            real = self.ds.img[self.idx]
+            real = self.ds.og_img[self.idx]
             self.renderer.setPosesFromDS(self.idx)
             render, depth = self.renderer.render()
             image = self.combineImages(real, render)
@@ -483,7 +483,12 @@ class Aligner():
         arr = np.load(self.cam_path)
         for idx in range(self.start_idx, self.end_idx + 1):
             arr[idx] = self.c_pose
-        np.save(self.cam_path, arr)
+        while True:
+            try:
+                np.save(self.cam_path, arr)
+                break
+            except PermissionError:
+                time.sleep(.05)
 
     def readCameraPose(self,idx):
         self.c_pose = np.load(self.cam_path)[idx]
