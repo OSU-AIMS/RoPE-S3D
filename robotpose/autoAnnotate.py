@@ -8,6 +8,8 @@
 # Author: Adam Exley
 
 import multiprocessing as mp
+
+from numpy.lib.function_base import append
 from robotpose.utils import workerCount
 import numpy as np
 import os
@@ -203,7 +205,7 @@ class AutomaticSegmentationAnnotator():
         inputs = []
 
         for frame in range(self.ds.length):
-            inputs.append((self.ds.img[frame],color_imgs[frame],os.path.join(self.ds.seg_anno_path,f"{frame:05d}")))
+            inputs.append((self.ds.seg_img[frame],color_imgs[frame],os.path.join(self.ds.seg_anno_path,f"{frame:05d}")))
 
         print("Starting Segmentation Pool...")
         with mp.Pool(workerCount()) as pool:
@@ -225,15 +227,23 @@ class KeypointAnnotator():
 
     def annotate(self, render, idx):
         anno = []
-        for color in self.color_dict.values():
-            anno.append(self._getColorMidpoint(render, color))
-
+        vis = []
+        for color, subidx in zip(self.color_dict.values(), range(len(self.color_dict.values()))):
+            if self._isVisible(render, color):
+                anno.append(self._getColorMidpoint(render, color))
+                vis.append(True)
+            else:
+                anno.append([0,0])
+                vis.append(False)
+        vis = np.array(vis)
         anno = np.array(anno)
         anno[:,0] -= self.ds.rois[idx,1] # This used to be crop data, so it would be rois[idx, 1]
 
-        self.dpds['annotated'][idx] = np.array([True]*len(self.color_dict))
+        self.dpds['annotated'][idx] = vis
         self.dpds['annotations'][idx] = anno
 
+    def _isVisible(self,image,color):
+        return len(np.where(np.all(image == color, axis=-1))[0]) > 0
     
     def _getColorMidpoint(self, image, color):
         coords = np.where(np.all(image == color, axis=-1))

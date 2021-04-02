@@ -19,8 +19,6 @@ from . import paths as p
 #from .autoAnnotate import makeMask
 from .dataset import Dataset
 from .projection import proj_point_to_pixel, makeIntrinsics
-from .turbo_colormap import normalize_and_interpolate
-
 
 DEFAULT_COLORS = [
     [0  , 0  , 85 ],[0  , 0  , 170],[0  , 0  , 255],
@@ -469,7 +467,6 @@ class Aligner():
 
         self.saveCameraPose()
         return True
-        
 
 
     def addOverlay(self, image):
@@ -485,7 +482,6 @@ class Aligner():
 
     def combineImages(self,image_a, image_b, weight = .5):
         return np.array(image_a * weight + image_b *(1-weight), dtype=np.uint8)
-        #return cv2.addWeighted(image_a,.4,image_b,.1,0)
 
 
     def increment(self, step):
@@ -506,10 +502,3 @@ class Aligner():
 
     def readCameraPose(self,idx):
         self.c_pose = np.load(self.cam_path)[idx]
-
-
-
-
-
-
-
