@@ -24,6 +24,7 @@ from .dataset import Dataset
 from .render import Renderer
 from . import paths as p
 from robotpose import render
+import robotpose.utils as utils
 
 def makeMask(image):
     mask = np.zeros(image.shape[0:2], dtype=np.uint8)
@@ -59,7 +60,8 @@ class SegmentationAnnotator():
     Creates labelme-compatible annotation jsons and pngs for renders.
     """
 
-    def __init__(self, color_dict = None):
+    def __init__(self, pad_size = 5, color_dict = None):
+        self.pad_size = pad_size
         if color_dict is not None:
             self.color_dict = color_dict
 
@@ -135,13 +137,14 @@ class SegmentationAnnotator():
 
 
 
-    def _mask_color(self,image, color):
+    def _mask_color(self, image, color):
         """ Return mask of where a certain color is"""
         mask = np.zeros(image.shape[0:2], dtype=np.uint8)
         mask[np.where(np.all(image == color, axis=-1))] = 255
+        mask = utils.expandRegion(mask, self.pad_size)
         return mask
 
-    def _get_contour(self,image, color):
+    def _get_contour(self, image, color):
         """ Return contour of a given color """
         contours, hierarchy = cv2.findContours(self._mask_color(image, color), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         return contours
@@ -207,7 +210,7 @@ class AutomaticSegmentationAnnotator():
         inputs = []
 
         for frame in range(self.ds.length):
-            inputs.append((self.ds.seg_img[frame],color_imgs[frame],os.path.join(self.ds.seg_anno_path,f"{frame:05d}")))
+            inputs.append((self.ds.og_img[frame],color_imgs[frame],os.path.join(self.ds.seg_anno_path,f"{frame:05d}")))
 
         print("Starting Segmentation Pool...")
         with mp.Pool(workerCount()) as pool:

@@ -9,18 +9,17 @@
 
 
 import os
-import json
+
 import numpy as np
 import cv2
 import pyrealsense2 as rs
 from tqdm import tqdm
-import pickle
 from robotpose import paths as p
 import open3d as o3d
 import time
 from .projection import makeIntrinsics
 from .turbo_colormap import normalize_and_interpolate
-import matplotlib.pyplot as plt
+
 import multiprocessing as mp
 
 
@@ -38,6 +37,13 @@ def setMemoryGrowth():
 def workerCount():
     cpu_count = mp.cpu_count()
     return int(min(cpu_count - 2, .75 * cpu_count))
+
+
+def expandRegion(image, size, iterations = 1):
+    kern = np.ones((size,size), dtype=np.uint8)
+    return cv2.dilate(image, kern, iterations = iterations)
+
+
 
 
 
