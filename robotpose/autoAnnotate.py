@@ -158,9 +158,11 @@ class AutomaticSegmentationAnnotator():
             mesh_path = p.ROBOT_CAD,
             mesh_type = '.obj',
             camera_pose = None,
-            renderer = None
+            renderer = None,
+            preview = True
             ):
 
+        self.preview = preview
         modes = ['seg_full','seg']
         assert mode in modes, f"Mode must be one of: {modes}"
 
@@ -197,9 +199,9 @@ class AutomaticSegmentationAnnotator():
             self.rend.setPosesFromDS(frame)
             color,depth = self.rend.render()
             color_imgs.append(color)
-            #self.anno.annotate(self.ds.img[frame],color,os.path.join(self.ds.seg_anno_path,f"{frame:05d}"))
-            cv2.imshow("Automatic Segmentation Annotator", color)
-            cv2.waitKey(1)
+            if self.preview:
+                cv2.imshow("Automatic Segmentation Annotator", color)
+                cv2.waitKey(1)
 
         cv2.destroyAllWindows()
         inputs = []
@@ -264,9 +266,12 @@ class AutomaticKeypointAnnotator():
             mesh_path = p.ROBOT_CAD,
             mesh_type = '.obj',
             camera_pose = None,
-            renderer = None
+            renderer = None,
+            preview = True
             ):
         
+        self.preview = preview
+
         if renderer is None:
             self.rend = Renderer(
                 mesh_list,
@@ -291,7 +296,8 @@ class AutomaticKeypointAnnotator():
             self.rend.setPosesFromDS(frame)
             color,depth = self.rend.render()
             self.anno.annotate(color,frame)
-            cv2.imshow("Automatic Keypoint Annotator", color)
-            cv2.waitKey(1)
+            if self.preview:
+                cv2.imshow("Automatic Keypoint Annotator", color)
+                cv2.waitKey(1)
 
         cv2.destroyAllWindows()
