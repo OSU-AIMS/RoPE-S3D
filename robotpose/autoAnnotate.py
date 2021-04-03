@@ -8,9 +8,6 @@
 # Author: Adam Exley
 
 import multiprocessing as mp
-
-from numpy.lib.function_base import append
-from robotpose.utils import workerCount
 import numpy as np
 import os
 import tempfile
@@ -21,10 +18,10 @@ from labelme.label_file import LabelFile
 from tqdm import tqdm
 
 from .dataset import Dataset
-from .render import Renderer
 from . import paths as p
-from robotpose import render
-import robotpose.utils as utils
+from .render import Renderer
+from .utils import workerCount, expandRegion
+
 
 def makeMask(image):
     mask = np.zeros(image.shape[0:2], dtype=np.uint8)
@@ -94,7 +91,6 @@ class SegmentationAnnotator():
         if not json_path.endswith('.json'):
             json_path += '.json'
 
-
         shapes = []
 
         for label in self.color_dict:
@@ -118,7 +114,6 @@ class SegmentationAnnotator():
                     "shape_type": "polygon",
                     "flags": {}
                 }
-
                 # Add to shapes
                 shapes.append(shape)
 
@@ -131,17 +126,15 @@ class SegmentationAnnotator():
             imageWidth = image.shape[1],
             imageData = imageData
         )
-
         # Save image
         cv2.imwrite(act_image_path, image)
-
 
 
     def _mask_color(self, image, color):
         """ Return mask of where a certain color is"""
         mask = np.zeros(image.shape[0:2], dtype=np.uint8)
         mask[np.where(np.all(image == color, axis=-1))] = 255
-        mask = utils.expandRegion(mask, self.pad_size)
+        mask = expandRegion(mask, self.pad_size)
         return mask
 
     def _get_contour(self, image, color):

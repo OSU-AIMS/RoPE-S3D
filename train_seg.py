@@ -1,15 +1,22 @@
-#Show sample
-import json
-import pixellib
-from pixellib.custom_train import instance_custom_training
-import requests
+# Software License Agreement (Apache 2.0 License)
+#
+# Copyright (c) 2021, The Ohio State University
+# Center for Design and Manufacturing Excellence (CDME)
+# The Artificially Intelligent Manufacturing Systems Lab (AIMS)
+# All rights reserved.
+#
+# Author: Adam Exley
+
+import argparse
 import os
+import random
+import requests
+import shutil
+
+from pixellib.custom_train import instance_custom_training
+
 from robotpose.dataset import Dataset
 import robotpose.paths as p
-import argparse
-import shutil
-import random
-
 
 
 def train(dataset, skeleton, batch, valid):
