@@ -8,7 +8,6 @@
 # Author: Adam Exley
 
 import multiprocessing as mp
-from robotpose.utils import workerCount
 import numpy as np
 import os
 import tempfile
@@ -19,9 +18,10 @@ from labelme.label_file import LabelFile
 from tqdm import tqdm
 
 from .dataset import Dataset
-from .render import Renderer
 from . import paths as p
-from robotpose import render
+from .render import Renderer
+from .utils import workerCount, expandRegion
+
 
 def makeMask(image):
     mask = np.zeros(image.shape[0:2], dtype=np.uint8)
@@ -57,7 +57,8 @@ class SegmentationAnnotator():
     Creates labelme-compatible annotation jsons and pngs for renders.
     """
 
-    def __init__(self, color_dict = None):
+    def __init__(self, pad_size = 5, color_dict = None):
+        self.pad_size = pad_size
         if color_dict is not None:
             self.color_dict = color_dict
 
@@ -90,7 +91,6 @@ class SegmentationAnnotator():
         if not json_path.endswith('.json'):
             json_path += '.json'
 
-
         shapes = []
 
         for label in self.color_dict:
@@ -114,7 +114,6 @@ class SegmentationAnnotator():
                     "shape_type": "polygon",
                     "flags": {}
                 }
-
                 # Add to shapes
                 shapes.append(shape)
 
@@ -127,19 +126,18 @@ class SegmentationAnnotator():
             imageWidth = image.shape[1],
             imageData = imageData
         )
-
         # Save image
         cv2.imwrite(act_image_path, image)
 
 
-
-    def _mask_color(self,image, color):
+    def _mask_color(self, image, color):
         """ Return mask of where a certain color is"""
         mask = np.zeros(image.shape[0:2], dtype=np.uint8)
         mask[np.where(np.all(image == color, axis=-1))] = 255
+        mask = expandRegion(mask, self.pad_size)
         return mask
 
-    def _get_contour(self,image, color):
+    def _get_contour(self, image, color):
         """ Return contour of a given color """
         contours, hierarchy = cv2.findContours(self._mask_color(image, color), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         return contours
@@ -156,9 +154,11 @@ class AutomaticSegmentationAnnotator():
             mesh_path = p.ROBOT_CAD,
             mesh_type = '.obj',
             camera_pose = None,
-            renderer = None
+            renderer = None,
+            preview = True
             ):
 
+        self.preview = preview
         modes = ['seg_full','seg']
         assert mode in modes, f"Mode must be one of: {modes}"
 
@@ -195,15 +195,15 @@ class AutomaticSegmentationAnnotator():
             self.rend.setPosesFromDS(frame)
             color,depth = self.rend.render()
             color_imgs.append(color)
-            #self.anno.annotate(self.ds.img[frame],color,os.path.join(self.ds.seg_anno_path,f"{frame:05d}"))
-            cv2.imshow("Automatic Segmentation Annotator", color)
-            cv2.waitKey(1)
+            if self.preview:
+                cv2.imshow("Automatic Segmentation Annotator", color)
+                cv2.waitKey(1)
 
         cv2.destroyAllWindows()
         inputs = []
 
         for frame in range(self.ds.length):
-            inputs.append((self.ds.img[frame],color_imgs[frame],os.path.join(self.ds.seg_anno_path,f"{frame:05d}")))
+            inputs.append((self.ds.og_img[frame],color_imgs[frame],os.path.join(self.ds.seg_anno_path,f"{frame:05d}")))
 
         print("Starting Segmentation Pool...")
         with mp.Pool(workerCount()) as pool:
@@ -225,15 +225,23 @@ class KeypointAnnotator():
 
     def annotate(self, render, idx):
         anno = []
-        for color in self.color_dict.values():
-            anno.append(self._getColorMidpoint(render, color))
-
+        vis = []
+        for color, subidx in zip(self.color_dict.values(), range(len(self.color_dict.values()))):
+            if self._isVisible(render, color):
+                anno.append(self._getColorMidpoint(render, color))
+                vis.append(True)
+            else:
+                anno.append([0,0])
+                vis.append(False)
+        vis = np.array(vis)
         anno = np.array(anno)
         anno[:,0] -= self.ds.rois[idx,1] # This used to be crop data, so it would be rois[idx, 1]
 
-        self.dpds['annotated'][idx] = np.array([True]*len(self.color_dict))
+        self.dpds['annotated'][idx] = vis
         self.dpds['annotations'][idx] = anno
 
+    def _isVisible(self,image,color):
+        return len(np.where(np.all(image == color, axis=-1))[0]) > 0
     
     def _getColorMidpoint(self, image, color):
         coords = np.where(np.all(image == color, axis=-1))
@@ -254,9 +262,12 @@ class AutomaticKeypointAnnotator():
             mesh_path = p.ROBOT_CAD,
             mesh_type = '.obj',
             camera_pose = None,
-            renderer = None
+            renderer = None,
+            preview = True
             ):
         
+        self.preview = preview
+
         if renderer is None:
             self.rend = Renderer(
                 mesh_list,
@@ -281,7 +292,8 @@ class AutomaticKeypointAnnotator():
             self.rend.setPosesFromDS(frame)
             color,depth = self.rend.render()
             self.anno.annotate(color,frame)
-            cv2.imshow("Automatic Keypoint Annotator", color)
-            cv2.waitKey(1)
+            if self.preview:
+                cv2.imshow("Automatic Keypoint Annotator", color)
+                cv2.waitKey(1)
 
         cv2.destroyAllWindows()

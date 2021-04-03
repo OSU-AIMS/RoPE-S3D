@@ -27,8 +27,8 @@ def anno(set,skele):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--set', type=str, default="set3", help="The dataset to load to annotate. Can be a partial name.")
-    parser.add_argument('--skeleton', '--skele', type=str, default="A", help="The skeleton to use for annotation.")
+    parser.add_argument('set', type=str, default="set3", help="The dataset to load to annotate. Can be a partial name.")
+    parser.add_argument('skeleton', type=str, default="A", help="The skeleton to use for annotation.")
     args = parser.parse_args()
     anno(args.set, args.skeleton)
 

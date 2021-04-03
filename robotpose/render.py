@@ -19,19 +19,23 @@ from . import paths as p
 #from .autoAnnotate import makeMask
 from .dataset import Dataset
 from .projection import proj_point_to_pixel, makeIntrinsics
-from .turbo_colormap import normalize_and_interpolate
-
 
 DEFAULT_COLORS = [
-    [0  , 0  , 255],    # Red
-    [0  , 125, 255],    # Orange
-    [0  , 255, 0  ],    # Green
-    [255, 255, 0  ],    # Cyan
-    [255, 0  , 0  ],    # Blue
-    [255, 0  , 125],    # Purple
-    [255, 0  , 255],    # Pink
-    [125, 0  , 255]     # Fuchsia
+    [0  , 0  , 85 ],[0  , 0  , 170],[0  , 0  , 255],
+    [0  , 85 , 0  ],[0  , 170, 0  ],[0  , 255, 0  ],
+    [85 , 0  , 0  ],[170, 0  , 0  ],[255, 0  , 0  ],
+    [0  , 0  , 85 ],[0  , 85 , 85 ],[85 , 0  , 85 ],[85 , 85  , 0 ],
+    [0  , 0  , 170],[0  , 170, 170],[170, 0  , 170],[170, 170 , 0 ],
+    [0  , 0  , 255],[0  , 255, 255],[255, 0  , 255],[255, 255 , 0 ],
+    [170, 85 , 85 ],[85 , 170, 85 ],[85 , 85 , 170],
+    [255, 85 , 85 ],[85 , 255, 85 ],[85 , 85 , 255],
+    [255, 170, 170],[170, 255, 170],[170, 170, 255],
+    [85 , 170, 170],[170, 85 , 170],[170, 170, 85 ],
+    [85 , 255, 255],[255, 85 , 255],[255, 255, 85 ],
+    [85 , 170, 255],[255, 85 , 170],[170, 255, 85 ],[255, 85 , 170],[170, 255, 85 ],
+    [85 , 85 , 85]
 ]
+
 
 
 def cameraFromIntrinsics(rs_intrinsics):
@@ -273,12 +277,18 @@ class Renderer():
 
 
     def getColorDict(self):
-        if self.mode != 'seg_full':
+        if self.mode == 'seg':
             out = {}
             for node, color in zip(self.node_color_map.keys(), self.node_color_map.values()):
                 out[node.name] = color
             return out
-        else:
+        elif self.mode == 'key':
+            out = {}
+            for node, color in zip(self.node_color_map.keys(), self.node_color_map.values()):
+                if node in self.key_nodes:
+                    out[node.name] = color
+            return out
+        elif self.mode == 'seg_full':
             return {self.robot_name: DEFAULT_COLORS[0]}
 
 
@@ -297,6 +307,8 @@ class Renderer():
         elif mode == 'key':
             for keypt, idx in zip(self.key_nodes, range(len(self.key_nodes))):
                 self.node_color_map[keypt] = DEFAULT_COLORS[idx]
+            for joint in self.joint_nodes:
+                self.node_color_map[joint] = DEFAULT_COLORS[-1]
 
         elif mode == 'seg_full':
             for joint in self.joint_nodes:
@@ -455,7 +467,6 @@ class Aligner():
 
         self.saveCameraPose()
         return True
-        
 
 
     def addOverlay(self, image):
@@ -471,7 +482,6 @@ class Aligner():
 
     def combineImages(self,image_a, image_b, weight = .5):
         return np.array(image_a * weight + image_b *(1-weight), dtype=np.uint8)
-        #return cv2.addWeighted(image_a,.4,image_b,.1,0)
 
 
     def increment(self, step):
@@ -492,10 +502,3 @@ class Aligner():
 
     def readCameraPose(self,idx):
         self.c_pose = np.load(self.cam_path)[idx]
-
-
-
-
-
-
-

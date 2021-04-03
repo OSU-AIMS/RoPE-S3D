@@ -479,7 +479,7 @@ class Dataset():
     def makeDeepPoseDS(self, force=False):
         if force:
             initialize_dataset(
-                images=self.seg_img,
+                images=np.array(self.seg_img),
                 datapath=self.deepposeds_path,
                 skeleton=self.skeleton_path,
                 overwrite=True # This overwrites the existing datapath
@@ -488,7 +488,7 @@ class Dataset():
 
         if not os.path.isfile(self.deepposeds_path):
             initialize_dataset(
-                images=self.seg_img,
+                images=np.array(self.seg_img),
                 datapath=self.deepposeds_path,
                 skeleton=self.skeleton_path,
                 overwrite=False # This overwrites the existing datapath

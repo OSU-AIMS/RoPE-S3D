@@ -13,8 +13,6 @@ import pyrealsense2 as rs
 
 FLT_EPSILON = 1
 
-
-
 def makeIntrinsics(preset = '1280_720_color'):
     """
     Make Realsense Intrinsics from presets that are commonly used.
@@ -58,9 +56,6 @@ def intrin(resolution, pp, f, model, coeffs):
     a.coeffs = coeffs
     a.model = model
     return a
-
-
-
 
 
 def proj_point_to_pixel(intrin, points, correct_distortion = False):
