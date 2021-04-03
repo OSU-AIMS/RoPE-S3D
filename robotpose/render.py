@@ -135,9 +135,6 @@ def coordsFromData(ang, pos):
     coord[:,1:6,0] = -1 * pos[:,:5,1]   # x = -y
     coord[:,1:6,1] = pos[:,:5,0]        # y = x
 
-    # I'm dumb so these all use dm instead of m
-    coord[:,:,0:3] *= 10
-
     # Yaw of all movings parts is just the S angle
     for idx in range(1,6):
         coord[:,idx,5] = ang[:,0]
@@ -365,18 +362,16 @@ class Aligner():
             self.readCameraPose(self.start_idx)
         else:
             # Init pose, write
-            self.c_pose = [14.25,.09,4.16,-.01,np.pi/2,np.pi/2]
+            self.c_pose = [1.425,.009,0.416,-.01,np.pi/2,np.pi/2]
             a = np.zeros((self.ds.length,6))
             for idx in range(self.ds.length):
                 a[idx] = self.c_pose
             np.save(self.cam_path,a)
 
 
-
-
         # Movement steps
-        self.xyz_steps = [.01,.05,.1,.25,.5,1,5,10]
-        self.ang_steps = [.005,.01,.025,.05,.1,.25,.5,1]
+        self.xyz_steps = [.001,.005,.01,.05,.1,.25,.5]
+        self.ang_steps = [.0005,.001,.005,.01,.025,.05,.1]
         self.step_loc = len(self.xyz_steps) - 4
 
 

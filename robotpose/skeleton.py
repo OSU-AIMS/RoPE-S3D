@@ -41,9 +41,9 @@ class Skeleton():
         keypoints = csv_data[:,0]
         
         json_info = {}
-        json_info['markers'] = {"height": 0.05,"radius": 0.05}
+        json_info['markers'] = {"height": 0.005,"radius": 0.005}
 
-        default_keypoint_entry = {"parent_joint": "joint_name","pose":[1,0,0,1.5707963267948966,0,0]}
+        default_keypoint_entry = {"parent_joint": "joint_name","pose":[0.1,0,0,1.5707963267948966,0,0]}
         keypoint_data = {}
         for keypoint in keypoints:
             keypoint_data[keypoint] = default_keypoint_entry
@@ -71,5 +71,5 @@ class Skeleton():
 
     def _removePoseIndent(self, string):
         return string.replace(
-            '"pose": [\n                1,\n                0,\n                0,\n                1.5707963267948966,\n                0,\n                0\n            ]',
-            '"pose": [1, 0, 0, 1.5707963267948966, 0, 0]')
+            '"pose": [\n                0.1,\n                0,\n                0,\n                1.5707963267948966,\n                0,\n                0\n            ]',
+            '"pose": [0.1, 0, 0, 1.5707963267948966, 0, 0]')
