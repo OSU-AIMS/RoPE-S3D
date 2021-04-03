@@ -8,17 +8,41 @@ The robot is isolated from the background using PixelLib and then the keypoint l
 
 Visualization uses the [Turbo Colormap](https://ai.googleblog.com/2019/08/turbo-improved-rainbow-colormap-for.html).
 
-3D Rendering is done via [Pyrender](https://github.com/mmatl/pyrender), while facilitates automatic keypoint and segmentation annotation
+3D Rendering is done via [Pyrender](https://github.com/mmatl/pyrender), which facilitates automatic keypoint and segmentation annotation
 
-# Datasets
+# Usage
+
+The following are the main steps that must be taken to train a new model:
+1. Configure meshes
+2. Create and configure a skeleton
+3. Create a dataset
+4. Align the dataset
+5. Perform automatic annotation
+6. Train the model
+
+## Meshes
+
+The mesh for each joint, as well as that mesh's specific name, is specified in ```mesh_config.json``` in the ```data``` directory.
+
+More details about mesh configuration can be found in that directory's README.
+
+## Skeletons
+
+Skeletons contain the basic information for keypoint rendering, detection, and usage.
+
+They consist of a ```.csv``` and ```.json``` file.
+
+A skeleton is created by first creating a CSV per DeepPoseKit's standards, which then is used to produce a JSON template. The JSON then allows you to configure the relative position of each keypoint to each joint, as well as how each keypoint is used to predict joint angles.
+
+## Datasets
 
 Datasets are expected to contain RGB images in a ```.png``` format with accopanying depthmaps in a ```.npy``` array file, and a ```.json``` information file.
 
-More information can be found in the ```data``` folder README.
+More information can be found in the ```data``` directory README.
 
-# Automatic Annotation
+## Automatic Annotation
 
-## Alignment
+### Alignment
 
 Before running any automatic annotation, first align the dataset with the render using the Aligner:
 
@@ -26,7 +50,7 @@ Before running any automatic annotation, first align the dataset with the render
 python align.py dataset_name skeleton_name
 ```
 
-## Annotation
+### Annotation
 
 To run automatic  annotation, first  align the dataset as described above.
 
@@ -35,6 +59,10 @@ Then, use the automatic annotation script:
 ```bash
 python annotate_auto.py dataset_name skeleton_name
 ```
+
+## Training
+
+
 
 
 # Installation
