@@ -146,13 +146,9 @@ class SegmentationAnnotator():
 class AutomaticSegmentationAnnotator():
     def __init__(
             self,
-            mesh_list,
-            names,
             dataset,
             skeleton,
             mode = 'seg_full',
-            mesh_path = p.ROBOT_CAD,
-            mesh_type = '.obj',
             camera_pose = None,
             renderer = None,
             preview = True
@@ -164,13 +160,9 @@ class AutomaticSegmentationAnnotator():
 
         if renderer is None:
             self.rend = Renderer(
-                mesh_list,
                 dataset,
                 skeleton,
-                name_list = names,
                 mode = mode,
-                mesh_path = mesh_path,
-                mesh_type = mesh_type,
                 camera_pose = camera_pose
                 )
         else:
@@ -178,7 +170,7 @@ class AutomaticSegmentationAnnotator():
             self.rend.setMode(mode)
 
         color_dict = self.rend.getColorDict()
-        self.anno = SegmentationAnnotator(color_dict)
+        self.anno = SegmentationAnnotator(color_dict = color_dict)
 
         self.ds = Dataset(dataset, skeleton)
 
@@ -255,12 +247,8 @@ class AutomaticKeypointAnnotator():
     
     def __init__(
             self,
-            mesh_list,
-            names,
             dataset,
             skeleton,
-            mesh_path = p.ROBOT_CAD,
-            mesh_type = '.obj',
             camera_pose = None,
             renderer = None,
             preview = True
@@ -270,13 +258,9 @@ class AutomaticKeypointAnnotator():
 
         if renderer is None:
             self.rend = Renderer(
-                mesh_list,
                 dataset,
                 skeleton,
-                name_list = names,
                 mode = 'key',
-                mesh_path = mesh_path,
-                mesh_type = mesh_type,
                 camera_pose = camera_pose
                 )
         else:

@@ -10,6 +10,7 @@
 import numpy as np
 import os
 import time
+import json
 
 import cv2
 import trimesh
@@ -19,6 +20,8 @@ from . import paths as p
 #from .autoAnnotate import makeMask
 from .dataset import Dataset
 from .projection import proj_point_to_pixel, makeIntrinsics
+
+MESH_CONFIG = os.path.join(p.DATASETS,'mesh_config.json')
 
 DEFAULT_COLORS = [
     [0  , 0  , 85 ],[0  , 0  , 170],[0  , 0  , 255],
@@ -38,33 +41,54 @@ DEFAULT_COLORS = [
 
 
 
+class MeshLoader():
+
+    def __init__(self, mesh_dir = p.ROBOT_CAD):
+        self.mesh_dir = mesh_dir
+
+        if not os.path.isfile(MESH_CONFIG):
+            print("\nWARNING: No mesh config present. Making default.")
+            info = {}
+            default_pose = [0,0,0,0,0,0]
+            joints = ['BASE','S','L','U','R','BT']
+            for joint in joints:
+                info[joint] = {"file_name":f"{joint}.obj","pose":default_pose}
+            with open(MESH_CONFIG,'w') as f:
+                json.dump(info, f, indent=4)
+            raise ValueError(f"\n\nMesh config file was not present. Please edit {MESH_CONFIG} to be accurate.")
+
+        with open(MESH_CONFIG,'r') as f:
+            d = json.load(f)
+
+        self.name_list = [x for x in d.keys()]
+        self.mesh_list = [d[x]['file_name'] for x in self.name_list]
+        self.pose_list = [d[x]['pose'] for x in self.name_list]
+
+
+    def load(self):
+        self.meshes = []
+        for file, pose in zip(self.mesh_list, self.pose_list):
+            tm = trimesh.load(os.path.join(self.mesh_dir,file))
+            self.meshes.append(pyrender.Mesh.from_trimesh(tm,smooth=True, poses=makePose(*pose)))
+
+
+    def getMeshes(self):
+        return self.meshes
+
+
+    def getNames(self):
+        return self.name_list
+
+
+
+
+
 def cameraFromIntrinsics(rs_intrinsics):
     """Returns Pyrender Camera.
     Makes a Pyrender camera from realsense intrinsics
     """
     return pyrender.IntrinsicsCamera(cx=rs_intrinsics.ppx, cy=rs_intrinsics.ppy, fx=rs_intrinsics.fx, fy=rs_intrinsics.fy)
 
-
-def loadModels(obj_list, path = p.ROBOT_CAD, mode = 'pyrender',fileend='.obj'):
-    """Returns mesh objects.
-    Loads CAD models as trimesh or pyrender objects
-    """
-    assert mode == 'trimesh' or mode == 'pyrender'
-    meshes = []
-    for file in obj_list:
-        if not file.endswith(fileend):
-            file += fileend
-        
-        meshes.append(trimesh.load(os.path.join(path,file)))
-
-    if mode == 'trimesh':
-        return meshes
-    else:
-        out = []
-        for mesh in meshes:
-            out.append(pyrender.Mesh.from_trimesh(mesh,smooth=True))
-
-        return out
 
 
 
@@ -135,9 +159,6 @@ def coordsFromData(ang, pos):
     coord[:,1:6,0] = -1 * pos[:,:5,1]   # x = -y
     coord[:,1:6,1] = pos[:,:5,0]        # y = x
 
-    # I'm dumb so these all use dm instead of m
-    coord[:,:,0:3] *= 10
-
     # Yaw of all movings parts is just the S angle
     for idx in range(1,6):
         coord[:,idx,5] = ang[:,0]
@@ -181,13 +202,9 @@ class Renderer():
     
     def __init__(
             self,
-            mesh_list,
             dataset,
             skeleton,
-            name_list = None,
             mode = 'seg',
-            mesh_path = p.ROBOT_CAD,
-            mesh_type = '.obj',
             camera_pose = None,
             camera_intrin = '1280_720_color',
             resolution = [1280, 720],
@@ -200,10 +217,10 @@ class Renderer():
         self.ds = Dataset(dataset, skeleton)
 
         # Load meshes
-        print("Loading Meshes")
-        self.meshes = loadModels(mesh_list, mesh_path, fileend=mesh_type)
-        if name_list is None:
-            name_list = mesh_list
+        ml = MeshLoader()
+        ml.load()
+        name_list = ml.getNames()
+        self.meshes = ml.getMeshes()
 
         self.cam_path = os.path.join(self.ds.dataset_dir,'camera_pose.npy')
          
@@ -333,8 +350,6 @@ class Aligner():
 
     def __init__(
             self,
-            mesh_list,
-            name_list,
             dataset,
             skeleton,
             start_idx = None,
@@ -343,7 +358,7 @@ class Aligner():
         # Load dataset
         self.ds = Dataset(dataset, skeleton)
 
-        self.renderer = Renderer(mesh_list, dataset, skeleton, mode='seg_full',name_list=name_list)
+        self.renderer = Renderer(dataset, skeleton, mode='seg_full')
         self.cam_path = self.renderer.cam_path
 
 
@@ -365,18 +380,16 @@ class Aligner():
             self.readCameraPose(self.start_idx)
         else:
             # Init pose, write
-            self.c_pose = [14.25,.09,4.16,-.01,np.pi/2,np.pi/2]
+            self.c_pose = [1.425,.009,0.416,-.01,np.pi/2,np.pi/2]
             a = np.zeros((self.ds.length,6))
             for idx in range(self.ds.length):
                 a[idx] = self.c_pose
             np.save(self.cam_path,a)
 
 
-
-
         # Movement steps
-        self.xyz_steps = [.01,.05,.1,.25,.5,1,5,10]
-        self.ang_steps = [.005,.01,.025,.05,.1,.25,.5,1]
+        self.xyz_steps = [.001,.005,.01,.05,.1,.25,.5]
+        self.ang_steps = [.0005,.001,.005,.01,.025,.05,.1]
         self.step_loc = len(self.xyz_steps) - 4
 
 
