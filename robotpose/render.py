@@ -74,8 +74,8 @@ class MeshLoader():
 
     def getMeshes(self):
         return self.meshes
-       
-        
+
+
     def getNames(self):
         return self.name_list
 
@@ -202,13 +202,9 @@ class Renderer():
     
     def __init__(
             self,
-            mesh_list,
             dataset,
             skeleton,
-            name_list = None,
             mode = 'seg',
-            mesh_path = p.ROBOT_CAD,
-            mesh_type = '.obj',
             camera_pose = None,
             camera_intrin = '1280_720_color',
             resolution = [1280, 720],
@@ -355,8 +351,6 @@ class Aligner():
 
     def __init__(
             self,
-            mesh_list,
-            name_list,
             dataset,
             skeleton,
             start_idx = None,
@@ -365,7 +359,7 @@ class Aligner():
         # Load dataset
         self.ds = Dataset(dataset, skeleton)
 
-        self.renderer = Renderer(mesh_list, dataset, skeleton, mode='seg_full',name_list=name_list)
+        self.renderer = Renderer(dataset, skeleton, mode='seg_full')
         self.cam_path = self.renderer.cam_path
 
 

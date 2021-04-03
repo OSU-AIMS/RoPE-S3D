@@ -19,17 +19,14 @@ from robotpose.render import Renderer
 
 def label(dataset, skeleton, preview):
 
-    objs = ['MH5_BASE', 'MH5_S_AXIS','MH5_L_AXIS','MH5_U_AXIS','MH5_R_AXIS','MH5_BT_UNIFIED_AXIS']
-    names = ['BASE','S','L','U','R','BT']
+    rend = Renderer(dataset, skeleton)
 
-    rend = Renderer(objs, dataset, skeleton, names)
-
-    key = AutomaticKeypointAnnotator(objs, names, dataset, skeleton, renderer = rend, preview = preview)
+    key = AutomaticKeypointAnnotator(dataset, skeleton, renderer = rend, preview = preview)
     key.run()
 
     del key
 
-    seg = AutomaticSegmentationAnnotator(objs, names, dataset, skeleton, renderer = rend, preview = preview)
+    seg = AutomaticSegmentationAnnotator(dataset, skeleton, renderer = rend, preview = preview)
     seg.run()
 
 
