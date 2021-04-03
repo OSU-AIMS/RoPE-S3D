@@ -1,28 +1,28 @@
 {
     "BASE": {
-        "file_name": "MH5_BASE.obj",
+        "file_name": "base_link.stl",
         "pose": [
             0,
             0,
+            -0.330,
             0,
-            0,
-            0,
+            -1.57,
             0
         ]
     },
     "S": {
-        "file_name": "MH5_S_AXIS.obj",
+        "file_name": "link_s.stl",
         "pose": [
             0,
             0,
-            0,
+            -0.131,
             0,
             0,
             0
         ]
     },
     "L": {
-        "file_name": "MH5_L_AXIS.obj",
+        "file_name": "link_l.stl",
         "pose": [
             0,
             0,
@@ -33,7 +33,7 @@
         ]
     },
     "U": {
-        "file_name": "MH5_U_AXIS.obj",
+        "file_name": "link_u.stl",
         "pose": [
             0,
             0,
@@ -44,18 +44,18 @@
         ]
     },
     "R": {
-        "file_name": "MH5_R_AXIS.obj",
+        "file_name": "link_r.stl",
         "pose": [
             0,
             0,
+            0.3335,
             0,
-            0,
-            0,
+            -1.57,
             0
         ]
     },
     "BT": {
-        "file_name": "MH5_BT_UNIFIED_AXIS.obj",
+        "file_name": "link_b.stl",
         "pose": [
             0,
             0,

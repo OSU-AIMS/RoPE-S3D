@@ -217,7 +217,6 @@ class Renderer():
         self.ds = Dataset(dataset, skeleton)
 
         # Load meshes
-        print("Loading Meshes")
         ml = MeshLoader()
         ml.load()
         name_list = ml.getNames()

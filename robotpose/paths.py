@@ -11,6 +11,6 @@ SKELETONS = r'data/skeletons'
 MODELS = r'models/'
 SEG_MODELS = r'models/segmentation'
 VIDEO = r'output/video.avi'
-ROBOT_CAD = r'CAD/MH5L/obj/'
+ROBOT_CAD = r'urdf/MH5L-URDF/meshes'
 
 LOG = r'models/log/log.h5'

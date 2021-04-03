@@ -1,22 +1,32 @@
 import cv2
-from robotpose.autoAnnotate import AutomaticKeypointAnnotator
-from robotpose.render import Aligner, Renderer
-#test_render()
-#test_render_with_class()
+import numpy as np
+from robotpose.render import Renderer
 
 
+
+def save_video(path, img_arr):
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter(path,fourcc, 30, (img_arr.shape[2],img_arr.shape[1]))
+    for img in img_arr:
+        out.write(img)
+    out.release()
 
 def test_render():
 
-    r = Renderer('set0', 'B')
+    r = Renderer('bigboi', 'B')
     r.setMode('key')
 
-    for frame in range(100):
+    color_frames =[]
+
+    for frame in range(1000):
             
         r.setPosesFromDS(frame)
         color,depth = r.render()
+        color_frames.append(color)
         cv2.imshow("Render", color)
-        cv2.waitKey(50)
+        cv2.waitKey(1)
+
+    save_video('output/test_render.avi',np.array(color_frames))
 
 
 test_render()
