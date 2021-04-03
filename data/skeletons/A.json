@@ -1,0 +1,116 @@
+{
+    "markers": {
+        "height": 0.05,
+        "radius": 0.05
+    },
+    "keypoints": {
+        "base": {
+            "parent_joint": "joint_name",
+            "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
+        },
+        "L": {
+            "parent_joint": "joint_name",
+            "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
+        },
+        "midL": {
+            "parent_joint": "joint_name",
+            "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
+        },
+        "U": {
+            "parent_joint": "joint_name",
+            "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
+        },
+        "preR": {
+            "parent_joint": "joint_name",
+            "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
+        },
+        "R": {
+            "parent_joint": "joint_name",
+            "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
+        },
+        "B": {
+            "parent_joint": "joint_name",
+            "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
+        },
+        "T": {
+            "parent_joint": "joint_name",
+            "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
+        }
+    },
+    "joint_angles": {
+        "S": {
+            "type": 2,
+            "max": 2,
+            "min": -2,
+            "predictors": {
+                "A": {
+                    "from": "keypoint",
+                    "to": "another_keypoint",
+                    "length": 1.0
+                },
+                "B": {
+                    "from": "keypoint",
+                    "to": "another_keypoint",
+                    "length": 1.0
+                }
+            }
+        },
+        "L": {
+            "type": 1,
+            "max": 4,
+            "min": -4,
+            "predictors": {
+                "A": {
+                    "from": "keypoint",
+                    "to": "another_keypoint",
+                    "length": 1.0
+                },
+                "B": {
+                    "from": "keypoint",
+                    "to": "another_keypoint",
+                    "length": 1.0
+                }
+            }
+        },
+        "U": {
+            "type": 1,
+            "max": 4,
+            "min": -4,
+            "predictors": {
+                "A": {
+                    "from": "keypoint",
+                    "to": "another_keypoint",
+                    "length": 1.0
+                },
+                "B": {
+                    "from": "keypoint",
+                    "to": "another_keypoint",
+                    "length": 1.0
+                }
+            }
+        },
+        "R": {
+            "type": 3,
+            "max": 2,
+            "min": -2,
+            "predictors": {}
+        },
+        "B": {
+            "type": 1,
+            "max": 4,
+            "min": -4,
+            "predictors": {
+                "A": {
+                    "from": "keypoint",
+                    "to": "another_keypoint",
+                    "length": 1.0
+                },
+                "B": {
+                    "from": "keypoint",
+                    "to": "another_keypoint",
+                    "length": 1.0
+                }
+            }
+        }
+    }
+}
