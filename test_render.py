@@ -21,7 +21,7 @@ def test_render():
     for frame in range(1000):
             
         r.setPosesFromDS(frame)
-        color,depth = r.render()
+        color,depth = r.render(True)
         color_frames.append(color)
         cv2.imshow("Render", color)
         cv2.waitKey(1)

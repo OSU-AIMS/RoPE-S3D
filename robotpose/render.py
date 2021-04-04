@@ -261,40 +261,22 @@ class Renderer():
         self.setMode(mode)
 
 
-    def _updateKeypoints(self):
-        # Remove olds
-        if hasattr(self, 'key_nodes'):
-            if len(self.key_nodes) > 0:
-                for node in self.key_nodes:
-                    if self.scene.has_node(node):
-                        self.scene.remove_node(node)
-
-        # Add in new
-        self.key_nodes = []
-        marker = trimesh.creation.cylinder(
-            self.ds.keypoint_data['markers']['radius'],
-            height=self.ds.keypoint_data['markers']['height']
-            )
-        marker = pyrender.Mesh.from_trimesh(marker)
-
-        for name in self.ds.keypoint_data['keypoints'].keys():
-            parent = self.ds.keypoint_data['keypoints'][name]['parent_joint']
-            pose = makePose(*self.ds.keypoint_data['keypoints'][name]['pose'])
-            n = self.scene.add(marker, name=name, pose=pose, parent_name=parent)
-            self.key_nodes.append(n)
-
-
-
-    def render(self):
-        self.ds.updateKeypointData()
-        self._updateKeypoints()
-        self._updateMode()
+    def render(self, update_keypoints = False):
+        if update_keypoints:
+            self.ds.updateKeypointData()
+            self._updateKeypoints()
         return self.rend.render(
             self.scene,
             flags=pyrender.constants.RenderFlags.SEG,
             seg_node_map=self.node_color_map
             )
 
+
+    def setMode(self, mode):
+        valid_modes = ['seg','key','seg_full']
+        assert mode in valid_modes, f"Mode invalid; must be one of: {valid_modes}"
+        self.mode = mode
+        self._updateMode()
 
 
     def setObjectPoses(self, poses):
@@ -324,11 +306,31 @@ class Renderer():
         elif self.mode == 'seg_full':
             return {self.robot_name: DEFAULT_COLORS[0]}
 
-    def setMode(self, mode):
-        valid_modes = ['seg','key','seg_full']
-        assert mode in valid_modes, f"Mode invalid; must be one of: {valid_modes}"
-        self.mode = mode
+
+    def _updateKeypoints(self):
+        # Remove olds
+        if hasattr(self, 'key_nodes'):
+            if len(self.key_nodes) > 0:
+                for node in self.key_nodes:
+                    if self.scene.has_node(node):
+                        self.scene.remove_node(node)
+
+        # Add in new
+        self.key_nodes = []
+        marker = trimesh.creation.cylinder(
+            self.ds.keypoint_data['markers']['radius'],
+            height=self.ds.keypoint_data['markers']['height']
+            )
+        marker = pyrender.Mesh.from_trimesh(marker)
+
+        for name in self.ds.keypoint_data['keypoints'].keys():
+            parent = self.ds.keypoint_data['keypoints'][name]['parent_joint']
+            pose = makePose(*self.ds.keypoint_data['keypoints'][name]['pose'])
+            n = self.scene.add(marker, name=name, pose=pose, parent_name=parent)
+            self.key_nodes.append(n)
+
         self._updateMode()
+
 
     def _updateMode(self):
 
@@ -352,8 +354,7 @@ class Renderer():
 class Aligner():
     """
     Used to manually find the position of camera relative to robot.
-    """
-    """
+
     W/S - Move forward/backward
     A/D - Move left/right
     Z/X - Move down/up
@@ -363,19 +364,12 @@ class Aligner():
     +/- - Increase/Decrease Step size
     """
 
-    def __init__(
-            self,
-            dataset,
-            skeleton,
-            start_idx = None,
-            end_idx = None
-            ):
+    def __init__(self, dataset, skeleton, start_idx = None, end_idx = None):
         # Load dataset
         self.ds = Dataset(dataset, skeleton)
 
         self.renderer = Renderer(dataset, skeleton, mode='seg_full')
         self.cam_path = self.renderer.cam_path
-
 
         # Image counter
         self.idx = 0
@@ -389,7 +383,6 @@ class Aligner():
         else:
             self.end_idx = self.ds.length - 1
 
-
         # Read in camera pose if it's been written before
         if os.path.isfile(self.cam_path):
             self.readCameraPose(self.start_idx)
@@ -400,7 +393,6 @@ class Aligner():
             for idx in range(self.ds.length):
                 a[idx] = self.c_pose
             np.save(self.cam_path,a)
-
 
         # Movement steps
         self.xyz_steps = [.001,.005,.01,.05,.1,.25,.5]
