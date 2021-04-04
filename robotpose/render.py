@@ -9,7 +9,6 @@
 
 import numpy as np
 import os
-import time
 import json
 
 import cv2
@@ -19,7 +18,7 @@ import pyrender
 from . import paths as p
 #from .autoAnnotate import makeMask
 from .dataset import Dataset
-from .projection import proj_point_to_pixel, makeIntrinsics
+from .projection import makeIntrinsics
 
 MESH_CONFIG = os.path.join(p.DATASETS,'mesh_config.json')
 
@@ -373,12 +372,12 @@ class Aligner():
         self.renderer = Renderer(dataset, None, mode='seg_full')
         self.cam_path = self.renderer.cam_path
 
-        # Image counter
-        self.idx = 0
         if start_idx is not None:
             self.start_idx = start_idx
         else:
             self.start_idx = 0
+
+        self.idx = self.start_idx
 
         if end_idx is not None:
             self.end_idx = end_idx
@@ -401,18 +400,19 @@ class Aligner():
 
     def run(self):
         ret = True
+        move = True
 
         while ret:
-
-            real = self.ds.og_img[self.idx]
-            self.renderer.setPosesFromDS(self.idx)
-            render, depth = self.renderer.render()
-            image = self.combineImages(real, render)
+            if move:
+                real = self.ds.og_img[self.idx]
+                self.renderer.setPosesFromDS(self.idx)
+                render, depth = self.renderer.render()
+                image = self.combineImages(real, render)
             image = self.addOverlay(image)
             cv2.imshow("Aligner", image)
 
             inp = cv2.waitKey(0)
-            ret = self.moveCamera(inp)
+            ret, move = self.moveCamera(inp)
 
         cv2.destroyAllWindows()
 
@@ -435,23 +435,23 @@ class Aligner():
         ang_step = self.ang_steps[self.step_loc]
 
         if inp == ord('0'):
-            return False
+            return False, False
         elif inp == ord('='):
             self.step_loc += 1
             if self.step_loc >= len(self.xyz_steps):
                 self.step_loc = len(self.xyz_steps) - 1
-            return True
+            return True, False
         elif inp == ord('-'):
             self.step_loc -= 1
             if self.step_loc < 0:
                 self.step_loc = 0
-            return True
+            return True, False
         elif inp == ord('k'):
             self.increment(-self.inc)
-            return True
+            return True, True
         elif inp == ord('l'):
             self.increment(self.inc)
-            return True
+            return True, True
 
         if inp == ord('w'):
             self.c_pose[0] -= xyz_step
@@ -479,7 +479,7 @@ class Aligner():
             self.c_pose[5] -= ang_step
 
         self.saveCameraPose()
-        return True
+        return True, True
 
 
     def addOverlay(self, image):
@@ -507,4 +507,17 @@ class Aligner():
         for idx in range(self.start_idx, self.end_idx + 1):
             #self.ds.file['images/camera_poses'][idx] = self.c_pose
             self.ds.camera_pose[idx,:] = self.c_pose
+
+    def _findSections(self):
+        self.section_starts = []
+        p = []
+        for idx in range(self.ds.length):
+            if self.ds.camera_pose[idx,:] != p:
+                self.section_starts.append(idx)
+                p = self.ds.camera_pose[idx,:]
+        return self.section_starts
+
+    def _newSection(self, idx):
+        self.section_starts.append(idx)
+        self.section_starts.sort()
 
