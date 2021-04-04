@@ -203,7 +203,7 @@ class Renderer():
     def __init__(
             self,
             dataset,
-            skeleton,
+            skeleton = None,
             ds_type = 'full',
             mode = 'seg',
             camera_pose = None,
@@ -215,7 +215,7 @@ class Renderer():
         self.mode = mode
 
         self.robot_name = robot_name
-
+        self.skeleton = skeleton
         # Load dataset
         self.ds = Dataset(dataset, skeleton, ds_type = ds_type)
 
@@ -253,7 +253,8 @@ class Renderer():
         for node in self.joint_nodes:
             self.scene.add_node(node)
 
-        self._updateKeypoints()
+        if self.skeleton is not None:
+            self._updateKeypoints()
 
         self.rend = pyrender.OffscreenRenderer(*resolution)
 
@@ -261,7 +262,7 @@ class Renderer():
 
 
     def render(self, update_keypoints = False):
-        if update_keypoints:
+        if update_keypoints and self.skeleton is not None:
             self.ds.updateKeypointData()
             self._updateKeypoints()
         return self.rend.render(
@@ -274,6 +275,8 @@ class Renderer():
     def setMode(self, mode):
         valid_modes = ['seg','key','seg_full']
         assert mode in valid_modes, f"Mode invalid; must be one of: {valid_modes}"
+        if self.skeleton is None:
+            assert mode != 'key', f"Skeleton must be specified for keypoint rendering"
         self.mode = mode
         self._updateMode()
 
@@ -363,11 +366,11 @@ class Aligner():
     +/- - Increase/Decrease Step size
     """
 
-    def __init__(self, dataset, skeleton, start_idx = None, end_idx = None):
+    def __init__(self, dataset, start_idx = None, end_idx = None):
         # Load dataset
-        self.ds = Dataset(dataset, skeleton, permissions='a')
+        self.ds = Dataset(dataset, permissions='a')
 
-        self.renderer = Renderer(dataset, skeleton, mode='seg_full')
+        self.renderer = Renderer(dataset, None, mode='seg_full')
         self.cam_path = self.renderer.cam_path
 
         # Image counter
