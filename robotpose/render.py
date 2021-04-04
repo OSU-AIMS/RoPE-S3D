@@ -10,10 +10,12 @@
 import numpy as np
 import os
 import json
+import time
 
 import cv2
 import trimesh
 import pyrender
+import PySimpleGUI as sg
 
 from . import paths as p
 #from .autoAnnotate import makeMask
@@ -352,6 +354,7 @@ class Renderer():
 
 
 
+
 class Aligner():
     """
     Used to manually find the position of camera relative to robot.
@@ -397,23 +400,34 @@ class Aligner():
         self.ang_steps = [.0005,.001,.005,.01,.025,.05,.1]
         self.step_loc = len(self.xyz_steps) - 4
 
+        self._findSections()
+        self.section_idx = 0
+
+        print("Copying Image Array...")
+        self.real_arr = np.copy(self.ds.og_img)
+
+        self.gui = AlignerGUI()
+
 
     def run(self):
         ret = True
         move = True
 
         while ret:
+            self.gui.update(self.section_starts, self.section_idx)
             if move:
-                real = self.ds.og_img[self.idx]
+                real = self.real_arr[self.idx]
                 self.renderer.setPosesFromDS(self.idx)
                 render, depth = self.renderer.render()
                 image = self.combineImages(real, render)
+                move = False
             image = self.addOverlay(image)
             cv2.imshow("Aligner", image)
 
-            inp = cv2.waitKey(0)
+            inp = cv2.waitKey(1)
             ret, move = self.moveCamera(inp)
 
+        self.gui.close()
         cv2.destroyAllWindows()
 
 
@@ -510,9 +524,9 @@ class Aligner():
 
     def _findSections(self):
         self.section_starts = []
-        p = []
+        p = [0,0,0,0,0,0]
         for idx in range(self.ds.length):
-            if self.ds.camera_pose[idx,:] != p:
+            if np.all(self.ds.camera_pose[idx] != p):
                 self.section_starts.append(idx)
                 p = self.ds.camera_pose[idx,:]
         return self.section_starts
@@ -521,3 +535,33 @@ class Aligner():
         self.section_starts.append(idx)
         self.section_starts.sort()
 
+
+
+
+
+
+class AlignerGUI():
+
+    def __init__(self):
+        self.layout = [[sg.Text("Currently Editing:"), sg.Text(size=(40,1), key='editing')],
+                        [sg.Input(size=(5,1),key='num_input'),sg.Button('Go To',key='num_goto'), sg.Button('New Section',key='new_section')],
+                        [sg.Table([[["Sections:"]],[[1,1]]], key='sections')],
+                        [sg.Button('Quit',key='quit')]]
+
+        self.window = sg.Window('Aligner Controls', self.layout, return_keyboard_events = True, use_default_focus=False)
+        self.time = time.time()
+
+    def update(self, section_starts, section_idx):
+        section_starts = [0,5,9]
+        event, values = self.window.read(timeout=1)
+        section_table = []
+        for idx in range(len(section_starts)-1):
+            section_table.append([[f"{section_starts[idx]} - {section_starts[idx+1]-1}"]])
+
+        self.window['sections'].update(section_table)
+
+        if event == 'new_section':
+            pass
+
+    def close(self):
+        self.window.close()
