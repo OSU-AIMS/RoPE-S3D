@@ -242,7 +242,8 @@ class Dataset():
             skeleton = None,
             ds_type = 'full',
             recompile = False,
-            rebuild = False
+            rebuild = False,
+            permissions = 'r'
             ):
         """
         Create a dataset instance, loading/building/compiling it if needed.
@@ -254,6 +255,7 @@ class Dataset():
         recompile: Using the same raw files, generate intermediate data again.
         rebuild: Recreate entirely usng different allocations of files
         """
+        self.permissions = permissions
 
         valid_types = ['full', 'train', 'validate', 'test']
         assert ds_type in valid_types, f"Invalid Type. Must be one of: {valid_types}"
@@ -261,8 +263,7 @@ class Dataset():
         info = DatasetInfo()
 
         d = info.get()
-
-
+        
         if name in d['compiled'][ds_type]['names'] and not rebuild:
             # Good job, it's here, load it
             self.type = ds_type
@@ -299,7 +300,7 @@ class Dataset():
 
     def load(self, skeleton=None):
         print("\nLoading Dataset...")
-        file = h5py.File(self.dataset_path,'r')
+        file = h5py.File(self.dataset_path,self.permissions)
         self.attrs = dict(file.attrs)
         self.og_resolution = self.attrs['original_resolution']
         self.seg_resolution = self.attrs['segmented_resolution']
@@ -310,6 +311,7 @@ class Dataset():
         self.og_img = file['images/original']
         self.seg_img = file['images/segmented']
         self.rois = file['images/rois']
+        self.camera_pose = file['images/camera_poses']
 
         # Set paths
         self.deepposeds_path = os.path.join(self.dataset_dir,'deeppose.h5')

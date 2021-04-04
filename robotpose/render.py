@@ -229,10 +229,8 @@ class Renderer():
          
         if camera_pose is not None:
             c_pose = camera_pose
-        elif os.path.isfile(self.cam_path):
-            c_pose = readCameraPose(self.cam_path, 0)
         else:
-            c_pose = [17,0,4,0,np.pi/2,np.pi/2]    # Default Camera Pose
+            c_pose = self.ds.camera_pose[0]
 
         self.scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])  # Make scene
 
@@ -289,7 +287,7 @@ class Renderer():
             self.ds_poses = makePoses(coordsFromData(self.ds.angles, self.ds.positions))
         self.setObjectPoses(self.ds_poses[idx])
 
-        setPoses(self.scene, [self.camera_node], [makePose(*readCameraPose(self.cam_path,idx))])
+        setPoses(self.scene, [self.camera_node], [makePose(*self.ds.camera_pose[idx])])
 
 
     def getColorDict(self):
@@ -367,7 +365,7 @@ class Aligner():
 
     def __init__(self, dataset, skeleton, start_idx = None, end_idx = None):
         # Load dataset
-        self.ds = Dataset(dataset, skeleton)
+        self.ds = Dataset(dataset, skeleton, permissions='a')
 
         self.renderer = Renderer(dataset, skeleton, mode='seg_full')
         self.cam_path = self.renderer.cam_path
@@ -384,16 +382,13 @@ class Aligner():
         else:
             self.end_idx = self.ds.length - 1
 
-        # Read in camera pose if it's been written before
-        if os.path.isfile(self.cam_path):
-            self.readCameraPose(self.start_idx)
-        else:
-            # Init pose, write
-            self.c_pose = [1.425,.009,0.416,-.01,np.pi/2,np.pi/2]
-            a = np.zeros((self.ds.length,6))
-            for idx in range(self.ds.length):
-                a[idx] = self.c_pose
-            np.save(self.cam_path,a)
+        self.inc = int((self.end_idx - self.start_idx + 1)/20)
+        if self.inc > 10:
+            self.inc = 10
+        if self.inc < 1:
+            self.inc = 1
+
+        self.c_pose = self.ds.camera_pose[self.start_idx]
 
         # Movement steps
         self.xyz_steps = [.001,.005,.01,.05,.1,.25,.5]
@@ -401,17 +396,11 @@ class Aligner():
         self.step_loc = len(self.xyz_steps) - 4
 
 
-    def setCameraPose(self):
-        self.camera_pose_arr = makePose(*self.c_pose)
-        self.renderer.scene.set_pose(self.renderer.camera_node, self.camera_pose_arr)
-
-
     def run(self):
         ret = True
 
         while ret:
 
-            self.setCameraPose()
             real = self.ds.og_img[self.idx]
             self.renderer.setPosesFromDS(self.idx)
             render, depth = self.renderer.render()
@@ -455,10 +444,10 @@ class Aligner():
                 self.step_loc = 0
             return True
         elif inp == ord('k'):
-            self.increment(-5)
+            self.increment(-self.inc)
             return True
         elif inp == ord('l'):
-            self.increment(5)
+            self.increment(self.inc)
             return True
 
         if inp == ord('w'):
@@ -507,20 +496,12 @@ class Aligner():
 
 
     def increment(self, step):
-        if not (self.idx + step >= self.end_idx) and not (self.idx + step < self.start_idx):
+        if not (self.idx + step > self.end_idx) and not (self.idx + step < self.start_idx):
             self.idx += step
 
 
     def saveCameraPose(self):
-        arr = np.load(self.cam_path)
         for idx in range(self.start_idx, self.end_idx + 1):
-            arr[idx] = self.c_pose
-        while True:
-            try:
-                np.save(self.cam_path, arr)
-                break
-            except PermissionError:
-                time.sleep(.05)
+            #self.ds.file['images/camera_poses'][idx] = self.c_pose
+            self.ds.camera_pose[idx,:] = self.c_pose
 
-    def readCameraPose(self,idx):
-        self.c_pose = np.load(self.cam_path)[idx]

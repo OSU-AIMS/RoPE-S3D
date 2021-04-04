@@ -2,37 +2,23 @@
     "compiled": {
         "full": {
             "names": [
-                "bigboi",
                 "set0"
             ],
             "paths": [
-                "data/bigboi\\bigboi.h5",
                 "data/set0\\set0.h5"
             ]
         },
         "train": {
-            "names": [
-                "bigboi"
-            ],
-            "paths": [
-                "data/bigboi\\bigboi_train.h5"
-            ]
+            "names": [],
+            "paths": []
         },
         "validate": {
-            "names": [
-                "bigboi"
-            ],
-            "paths": [
-                "data/bigboi\\bigboi_validate.h5"
-            ]
+            "names": [],
+            "paths": []
         },
         "test": {
-            "names": [
-                "bigboi"
-            ],
-            "paths": [
-                "data/bigboi\\bigboi_test.h5"
-            ]
+            "names": [],
+            "paths": []
         }
     },
     "uncompiled": {

@@ -44,6 +44,7 @@ class Builder():
         self._load_imgs_and_depthmaps()
         self._segment_images_and_maps()
         self._save_reference_videos()
+        self._make_camera_poses()
         return self._save_full(dataset_ver)
 
     def build_subset(self, src, sub_type, idxs):
@@ -167,6 +168,9 @@ class Builder():
         save_video(os.path.join(self.dest_path,"og_vid.avi"), self.orig_img_arr)
         save_video(os.path.join(self.dest_path,"seg_vid.avi"), self.segmented_img_arr)
 
+    def _make_camera_poses(self):
+        self.camera_poses = np.vstack([[1.425,.087,.399,-.01,1.551,1.546]] * self.length)
+
     def _save_full(self, ver):
         dest = os.path.join(self.dest_path, self.name + '.h5')
         with tqdm(total=10, desc="Writing Dataset") as pbar:
@@ -199,6 +203,7 @@ class Builder():
                 img_grp.create_dataset('segmented', data = self.segmented_img_arr, compression="gzip")
                 pbar.update(1)
                 img_grp.create_dataset('rois', data = self.rois, compression="gzip")
+                img_grp.create_dataset('camera_poses', data = self.camera_poses, compression="gzip")
                 pbar.update(1)
                 path_grp = file.create_group('paths')
                 path_grp.create_dataset('jsons', data = np.array(self.jsons, dtype=h5py.string_dtype()), compression="gzip")
@@ -234,6 +239,7 @@ class Builder():
                 self.segmented_img_arr = np.array(file['images/segmented'])
                 pbar.update(1)
                 self.rois = np.array(file['images/rois'])
+                self.camera_poses = np.array(file['images/camera_poses'])
                 pbar.update(1)
 
                 self.jsons = np.array(file['paths/jsons'])
@@ -269,6 +275,7 @@ class Builder():
                 img_grp.create_dataset('segmented', data = self.segmented_img_arr[idxs], compression="gzip")
                 pbar.update(1)
                 img_grp.create_dataset('rois', data = self.rois[idxs], compression="gzip")
+                img_grp.create_dataset('camera_poses', data = self.camera_poses[idxs], compression="gzip")
                 pbar.update(1)
                 path_grp = file.create_group('paths')
                 path_grp.create_dataset('jsons', data = np.array(self.jsons[idxs], dtype=h5py.string_dtype()), compression="gzip")
