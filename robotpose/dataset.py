@@ -301,6 +301,8 @@ class Dataset():
         print("\nLoading Dataset...")
         file = h5py.File(self.dataset_path,'r')
         self.attrs = dict(file.attrs)
+        self.og_resolution = self.attrs['original_resolution']
+        self.seg_resolution = self.attrs['segmented_resolution']
         self.length = self.attrs['length']
         self.angles = file['angles']
         self.positions = file['positions']
@@ -309,9 +311,11 @@ class Dataset():
         self.seg_img = file['images/segmented']
         self.rois = file['images/rois']
 
-        # Set deeppose dataset path
+        # Set paths
         self.deepposeds_path = os.path.join(self.dataset_dir,'deeppose.h5')
         self.seg_anno_path = os.path.join(self.dataset_dir,'seg_anno')
+        self.og_vid_path = os.path.join(self.dataset_dir,'og_vid.avi')
+        self.seg_vid_path = os.path.join(self.dataset_dir,'seg_vid.avi')
 
         # If a skeleton is set, change paths accordingly
         if skeleton is not None:

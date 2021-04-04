@@ -10,6 +10,7 @@
 import open3d as o3d
 import numpy as np
 from . import projection as proj
+from .utils import expandRegion
 
 
 # def crop(ply_path, image, mask, roi):
@@ -74,6 +75,7 @@ def crop(depthmap, image, mask, roi):
         mask_img[:,:,idx] = mask
     output_image = np.multiply(image, mask_img).astype(np.uint8)
     output_image = output_image[roi[0]:roi[2],roi[1]:roi[3]]
+    pointmap = np.multiply(pointmap, expandRegion(mask_img,25))
     pointmap = pointmap[roi[0]:roi[2],roi[1]:roi[3]]
 
     return output_image, pointmap

@@ -7,6 +7,7 @@
 #
 # Author: Adam Exley
 
+from imgaug.augmenters import color
 from deepposekit.models import load_model
 from deepposekit.io import VideoReader
 import cv2
@@ -18,12 +19,12 @@ import pickle
 from robotpose import paths as p
 from robotpose.dataset import Dataset
 from robotpose.utils import reject_outliers_iqr
+from robotpose.turbo_colormap import color_array
 
 setMemoryGrowth()
 
 # Load dataset
-ds = Dataset('set6','B')
-print(ds.resolution)
+ds = Dataset('set0','B')
 
 # Read in Actual angles from JSONs to compare predicted angles to
 S_angles = ds.angles[:,0]
@@ -33,20 +34,20 @@ B_angles = ds.angles[:,4]
 
 # Load model, make predictions
 model = load_model(os.path.join(os.getcwd(),r'models\set6_slu__B__CutMobilenet.h5'))
-reader = VideoReader(ds.vid_path)
+reader = VideoReader(ds.seg_vid_path)
 predictions = model.predict(reader)
 
 # np.save('set6_output.npy',predToXYZ(predictions, ds.ply))
 # print("Predictions saved")
 
 pred_dict = predToDictList_new(predictions)
-pred_dict_xyz = predToXYZdict(pred_dict, ds.ply)
+pred_dict_xyz = predToXYZdict_new(pred_dict, ds.pointmaps)
 
 # Load video capture and make output
-cap = ds.vid
+cap = cv2.VideoCapture(ds.seg_vid_path)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 #out = cv2.VideoWriter(p.video.replace(".avi","_overlay.avi"),fourcc, 12.5, (ds.resolution[1]*2,ds.resolution[0]))
-out = cv2.VideoWriter(p.VIDEO.replace(".avi","_overlay.avi"),fourcc, 12.5, (ds.resolution[1],ds.resolution[0]))
+out = cv2.VideoWriter(p.VIDEO.replace(".avi","_overlay.avi"),fourcc, 12.5, (ds.seg_resolution[1],ds.seg_resolution[0]))
 
 # Init predicted angle lists
 S_pred = []
@@ -61,7 +62,7 @@ frame_width = image.shape[1]
 
 i = 0
 while ret:
-    over = np.zeros((ds.resolution[0],ds.resolution[1],3),dtype=np.uint8)
+    over = np.zeros((ds.seg_resolution[0],ds.seg_resolution[1],3),dtype=np.uint8)
     coord_dict = pred_dict_xyz[i]
     
     # Predict S using the B joint position in reference to the R and U joints
@@ -91,6 +92,7 @@ while ret:
 
     # Put depth info on overlay
     #vizDepth_new(ds.ply[i], over)
+    over = color_array(ds.pointmaps[i,:,:,2], .1)
     #Visualize lines
     viz(image, over, predictions[i])
 
