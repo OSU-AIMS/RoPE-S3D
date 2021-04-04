@@ -13,18 +13,18 @@ def save_video(path, img_arr):
 
 def test_render():
 
-    r = Renderer('bigboi', 'B')
+    r = Renderer('bigboi', 'B', ds_type='test')
     r.setMode('key')
 
     color_frames =[]
 
-    for frame in range(1000):
+    for frame in range(r.ds.length):
             
         r.setPosesFromDS(frame)
         color,depth = r.render(True)
         color_frames.append(color)
         cv2.imshow("Render", color)
-        cv2.waitKey(1)
+        cv2.waitKey(50)
 
     save_video('output/test_render.avi',np.array(color_frames))
 

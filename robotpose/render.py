@@ -204,6 +204,7 @@ class Renderer():
             self,
             dataset,
             skeleton,
+            ds_type = 'full',
             mode = 'seg',
             camera_pose = None,
             camera_intrin = '1280_720_color',
@@ -216,7 +217,7 @@ class Renderer():
         self.robot_name = robot_name
 
         # Load dataset
-        self.ds = Dataset(dataset, skeleton)
+        self.ds = Dataset(dataset, skeleton, ds_type = ds_type)
 
         # Load meshes
         ml = MeshLoader()

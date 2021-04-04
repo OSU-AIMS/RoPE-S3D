@@ -289,14 +289,8 @@ class Dataset():
             pass    
 
 
-    # def makeNewSubsets(self):
-    #     train_idx, valid_idx, test_idx = dataset_split(self.angles)
-    #     self._writeSubset('train', train_idx)
-    #     self._writeSubset('validate',valid_idx)
-    #     self._writeSubset('test',test_idx)
-
-
     def makeNewSubsets(self):
+        print("Writing Subsets...")
         idxs = dataset_split(self.angles)
         sub_types = ['train','validate','test']
         bob = Builder()
@@ -334,6 +328,8 @@ class Dataset():
     def build(self,data_path):
         bob = Builder()
         bob.build_full(data_path)
+        if self.type == 'full':
+            self.makeNewSubsets()
 
 
     def build_from_zip(self, zip_path):

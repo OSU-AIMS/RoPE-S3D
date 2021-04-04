@@ -20,7 +20,7 @@ import robotpose.paths as p
 
 
 def train(dataset, skeleton, batch, valid):
-    ds = Dataset(dataset, skeleton)
+    ds = Dataset(dataset, skeleton, ds_type='train')
 
     print("Splitting up data...")
     # Split set into validation and train
