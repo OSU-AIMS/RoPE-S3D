@@ -74,134 +74,18 @@ def get_config():
     return d
 
 
-
-def stratified_dataset_split(joint_angles):
-    """
-    This is best used whenever positions are assumed to be uniformly distributed,
-    as stratification will be more useful and representative.
-    """
-    min_angs = np.min(joint_angles, 0)
-    max_angs = np.max(joint_angles, 0)
-    joint_moves = min_angs != max_angs
-    moving_joints = np.sum(joint_moves)
+def dataset_split(joint_angles):
 
     config = get_config()
     valid_size = int(config['split_ratios']['validate'] * len(joint_angles))
     test_size = int(config['split_ratios']['test'] * len(joint_angles))
-    train_size = len(joint_angles) - valid_size - test_size
-
-    # Determine configurations
-    def generate_zones(size):
-        r = int(size ** (1 / moving_joints)) + 1
-        cfg_mat = np.zeros((r ** moving_joints, moving_joints))
-        
-        for idx in range(moving_joints):
-            cfg_mat[:,idx] = np.tile(np.repeat(np.arange(1,r+1), r ** idx), int((r ** (moving_joints))/r**(idx+1)))
-
-        combos = np.prod(cfg_mat,1)
-        diff = np.abs(combos - size)
-        cfg_mat = cfg_mat[np.where(diff == np.min(diff))]
-
-        if cfg_mat.shape[0] != 1:
-            relative_weights = (max_angs - min_angs)[joint_moves]
-            weighted = cfg_mat / np.tile(relative_weights, (cfg_mat.shape[0],1))
-            scores = np.sum(weighted, 1)
-            minima = np.argmin(scores)
-            return cfg_mat[minima]
-        else:
-            return cfg_mat
-
-    def sample(size, cfg_mat, used_indicies):
-        zone_arr = np.copy(cfg_mat)
-        zone_arr += 1
-        intervals = []
-        for idx in range(moving_joints):
-            intervals.append(np.linspace(min_angs[idx], max_angs[idx], int(zone_arr[idx])))
-
-        def make_sampling_arr():
-            sampling_arr = joint_angles[:, joint_moves == True]
-            np.delete(sampling_arr, used_indicies, 0)
-            return sampling_arr
-
-        idx_array = np.zeros((moving_joints,))
-
-        def update_idx_arr():
-            for idx in range(moving_joints):
-                if idx_array[idx] == cfg_mat[idx]:
-                    idx_array[idx] = 0
-                    if idx == moving_joints - 1:
-                        return False
-                    else:
-                        idx_array[idx + 1] += 1
-                        return True
-
-        def get_range_arr():
-            range_arr = np.zeros((moving_joints,2))
-            for idx in range(moving_joints):
-                range_arr[idx,0] = intervals[idx][idx_array[idx]]
-                range_arr[idx,1] = intervals[idx][idx_array[idx] + 1]
-            return range_arr
-
-        selected_idxs = []
-        while(update_idx_arr()):
-            range_arr = get_range_arr()
-            sampling_arr = make_sampling_arr()
-            for idx in range(moving_joints):
-                sampling_arr[sampling_arr[:,idx] >= range_arr[idx,0],:]
-                sampling_arr[sampling_arr[:,idx] <= range_arr[idx,1],:]
-
-            if len(sampling_arr) != 0:
-                c = np.random.choice(len(sampling_arr))
-                choice = sampling_arr[c]
-                actual = joint_angles[0]
-                actual[joint_moves == True] = choice
-                i = np.where((joint_angles == choice).all(axis=1))
-                selected_idxs.append(i)
-                used_indicies.append(i)
-
-            idx_array[0] += 1
-
-        # if len(selected_idxs) < size:
-        #     unused = [x for x in range(joint_angles.shape[0]) if x not in used_indicies]
-        #     extra = np.random.choice(unused, size - len(selected_idxs), replace=False)
-        #     selected_idxs.extend(extra)
-        #     used_indicies.extend(extra)
-        
-        return selected_idxs
-       
-    used = []
-    test_idxs = sample(test_size, generate_zones(test_size), used)
-    valid_idxs = sample(valid_size, generate_zones(valid_size), used)
-    train_idxs = [x for x in range(joint_angles.shape[0]) if x not in used]
-
-    valid_idxs.sort()
-    test_idxs.sort()
-
-    return train_idxs, valid_idxs, test_idxs
-
-
-
-def simple_dataset_split(joint_angles):
-    """
-    This is best used whenever positions are assumed to be uniformly distributed,
-    as stratification will be more useful and representative.
-    """
-    min_angs = np.min(joint_angles, 0)
-    max_angs = np.max(joint_angles, 0)
-    joint_moves = min_angs != max_angs
-    moving_joints = np.sum(joint_moves)
-
-    config = get_config()
-    valid_size = int(config['split_ratios']['validate'] * len(joint_angles))
-    test_size = int(config['split_ratios']['test'] * len(joint_angles))
-    train_size = len(joint_angles) - valid_size - test_size
 
     def sample(size, used):
         selected = []
         unused = [x for x in range(joint_angles.shape[0]) if x not in used]
         intervals = np.linspace(min(unused),max(unused), int(len(unused)/size))
-        for idx in range(intervals - 1):
-            unused = [x for x in range(joint_angles.shape[0]) if x not in used]
+        for idx in range(len(intervals) - 1):
+            unused = np.array([x for x in range(joint_angles.shape[0]) if x not in used])
             pool = unused[unused >= intervals[idx]]
             pool = pool[pool <= intervals[idx + 1]]
             c = np.random.choice(pool)
@@ -213,6 +97,8 @@ def simple_dataset_split(joint_angles):
             extra = np.random.choice(unused, size - len(selected), replace=False)
             selected.extend(extra)
             used.extend(extra)
+
+        return selected
 
     used = []
     test_idxs = sample(test_size, used)
@@ -403,6 +289,19 @@ class Dataset():
             pass    
 
 
+    # def makeNewSubsets(self):
+    #     train_idx, valid_idx, test_idx = dataset_split(self.angles)
+    #     self._writeSubset('train', train_idx)
+    #     self._writeSubset('validate',valid_idx)
+    #     self._writeSubset('test',test_idx)
+
+
+    def makeNewSubsets(self):
+        idxs = dataset_split(self.angles)
+        sub_types = ['train','validate','test']
+        bob = Builder()
+        bob.build_subsets(self.dataset_path, sub_types, idxs)
+
 
     def load(self, skeleton=None):
         print("\nLoading Dataset...")
@@ -458,7 +357,7 @@ class Dataset():
             return bob.build_full(src_dir, DATASET_VERSION, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
 
 
-    def writeSubset(self, sub_type, idxs):
+    def _writeSubset(self, sub_type, idxs):
         bob = Builder()
         bob.build_subset(self.dataset_path, sub_type, idxs)
 

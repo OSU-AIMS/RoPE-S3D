@@ -11,16 +11,28 @@
             ]
         },
         "train": {
-            "names": [],
-            "paths": []
+            "names": [
+                "bigboi"
+            ],
+            "paths": [
+                "data/bigboi\\bigboi_train.h5"
+            ]
         },
         "validate": {
-            "names": [],
-            "paths": []
+            "names": [
+                "bigboi"
+            ],
+            "paths": [
+                "data/bigboi\\bigboi_validate.h5"
+            ]
         },
         "test": {
-            "names": [],
-            "paths": []
+            "names": [
+                "bigboi"
+            ],
+            "paths": [
+                "data/bigboi\\bigboi_test.h5"
+            ]
         }
     },
     "uncompiled": {
