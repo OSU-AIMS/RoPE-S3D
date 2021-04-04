@@ -414,7 +414,11 @@ class Aligner():
         move = True
 
         while ret:
-            self.gui.update(self.section_starts, self.section_idx)
+            event, values = self.gui.update(self.section_starts, self.section_idx)
+            if event == 'quit':
+                print("Quit by user.")
+                ret = False
+                continue
             if move:
                 real = self.real_arr[self.idx]
                 self.renderer.setPosesFromDS(self.idx)
@@ -529,6 +533,7 @@ class Aligner():
             if np.all(self.ds.camera_pose[idx] != p):
                 self.section_starts.append(idx)
                 p = self.ds.camera_pose[idx,:]
+        self.section_starts.append(self.ds.length)
         return self.section_starts
 
     def _newSection(self, idx):
@@ -552,16 +557,21 @@ class AlignerGUI():
         self.time = time.time()
 
     def update(self, section_starts, section_idx):
-        section_starts = [0,5,9]
         event, values = self.window.read(timeout=1)
         section_table = []
         for idx in range(len(section_starts)-1):
             section_table.append([[f"{section_starts[idx]} - {section_starts[idx+1]-1}"]])
 
+        self.window['editing'].update(f"{section_starts[section_idx]} - {section_starts[section_idx+1]-1}")
         self.window['sections'].update(section_table)
 
         if event == 'new_section':
             pass
+        if event == 'quit':
+            self.close()
+            return ['quit',False]
+
+        return [None,None]
 
     def close(self):
         self.window.close()
