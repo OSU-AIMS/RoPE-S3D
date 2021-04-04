@@ -371,8 +371,13 @@ class Dataset():
 
         for file in [x for x in os.listdir(p.SKELETONS) if x.endswith('.json')]:
             if self.skeleton in os.path.splitext(file)[0]:
-                with open(os.path.join(p.SKELETONS, file),'r') as f:
-                    self.keypoint_data = json.load(f)
+                self.keypoint_data_path = os.path.join(p.SKELETONS, file)
+                self.updateKeypointData()
+
+    
+    def updateKeypointData(self):
+        with open(self.keypoint_data_path,'r') as f:
+            self.keypoint_data = json.load(f)
 
 
     def makeDeepPoseDS(self, force=False):

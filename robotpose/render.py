@@ -211,6 +211,8 @@ class Renderer():
             robot_name="mh5"
             ):
 
+        self.mode = mode
+
         self.robot_name = robot_name
 
         # Load dataset
@@ -252,7 +254,22 @@ class Renderer():
         for node in self.joint_nodes:
             self.scene.add_node(node)
 
-        # Add in keypoint markers
+        self._updateKeypoints()
+
+        self.rend = pyrender.OffscreenRenderer(*resolution)
+
+        self.setMode(mode)
+
+
+    def _updateKeypoints(self):
+        # Remove olds
+        if hasattr(self, 'key_nodes'):
+            if len(self.key_nodes) > 0:
+                for node in self.key_nodes:
+                    if self.scene.has_node(node):
+                        self.scene.remove_node(node)
+
+        # Add in new
         self.key_nodes = []
         marker = trimesh.creation.cylinder(
             self.ds.keypoint_data['markers']['radius'],
@@ -267,12 +284,11 @@ class Renderer():
             self.key_nodes.append(n)
 
 
-        self.rend = pyrender.OffscreenRenderer(*resolution)
-
-        self.setMode(mode)
-
 
     def render(self):
+        self.ds.updateKeypointData()
+        self._updateKeypoints()
+        self._updateMode()
         return self.rend.render(
             self.scene,
             flags=pyrender.constants.RenderFlags.SEG,
@@ -308,26 +324,25 @@ class Renderer():
         elif self.mode == 'seg_full':
             return {self.robot_name: DEFAULT_COLORS[0]}
 
-
     def setMode(self, mode):
         valid_modes = ['seg','key','seg_full']
         assert mode in valid_modes, f"Mode invalid; must be one of: {valid_modes}"
-
         self.mode = mode
+        self._updateMode()
+
+    def _updateMode(self):
 
         self.node_color_map = {}
 
-        if mode == 'seg':
+        if self.mode == 'seg':
             for joint, idx in zip(self.joint_nodes, range(len(self.joint_nodes))):
                 self.node_color_map[joint] = DEFAULT_COLORS[idx]
-            
-        elif mode == 'key':
+        elif self.mode == 'key':
             for keypt, idx in zip(self.key_nodes, range(len(self.key_nodes))):
                 self.node_color_map[keypt] = DEFAULT_COLORS[idx]
             for joint in self.joint_nodes:
                 self.node_color_map[joint] = DEFAULT_COLORS[-1]
-
-        elif mode == 'seg_full':
+        elif self.mode == 'seg_full':
             for joint in self.joint_nodes:
                 self.node_color_map[joint] = DEFAULT_COLORS[0]
  
@@ -490,6 +505,7 @@ class Aligner():
         image = cv2.putText(image, pose_str,(10,50), cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
         image = cv2.putText(image, str(self.xyz_steps[self.step_loc]),(10,100), cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
         image = cv2.putText(image, str(self.ang_steps[self.step_loc]),(10,150), cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
+        image = cv2.putText(image, str(self.idx),(10,200), cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
         return image
 
 
