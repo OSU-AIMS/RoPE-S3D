@@ -321,14 +321,14 @@ class Renderer():
         # Add in new
         self.key_nodes = []
         marker = trimesh.creation.cylinder(
-            self.ds.keypoint_data['markers']['radius'],
-            height=self.ds.keypoint_data['markers']['height']
+            self.ds.skele.data['markers']['radius'],
+            height=self.ds.skele.data['markers']['height']
             )
         marker = pyrender.Mesh.from_trimesh(marker)
 
-        for name in self.ds.keypoint_data['keypoints'].keys():
-            parent = self.ds.keypoint_data['keypoints'][name]['parent_joint']
-            pose = makePose(*self.ds.keypoint_data['keypoints'][name]['pose'])
+        for name in self.ds.skele.keypoints:
+            parent = self.ds.skele.keypoint_data[name]['parent_joint']
+            pose = makePose(*self.ds.skele.keypoint_data[name]['pose'])
             n = self.scene.add(marker, name=name, pose=pose, parent_name=parent)
             self.key_nodes.append(n)
 

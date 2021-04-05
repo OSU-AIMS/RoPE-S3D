@@ -18,7 +18,7 @@ def anno(set,skele):
 
     app = Annotator(datapath=os.path.abspath(ds.deepposeds_path),
                     dataset='images',
-                    skeleton=ds.skeleton_path,
+                    skeleton=ds.skele.csv_path,
                     shuffle_colors=False,
                     text_scale=1)
 

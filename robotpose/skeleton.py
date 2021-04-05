@@ -1,3 +1,12 @@
+# Software License Agreement (Apache 2.0 License)
+#
+# Copyright (c) 2021, The Ohio State University
+# Center for Design and Manufacturing Excellence (CDME)
+# The Artificially Intelligent Manufacturing Systems Lab (AIMS)
+# All rights reserved.
+#
+# Author: Adam Exley
+
 import json
 import numpy as np
 import os
@@ -18,7 +27,7 @@ class Skeleton():
         if not csv_:
             raise ValueError(
                 f"The skeleton base document, {name + '.csv'} was not found in {p.SKELETONS}.\
-                Please create a skeleton before attempting to use it")
+                Please create a skeleton before attempting to use it.")
 
         self.csv_path = os.path.join(p.SKELETONS, name + '.csv')
 
@@ -26,6 +35,20 @@ class Skeleton():
             self.json_path = os.path.join(p.SKELETONS, name + '.json')
         else:
             self._makeJSON()
+
+        self.update()
+
+
+    def update(self):
+        with open(self.json_path,'r') as f:
+            self.data = json.load(f)
+
+        self.keypoints = [x for x in self.data['keypoints'].keys()]
+        self.keypoint_data = self.data['keypoints']
+        try:
+            self.joint_data = self.data['joints']
+        except KeyError:
+            print("Skeleton Joint Config Missing")
 
 
     def _makeJSON(self):
@@ -61,12 +84,12 @@ class Skeleton():
         #joint_angle_data['T'] = {"type":3,"max":2,"min":-2,"predictors":default_predictors}
         joint_angle_data['R'] = {"type":3,"max":2,"min":-2,"predictors":{}}
 
-        json_info['joint_angles'] = joint_angle_data
+        json_info['joints'] = joint_angle_data
 
         with open(self.csv_path.replace('.csv','.json'),'w') as f:
             f.write(self._removePoseIndent(json.dumps(json_info, indent=4)))
 
-        #sys.exit(f"Made JSON configuration for skeleton {self.name}\nPlease configure before using.\n")
+        sys.exit(f"\nMade JSON configuration for skeleton {self.name}\nPlease configure before using.\n")
 
 
     def _removePoseIndent(self, string):

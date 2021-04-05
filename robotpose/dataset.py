@@ -16,6 +16,7 @@ import h5py
 
 from . import paths as p
 from .building import Builder
+from .skeleton import Skeleton
 
 
 INFO_JSON = os.path.join(p.DATASETS, 'datasets.json')
@@ -372,21 +373,11 @@ class Dataset():
 
 
     def setSkeleton(self,skeleton_name):
-        for file in [x for x in os.listdir(p.SKELETONS) if x.endswith('.csv')]:
-            if skeleton_name in os.path.splitext(file)[0]:
-                self.skeleton = os.path.splitext(file)[0]
-                self.skeleton_path = os.path.join(p.SKELETONS, file)
-                self.deepposeds_path = self.deepposeds_path.replace('.h5','_'+os.path.splitext(file)[0]+'.h5')
-
-        for file in [x for x in os.listdir(p.SKELETONS) if x.endswith('.json')]:
-            if self.skeleton in os.path.splitext(file)[0]:
-                self.keypoint_data_path = os.path.join(p.SKELETONS, file)
-                self.updateKeypointData()
+        self.skele = Skeleton(skeleton_name)
 
     
     def updateKeypointData(self):
-        with open(self.keypoint_data_path,'r') as f:
-            self.keypoint_data = json.load(f)
+        self.skele.update()
 
 
     def makeDeepPoseDS(self, force=False):
@@ -394,7 +385,7 @@ class Dataset():
             initialize_dataset(
                 images=np.array(self.seg_img),
                 datapath=self.deepposeds_path,
-                skeleton=self.skeleton_path,
+                skeleton=self.skele.csv_path,
                 overwrite=True # This overwrites the existing datapath
             )
             return
@@ -403,7 +394,7 @@ class Dataset():
             initialize_dataset(
                 images=np.array(self.seg_img),
                 datapath=self.deepposeds_path,
-                skeleton=self.skeleton_path,
+                skeleton=self.skele.csv_path,
                 overwrite=False # This overwrites the existing datapath
             )
         else:
