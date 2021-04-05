@@ -50,6 +50,9 @@ class Skeleton():
         except KeyError:
             print("Skeleton Joint Config Missing")
 
+    def _hasJointConfig(self):
+        return 'joints' in self.data.keys()
+
 
     def _makeJSON(self):
         

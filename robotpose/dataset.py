@@ -10,6 +10,8 @@
 import json
 import numpy as np
 import os
+import tempfile
+import zipfile
 
 from deepposekit.io import initialize_dataset
 import h5py
@@ -350,8 +352,7 @@ class Dataset():
         """
         Build dataset from a tempdir that is the extracted data
         """
-        import tempfile
-        import zipfile
+
         with tempfile.TemporaryDirectory() as tempdir:
             print("Extracting raw data...")
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:

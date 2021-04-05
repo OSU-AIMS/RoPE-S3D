@@ -21,6 +21,9 @@ from robotpose.dataset import Dataset
 from robotpose.utils import reject_outliers_iqr
 from robotpose.turbo_colormap import color_array
 
+from robotpose.angle_prediction import Predictor
+import sys
+
 setMemoryGrowth()
 
 # Load dataset
@@ -36,6 +39,11 @@ B_angles = ds.angles[:,4]
 model = load_model(os.path.join(os.getcwd(),r'models\set6_slu__B__CutMobilenet.h5'))
 reader = VideoReader(ds.seg_vid_path)
 predictions = model.predict(reader)
+tim = Predictor('B')
+tim.load(predictions[50], ds.pointmaps[50])
+print(predictions[50])
+
+sys.exit()
 
 # np.save('set6_output.npy',predToXYZ(predictions, ds.ply))
 # print("Predictions saved")
