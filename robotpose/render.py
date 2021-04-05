@@ -427,6 +427,8 @@ class Aligner():
                     move = True
 
             self._getSection()
+            self.readCameraPose()
+
             if move:
                 real = self.real_arr[self.idx]
                 self.renderer.setPosesFromDS(self.idx)
@@ -512,24 +514,26 @@ class Aligner():
 
 
     def increment(self, step):
-        if not (self.idx + step > self.end_idx) and not (self.idx + step < self.start_idx):
+        if (self.idx + step >= 0) and (self.idx + step < self.ds.length):
             self.idx += step
 
 
     def saveCameraPose(self):
         for idx in range(self.start_idx, self.end_idx + 1):
-            #self.ds.file['images/camera_poses'][idx] = self.c_pose
             self.ds.camera_pose[idx,:] = self.c_pose
+
+    def readCameraPose(self):
+        self.c_pose = self.ds.camera_pose[self.idx,:]
 
     def _findSections(self):
         self.section_starts = []
         p = [0,0,0,0,0,0]
         for idx in range(self.ds.length):
-            if np.all(self.ds.camera_pose[idx] != p):
+            if not np.array_equal(self.ds.camera_pose[idx], p):
                 self.section_starts.append(idx)
                 p = self.ds.camera_pose[idx,:]
         self.section_starts.append(self.ds.length)
-        return self.section_starts
+        self.section_starts
 
     def _newSection(self, idx):
         self.section_starts.append(idx)
