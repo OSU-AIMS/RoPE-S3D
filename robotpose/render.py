@@ -10,10 +10,12 @@
 import numpy as np
 import os
 import json
+import time
 
 import cv2
 import trimesh
 import pyrender
+import PySimpleGUI as sg
 
 from . import paths as p
 #from .autoAnnotate import makeMask
@@ -352,6 +354,7 @@ class Renderer():
 
 
 
+
 class Aligner():
     """
     Used to manually find the position of camera relative to robot.
@@ -397,40 +400,52 @@ class Aligner():
         self.ang_steps = [.0005,.001,.005,.01,.025,.05,.1]
         self.step_loc = len(self.xyz_steps) - 4
 
+        self._findSections()
+        self.section_idx = 0
+
+        print("Copying Image Array...")
+        self.real_arr = np.copy(self.ds.og_img)
+
+        self.gui = AlignerGUI()
+
 
     def run(self):
         ret = True
         move = True
 
         while ret:
+            event, values = self.gui.update(self.section_starts, self.section_idx)
+            if event == 'quit':
+                print("Quit by user.")
+                ret = False
+                continue
+            elif event == 'new_section':
+                self._newSection(values)
+            elif event == 'goto':
+                if 0 <= self.idx and self.idx < self.ds.length:
+                    self.idx = values
+                    move = True
+
+            self._getSection()
+            self.readCameraPose()
+
             if move:
-                real = self.ds.og_img[self.idx]
+                real = self.real_arr[self.idx]
                 self.renderer.setPosesFromDS(self.idx)
                 render, depth = self.renderer.render()
                 image = self.combineImages(real, render)
+                move = False
             image = self.addOverlay(image)
             cv2.imshow("Aligner", image)
 
-            inp = cv2.waitKey(0)
+            inp = cv2.waitKey(1)
             ret, move = self.moveCamera(inp)
 
+        self.gui.close()
         cv2.destroyAllWindows()
 
 
-
     def moveCamera(self,inp):
-        """
-        W/S - Move forward/backward
-        A/D - Move left/right
-        Z/X - Move up/down
-        Q/E - Roll
-        R/F - Tilt down/up
-        G/H - Pan left/right
-        +/- - Increase/Decrease Step size
-        K/L - Last/Next image
-        0 - Quit
-        """
-
         xyz_step = self.xyz_steps[self.step_loc]
         ang_step = self.ang_steps[self.step_loc]
 
@@ -499,25 +514,81 @@ class Aligner():
 
 
     def increment(self, step):
-        if not (self.idx + step > self.end_idx) and not (self.idx + step < self.start_idx):
+        if (self.idx + step >= 0) and (self.idx + step < self.ds.length):
             self.idx += step
 
 
     def saveCameraPose(self):
         for idx in range(self.start_idx, self.end_idx + 1):
-            #self.ds.file['images/camera_poses'][idx] = self.c_pose
             self.ds.camera_pose[idx,:] = self.c_pose
+
+    def readCameraPose(self):
+        self.c_pose = self.ds.camera_pose[self.idx,:]
 
     def _findSections(self):
         self.section_starts = []
-        p = []
+        p = [0,0,0,0,0,0]
         for idx in range(self.ds.length):
-            if self.ds.camera_pose[idx,:] != p:
+            if not np.array_equal(self.ds.camera_pose[idx], p):
                 self.section_starts.append(idx)
                 p = self.ds.camera_pose[idx,:]
-        return self.section_starts
+        self.section_starts.append(self.ds.length)
+        self.section_starts
 
     def _newSection(self, idx):
         self.section_starts.append(idx)
         self.section_starts.sort()
 
+    def _getSection(self):
+        section_start = max([x for x in self.section_starts if x <= self.idx])
+        self.section_idx = self.section_starts.index(section_start)
+        self.start_idx = section_start
+        self.end_idx = self.section_starts[self.section_idx + 1] - 1
+
+
+
+
+
+
+class AlignerGUI():
+
+    def __init__(self):
+        control_str = "W/S - Move forward/backward\n"+\
+            "A/D - Move left/right\nZ/X - Move up/down\nQ/E - Roll\n"+\
+            "R/F - Tilt down/up\nG/H - Pan left/right\n+/- - Increase/Decrease Step size\nK/L - Last/Next image"
+        self.layout = [[sg.Text("Currently Editing:"), sg.Text(size=(40,1), key='editing')],
+                        [sg.Input(size=(5,1),key='num_input'),sg.Button('Go To',key='num_goto'), sg.Button('New Section',key='new_section')],
+                        [sg.Text("",key='warn',text_color="red", size=(22,1))],
+                        [sg.Table([[["Sections:"]],[[1,1]]], key='sections'),sg.Text(control_str)],
+                        [sg.Button('Quit',key='quit')]]
+
+        self.window = sg.Window('Aligner Controls', self.layout, return_keyboard_events = True, use_default_focus=False)
+
+    def update(self, section_starts, section_idx):
+        event, values = self.window.read(timeout=1, timeout_key='tm')
+        section_table = []
+        for idx in range(len(section_starts)-1):
+            section_table.append([[f"{section_starts[idx]} - {section_starts[idx+1]-1}"]])
+
+        self.window['editing'].update(f"{section_starts[section_idx]} - {section_starts[section_idx+1]-1}")
+        self.window['sections'].update(section_table)
+
+        try:
+            if event == 'new_section':
+                return ['new_section',int(values['num_input'])]
+            elif event == 'num_goto':
+                return ['goto',int(values['num_input'])]
+            if len(values['num_input']) > 0:
+                if int(values['num_input']) is not None:
+                    self.window['warn'].update("")
+        except ValueError:
+            self.window['warn'].update("Please input a number.")
+
+        if event == 'quit':
+            self.close()
+            return ['quit',None]
+
+        return [None,None]
+
+    def close(self):
+        self.window.close()

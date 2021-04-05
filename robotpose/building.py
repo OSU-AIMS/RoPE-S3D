@@ -203,7 +203,7 @@ class Builder():
                 img_grp.create_dataset('segmented', data = self.segmented_img_arr, compression="gzip")
                 pbar.update(1)
                 img_grp.create_dataset('rois', data = self.rois, compression="gzip")
-                img_grp.create_dataset('camera_poses', data = self.camera_poses, compression="gzip")
+                img_grp.create_dataset('camera_poses', data = self.camera_poses)
                 pbar.update(1)
                 path_grp = file.create_group('paths')
                 path_grp.create_dataset('jsons', data = np.array(self.jsons, dtype=h5py.string_dtype()), compression="gzip")
