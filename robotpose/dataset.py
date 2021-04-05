@@ -289,6 +289,13 @@ class Dataset():
             #self.recompile()
             pass    
 
+    
+    def exportCameraPose(self):
+        np.save(os.path.join(self.dataset_dir,'camera_pose.npy'), self.camera_pose)
+
+    def importCameraPose(self):
+        camera_pose = np.load(os.path.join(self.dataset_dir,'camera_pose.npy'))
+        self.camera_pose[:] = camera_pose
 
     def makeNewSubsets(self):
         print("Writing Subsets...")
