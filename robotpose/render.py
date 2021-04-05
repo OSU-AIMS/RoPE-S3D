@@ -419,6 +419,14 @@ class Aligner():
                 print("Quit by user.")
                 ret = False
                 continue
+            elif event == 'new_section':
+                self._newSection(values)
+            elif event == 'goto':
+                if 0 <= self.idx and self.idx < self.ds.length:
+                    self.idx = values
+                    move = True
+
+            self._getSection()
             if move:
                 real = self.real_arr[self.idx]
                 self.renderer.setPosesFromDS(self.idx)
@@ -435,20 +443,7 @@ class Aligner():
         cv2.destroyAllWindows()
 
 
-
     def moveCamera(self,inp):
-        """
-        W/S - Move forward/backward
-        A/D - Move left/right
-        Z/X - Move up/down
-        Q/E - Roll
-        R/F - Tilt down/up
-        G/H - Pan left/right
-        +/- - Increase/Decrease Step size
-        K/L - Last/Next image
-        0 - Quit
-        """
-
         xyz_step = self.xyz_steps[self.step_loc]
         ang_step = self.ang_steps[self.step_loc]
 
@@ -540,6 +535,12 @@ class Aligner():
         self.section_starts.append(idx)
         self.section_starts.sort()
 
+    def _getSection(self):
+        section_start = max([x for x in self.section_starts if x <= self.idx])
+        self.section_idx = self.section_starts.index(section_start)
+        self.start_idx = section_start
+        self.end_idx = self.section_starts[self.section_idx + 1] - 1
+
 
 
 
@@ -548,16 +549,19 @@ class Aligner():
 class AlignerGUI():
 
     def __init__(self):
+        control_str = "W/S - Move forward/backward\n"+\
+            "A/D - Move left/right\nZ/X - Move up/down\nQ/E - Roll\n"+\
+            "R/F - Tilt down/up\nG/H - Pan left/right\n+/- - Increase/Decrease Step size\nK/L - Last/Next image"
         self.layout = [[sg.Text("Currently Editing:"), sg.Text(size=(40,1), key='editing')],
                         [sg.Input(size=(5,1),key='num_input'),sg.Button('Go To',key='num_goto'), sg.Button('New Section',key='new_section')],
-                        [sg.Table([[["Sections:"]],[[1,1]]], key='sections')],
+                        [sg.Text("",key='warn',text_color="red", size=(22,1))],
+                        [sg.Table([[["Sections:"]],[[1,1]]], key='sections'),sg.Text(control_str)],
                         [sg.Button('Quit',key='quit')]]
 
         self.window = sg.Window('Aligner Controls', self.layout, return_keyboard_events = True, use_default_focus=False)
-        self.time = time.time()
 
     def update(self, section_starts, section_idx):
-        event, values = self.window.read(timeout=1)
+        event, values = self.window.read(timeout=1, timeout_key='tm')
         section_table = []
         for idx in range(len(section_starts)-1):
             section_table.append([[f"{section_starts[idx]} - {section_starts[idx+1]-1}"]])
@@ -565,11 +569,20 @@ class AlignerGUI():
         self.window['editing'].update(f"{section_starts[section_idx]} - {section_starts[section_idx+1]-1}")
         self.window['sections'].update(section_table)
 
-        if event == 'new_section':
-            pass
+        try:
+            if event == 'new_section':
+                return ['new_section',int(values['num_input'])]
+            elif event == 'num_goto':
+                return ['goto',int(values['num_input'])]
+            if len(values['num_input']) > 0:
+                if int(values['num_input']) is not None:
+                    self.window['warn'].update("")
+        except ValueError:
+            self.window['warn'].update("Please input a number.")
+
         if event == 'quit':
             self.close()
-            return ['quit',False]
+            return ['quit',None]
 
         return [None,None]
 
