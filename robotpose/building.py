@@ -44,12 +44,20 @@ class Builder():
         self._load_imgs_and_depthmaps()
         self._segment_images_and_maps()
         self._save_reference_videos()
+        self._make_camera_poses()
         return self._save_full(dataset_ver)
 
     def build_subset(self, src, sub_type, idxs):
         self._read_full(src)
         dst = src.replace('.h5',f'_{sub_type}.h5')
         self._write_subset(dst, sub_type, idxs)
+
+    def build_subsets(self, src, sub_types, idxs):
+        self._read_full(src)
+        for tp, idx in zip(sub_types, idxs):
+            dst = src.replace('.h5',f'_{tp}.h5')
+            self._write_subset(dst, tp, np.array(idx))
+
 
 
 
@@ -160,6 +168,9 @@ class Builder():
         save_video(os.path.join(self.dest_path,"og_vid.avi"), self.orig_img_arr)
         save_video(os.path.join(self.dest_path,"seg_vid.avi"), self.segmented_img_arr)
 
+    def _make_camera_poses(self):
+        self.camera_poses = np.vstack([[1.425,.087,.399,-.01,1.551,1.546]] * self.length)
+
     def _save_full(self, ver):
         dest = os.path.join(self.dest_path, self.name + '.h5')
         with tqdm(total=10, desc="Writing Dataset") as pbar:
@@ -192,6 +203,7 @@ class Builder():
                 img_grp.create_dataset('segmented', data = self.segmented_img_arr, compression="gzip")
                 pbar.update(1)
                 img_grp.create_dataset('rois', data = self.rois, compression="gzip")
+                img_grp.create_dataset('camera_poses', data = self.camera_poses)
                 pbar.update(1)
                 path_grp = file.create_group('paths')
                 path_grp.create_dataset('jsons', data = np.array(self.jsons, dtype=h5py.string_dtype()), compression="gzip")
@@ -204,50 +216,74 @@ class Builder():
         return dest
 
     def _read_full(self, path):
-        with h5py.File(path,'r') as file:
-            self.attrs = file.attrs
-            self.name = file.attrs['name']
-            self.length = file.attrs['length']
+        with tqdm(total=10, desc="Reading Full Dataset") as pbar:
+            with h5py.File(path,'r') as file:
+                self.attrs = dict(file.attrs)
+                self.name = file.attrs['name']
+                self.length = file.attrs['length']
 
-            self.intrin_depth = file.attrs['depth_intrinsics']
-            self.intrin_color = file.attrs['color_intrinsics']
-            self.depth_scale = file.attrs['depth_scale']
-            self.ang_arr = file['angles']
-            self.pos_arr = file['positions']
-            self.depthmap_arr = file['coordinates/depthmaps']
-            self.pointmap = file['coordinates/pointmaps']
+                self.intrin_depth = file.attrs['depth_intrinsics']
+                self.intrin_color = file.attrs['color_intrinsics']
+                self.depth_scale = file.attrs['depth_scale']
+                self.ang_arr = np.array(file['angles'])
+                pbar.update(1)
+                self.pos_arr = np.array(file['positions'])
+                pbar.update(1)
+                self.depthmap_arr = np.array(file['coordinates/depthmaps'])
+                pbar.update(1)
+                self.pointmap = np.array(file['coordinates/pointmaps'])
+                pbar.update(1)
 
-            self.orig_img_arr = file['images/original']
-            self.segmented_img_arr = file['images/segmented']
-            self.rois = file['images/rois']
+                self.orig_img_arr = np.array(file['images/original'])
+                pbar.update(1)
+                self.segmented_img_arr = np.array(file['images/segmented'])
+                pbar.update(1)
+                self.rois = np.array(file['images/rois'])
+                self.camera_poses = np.array(file['images/camera_poses'])
+                pbar.update(1)
 
-            self.jsons = file['paths/jsons']
-            self.maps = file['paths/depthmaps']
-            self.imgs = file['paths/images']
+                self.jsons = np.array(file['paths/jsons'])
+                pbar.update(1)
+                self.maps = np.array(file['paths/depthmaps'])
+                pbar.update(1)
+                self.imgs = np.array(file['paths/images'])
+                pbar.update(1)
 
     def _write_subset(self,path,sub_type,idxs):
         """Create a derivative dataset from a full dataset, using a subset of the data."""
-
-        with h5py.File(path,'a') as file:
-            file.attrs = self.attrs
-            file.attrs['length'] = len(idxs)
-            file.attrs['compile_date'] = str(datetime.datetime.now())
-            file.attrs['compile_time'] = 0
-            file.attrs['type'] = sub_type
-            file.create_dataset('angles', data = self.ang_arr[idxs], compression="gzip")
-            file.create_dataset('positions', data = self.pos_arr[idxs], compression="gzip")
-            coord_grop = file.create_group('coordinates')
-            dm = coord_grop.create_dataset('depthmaps', data = self.depthmap_arr[idxs], compression="gzip")
-            dm.attrs['depth_scale'] = self.depth_scale
-            coord_grop.create_dataset('pointmaps', data = self.pointmap[idxs], compression="gzip")
-            img_grp = file.create_group('images')
-            img_grp.create_dataset('original', data = self.orig_img_arr[idxs], compression="gzip")
-            img_grp.create_dataset('segmented', data = self.segmented_img_arr[idxs], compression="gzip")
-            img_grp.create_dataset('rois', data = self.rois[idxs], compression="gzip")
-            path_grp = file.create_group('paths')
-            path_grp.create_dataset('jsons', data = np.array(self.jsons[idxs], dtype=h5py.string_dtype()), compression="gzip")
-            path_grp.create_dataset('depthmaps', data = np.array(self.maps[idxs], dtype=h5py.string_dtype()), compression="gzip")
-            path_grp.create_dataset('images', data = np.array(self.imgs[idxs],dtype=h5py.string_dtype()), compression="gzip")
+        with tqdm(total=10, desc=f"Writing {sub_type}") as pbar:
+            with h5py.File(path,'a') as file:
+                for key in self.attrs.keys():
+                    file.attrs[key] = self.attrs[key]
+                file.attrs['length'] = len(idxs)
+                file.attrs['compile_date'] = str(datetime.datetime.now())
+                file.attrs['compile_time'] = 0
+                file.attrs['type'] = sub_type
+                file.create_dataset('angles', data = self.ang_arr[idxs], compression="gzip")
+                pbar.update(1)
+                file.create_dataset('positions', data = self.pos_arr[idxs], compression="gzip")
+                pbar.update(1)
+                coord_grop = file.create_group('coordinates')
+                dm = coord_grop.create_dataset('depthmaps', data = self.depthmap_arr[idxs], compression="gzip")
+                pbar.update(1)
+                dm.attrs['depth_scale'] = self.depth_scale
+                coord_grop.create_dataset('pointmaps', data = self.pointmap[idxs], compression="gzip")
+                pbar.update(1)
+                img_grp = file.create_group('images')
+                img_grp.create_dataset('original', data = self.orig_img_arr[idxs], compression="gzip")
+                pbar.update(1)
+                img_grp.create_dataset('segmented', data = self.segmented_img_arr[idxs], compression="gzip")
+                pbar.update(1)
+                img_grp.create_dataset('rois', data = self.rois[idxs], compression="gzip")
+                img_grp.create_dataset('camera_poses', data = self.camera_poses[idxs], compression="gzip")
+                pbar.update(1)
+                path_grp = file.create_group('paths')
+                path_grp.create_dataset('jsons', data = np.array(self.jsons[idxs], dtype=h5py.string_dtype()), compression="gzip")
+                pbar.update(1)
+                path_grp.create_dataset('depthmaps', data = np.array(self.maps[idxs], dtype=h5py.string_dtype()), compression="gzip")
+                pbar.update(1)
+                path_grp.create_dataset('images', data = np.array(self.imgs[idxs],dtype=h5py.string_dtype()), compression="gzip")
+                pbar.update(1)
 
         
     def weld(self, path_a, path_b, dst_dir, name):

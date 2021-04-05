@@ -74,134 +74,18 @@ def get_config():
     return d
 
 
-
-def stratified_dataset_split(joint_angles):
-    """
-    This is best used whenever positions are assumed to be uniformly distributed,
-    as stratification will be more useful and representative.
-    """
-    min_angs = np.min(joint_angles, 0)
-    max_angs = np.max(joint_angles, 0)
-    joint_moves = min_angs != max_angs
-    moving_joints = np.sum(joint_moves)
+def dataset_split(joint_angles):
 
     config = get_config()
     valid_size = int(config['split_ratios']['validate'] * len(joint_angles))
     test_size = int(config['split_ratios']['test'] * len(joint_angles))
-    train_size = len(joint_angles) - valid_size - test_size
-
-    # Determine configurations
-    def generate_zones(size):
-        r = int(size ** (1 / moving_joints)) + 1
-        cfg_mat = np.zeros((r ** moving_joints, moving_joints))
-        
-        for idx in range(moving_joints):
-            cfg_mat[:,idx] = np.tile(np.repeat(np.arange(1,r+1), r ** idx), int((r ** (moving_joints))/r**(idx+1)))
-
-        combos = np.prod(cfg_mat,1)
-        diff = np.abs(combos - size)
-        cfg_mat = cfg_mat[np.where(diff == np.min(diff))]
-
-        if cfg_mat.shape[0] != 1:
-            relative_weights = (max_angs - min_angs)[joint_moves]
-            weighted = cfg_mat / np.tile(relative_weights, (cfg_mat.shape[0],1))
-            scores = np.sum(weighted, 1)
-            minima = np.argmin(scores)
-            return cfg_mat[minima]
-        else:
-            return cfg_mat
-
-    def sample(size, cfg_mat, used_indicies):
-        zone_arr = np.copy(cfg_mat)
-        zone_arr += 1
-        intervals = []
-        for idx in range(moving_joints):
-            intervals.append(np.linspace(min_angs[idx], max_angs[idx], int(zone_arr[idx])))
-
-        def make_sampling_arr():
-            sampling_arr = joint_angles[:, joint_moves == True]
-            np.delete(sampling_arr, used_indicies, 0)
-            return sampling_arr
-
-        idx_array = np.zeros((moving_joints,))
-
-        def update_idx_arr():
-            for idx in range(moving_joints):
-                if idx_array[idx] == cfg_mat[idx]:
-                    idx_array[idx] = 0
-                    if idx == moving_joints - 1:
-                        return False
-                    else:
-                        idx_array[idx + 1] += 1
-                        return True
-
-        def get_range_arr():
-            range_arr = np.zeros((moving_joints,2))
-            for idx in range(moving_joints):
-                range_arr[idx,0] = intervals[idx][idx_array[idx]]
-                range_arr[idx,1] = intervals[idx][idx_array[idx] + 1]
-            return range_arr
-
-        selected_idxs = []
-        while(update_idx_arr()):
-            range_arr = get_range_arr()
-            sampling_arr = make_sampling_arr()
-            for idx in range(moving_joints):
-                sampling_arr[sampling_arr[:,idx] >= range_arr[idx,0],:]
-                sampling_arr[sampling_arr[:,idx] <= range_arr[idx,1],:]
-
-            if len(sampling_arr) != 0:
-                c = np.random.choice(len(sampling_arr))
-                choice = sampling_arr[c]
-                actual = joint_angles[0]
-                actual[joint_moves == True] = choice
-                i = np.where((joint_angles == choice).all(axis=1))
-                selected_idxs.append(i)
-                used_indicies.append(i)
-
-            idx_array[0] += 1
-
-        # if len(selected_idxs) < size:
-        #     unused = [x for x in range(joint_angles.shape[0]) if x not in used_indicies]
-        #     extra = np.random.choice(unused, size - len(selected_idxs), replace=False)
-        #     selected_idxs.extend(extra)
-        #     used_indicies.extend(extra)
-        
-        return selected_idxs
-       
-    used = []
-    test_idxs = sample(test_size, generate_zones(test_size), used)
-    valid_idxs = sample(valid_size, generate_zones(valid_size), used)
-    train_idxs = [x for x in range(joint_angles.shape[0]) if x not in used]
-
-    valid_idxs.sort()
-    test_idxs.sort()
-
-    return train_idxs, valid_idxs, test_idxs
-
-
-
-def simple_dataset_split(joint_angles):
-    """
-    This is best used whenever positions are assumed to be uniformly distributed,
-    as stratification will be more useful and representative.
-    """
-    min_angs = np.min(joint_angles, 0)
-    max_angs = np.max(joint_angles, 0)
-    joint_moves = min_angs != max_angs
-    moving_joints = np.sum(joint_moves)
-
-    config = get_config()
-    valid_size = int(config['split_ratios']['validate'] * len(joint_angles))
-    test_size = int(config['split_ratios']['test'] * len(joint_angles))
-    train_size = len(joint_angles) - valid_size - test_size
 
     def sample(size, used):
         selected = []
         unused = [x for x in range(joint_angles.shape[0]) if x not in used]
         intervals = np.linspace(min(unused),max(unused), int(len(unused)/size))
-        for idx in range(intervals - 1):
-            unused = [x for x in range(joint_angles.shape[0]) if x not in used]
+        for idx in range(len(intervals) - 1):
+            unused = np.array([x for x in range(joint_angles.shape[0]) if x not in used])
             pool = unused[unused >= intervals[idx]]
             pool = pool[pool <= intervals[idx + 1]]
             c = np.random.choice(pool)
@@ -213,6 +97,8 @@ def simple_dataset_split(joint_angles):
             extra = np.random.choice(unused, size - len(selected), replace=False)
             selected.extend(extra)
             used.extend(extra)
+
+        return selected
 
     used = []
     test_idxs = sample(test_size, used)
@@ -356,7 +242,8 @@ class Dataset():
             skeleton = None,
             ds_type = 'full',
             recompile = False,
-            rebuild = False
+            rebuild = False,
+            permissions = 'r'
             ):
         """
         Create a dataset instance, loading/building/compiling it if needed.
@@ -368,6 +255,7 @@ class Dataset():
         recompile: Using the same raw files, generate intermediate data again.
         rebuild: Recreate entirely usng different allocations of files
         """
+        self.permissions = permissions
 
         valid_types = ['full', 'train', 'validate', 'test']
         assert ds_type in valid_types, f"Invalid Type. Must be one of: {valid_types}"
@@ -375,8 +263,7 @@ class Dataset():
         info = DatasetInfo()
 
         d = info.get()
-
-
+        
         if name in d['compiled'][ds_type]['names'] and not rebuild:
             # Good job, it's here, load it
             self.type = ds_type
@@ -403,11 +290,20 @@ class Dataset():
             pass    
 
 
+    def makeNewSubsets(self):
+        print("Writing Subsets...")
+        idxs = dataset_split(self.angles)
+        sub_types = ['train','validate','test']
+        bob = Builder()
+        bob.build_subsets(self.dataset_path, sub_types, idxs)
+
 
     def load(self, skeleton=None):
         print("\nLoading Dataset...")
-        file = h5py.File(self.dataset_path,'r')
+        file = h5py.File(self.dataset_path,self.permissions)
         self.attrs = dict(file.attrs)
+        self.og_resolution = self.attrs['original_resolution']
+        self.seg_resolution = self.attrs['segmented_resolution']
         self.length = self.attrs['length']
         self.angles = file['angles']
         self.positions = file['positions']
@@ -415,10 +311,13 @@ class Dataset():
         self.og_img = file['images/original']
         self.seg_img = file['images/segmented']
         self.rois = file['images/rois']
+        self.camera_pose = file['images/camera_poses']
 
-        # Set deeppose dataset path
+        # Set paths
         self.deepposeds_path = os.path.join(self.dataset_dir,'deeppose.h5')
         self.seg_anno_path = os.path.join(self.dataset_dir,'seg_anno')
+        self.og_vid_path = os.path.join(self.dataset_dir,'og_vid.avi')
+        self.seg_vid_path = os.path.join(self.dataset_dir,'seg_vid.avi')
 
         # If a skeleton is set, change paths accordingly
         if skeleton is not None:
@@ -435,6 +334,8 @@ class Dataset():
     def build(self,data_path):
         bob = Builder()
         bob.build_full(data_path)
+        if self.type == 'full':
+            self.makeNewSubsets()
 
 
     def build_from_zip(self, zip_path):
@@ -458,7 +359,7 @@ class Dataset():
             return bob.build_full(src_dir, DATASET_VERSION, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
 
 
-    def writeSubset(self, sub_type, idxs):
+    def _writeSubset(self, sub_type, idxs):
         bob = Builder()
         bob.build_subset(self.dataset_path, sub_type, idxs)
 
@@ -472,8 +373,13 @@ class Dataset():
 
         for file in [x for x in os.listdir(p.SKELETONS) if x.endswith('.json')]:
             if self.skeleton in os.path.splitext(file)[0]:
-                with open(os.path.join(p.SKELETONS, file),'r') as f:
-                    self.keypoint_data = json.load(f)
+                self.keypoint_data_path = os.path.join(p.SKELETONS, file)
+                self.updateKeypointData()
+
+    
+    def updateKeypointData(self):
+        with open(self.keypoint_data_path,'r') as f:
+            self.keypoint_data = json.load(f)
 
 
     def makeDeepPoseDS(self, force=False):

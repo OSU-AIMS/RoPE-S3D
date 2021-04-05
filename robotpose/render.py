@@ -9,17 +9,18 @@
 
 import numpy as np
 import os
-import time
 import json
+import time
 
 import cv2
 import trimesh
 import pyrender
+import PySimpleGUI as sg
 
 from . import paths as p
 #from .autoAnnotate import makeMask
 from .dataset import Dataset
-from .projection import proj_point_to_pixel, makeIntrinsics
+from .projection import makeIntrinsics
 
 MESH_CONFIG = os.path.join(p.DATASETS,'mesh_config.json')
 
@@ -203,7 +204,8 @@ class Renderer():
     def __init__(
             self,
             dataset,
-            skeleton,
+            skeleton = None,
+            ds_type = 'full',
             mode = 'seg',
             camera_pose = None,
             camera_intrin = '1280_720_color',
@@ -211,10 +213,12 @@ class Renderer():
             robot_name="mh5"
             ):
 
-        self.robot_name = robot_name
+        self.mode = mode
 
+        self.robot_name = robot_name
+        self.skeleton = skeleton
         # Load dataset
-        self.ds = Dataset(dataset, skeleton)
+        self.ds = Dataset(dataset, skeleton, ds_type = ds_type)
 
         # Load meshes
         ml = MeshLoader()
@@ -226,10 +230,8 @@ class Renderer():
          
         if camera_pose is not None:
             c_pose = camera_pose
-        elif os.path.isfile(self.cam_path):
-            c_pose = readCameraPose(self.cam_path, 0)
         else:
-            c_pose = [17,0,4,0,np.pi/2,np.pi/2]    # Default Camera Pose
+            c_pose = self.ds.camera_pose[0]
 
         self.scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])  # Make scene
 
@@ -252,33 +254,32 @@ class Renderer():
         for node in self.joint_nodes:
             self.scene.add_node(node)
 
-        # Add in keypoint markers
-        self.key_nodes = []
-        marker = trimesh.creation.cylinder(
-            self.ds.keypoint_data['markers']['radius'],
-            height=self.ds.keypoint_data['markers']['height']
-            )
-        marker = pyrender.Mesh.from_trimesh(marker)
-
-        for name in self.ds.keypoint_data['keypoints'].keys():
-            parent = self.ds.keypoint_data['keypoints'][name]['parent_joint']
-            pose = makePose(*self.ds.keypoint_data['keypoints'][name]['pose'])
-            n = self.scene.add(marker, name=name, pose=pose, parent_name=parent)
-            self.key_nodes.append(n)
-
+        if self.skeleton is not None:
+            self._updateKeypoints()
 
         self.rend = pyrender.OffscreenRenderer(*resolution)
 
         self.setMode(mode)
 
 
-    def render(self):
+    def render(self, update_keypoints = False):
+        if update_keypoints and self.skeleton is not None:
+            self.ds.updateKeypointData()
+            self._updateKeypoints()
         return self.rend.render(
             self.scene,
             flags=pyrender.constants.RenderFlags.SEG,
             seg_node_map=self.node_color_map
             )
 
+
+    def setMode(self, mode):
+        valid_modes = ['seg','key','seg_full']
+        assert mode in valid_modes, f"Mode invalid; must be one of: {valid_modes}"
+        if self.skeleton is None:
+            assert mode != 'key', f"Skeleton must be specified for keypoint rendering"
+        self.mode = mode
+        self._updateMode()
 
 
     def setObjectPoses(self, poses):
@@ -290,7 +291,7 @@ class Renderer():
             self.ds_poses = makePoses(coordsFromData(self.ds.angles, self.ds.positions))
         self.setObjectPoses(self.ds_poses[idx])
 
-        setPoses(self.scene, [self.camera_node], [makePose(*readCameraPose(self.cam_path,idx))])
+        setPoses(self.scene, [self.camera_node], [makePose(*self.ds.camera_pose[idx])])
 
 
     def getColorDict(self):
@@ -309,36 +310,55 @@ class Renderer():
             return {self.robot_name: DEFAULT_COLORS[0]}
 
 
-    def setMode(self, mode):
-        valid_modes = ['seg','key','seg_full']
-        assert mode in valid_modes, f"Mode invalid; must be one of: {valid_modes}"
+    def _updateKeypoints(self):
+        # Remove olds
+        if hasattr(self, 'key_nodes'):
+            if len(self.key_nodes) > 0:
+                for node in self.key_nodes:
+                    if self.scene.has_node(node):
+                        self.scene.remove_node(node)
 
-        self.mode = mode
+        # Add in new
+        self.key_nodes = []
+        marker = trimesh.creation.cylinder(
+            self.ds.keypoint_data['markers']['radius'],
+            height=self.ds.keypoint_data['markers']['height']
+            )
+        marker = pyrender.Mesh.from_trimesh(marker)
+
+        for name in self.ds.keypoint_data['keypoints'].keys():
+            parent = self.ds.keypoint_data['keypoints'][name]['parent_joint']
+            pose = makePose(*self.ds.keypoint_data['keypoints'][name]['pose'])
+            n = self.scene.add(marker, name=name, pose=pose, parent_name=parent)
+            self.key_nodes.append(n)
+
+        self._updateMode()
+
+
+    def _updateMode(self):
 
         self.node_color_map = {}
 
-        if mode == 'seg':
+        if self.mode == 'seg':
             for joint, idx in zip(self.joint_nodes, range(len(self.joint_nodes))):
                 self.node_color_map[joint] = DEFAULT_COLORS[idx]
-            
-        elif mode == 'key':
+        elif self.mode == 'key':
             for keypt, idx in zip(self.key_nodes, range(len(self.key_nodes))):
                 self.node_color_map[keypt] = DEFAULT_COLORS[idx]
             for joint in self.joint_nodes:
                 self.node_color_map[joint] = DEFAULT_COLORS[-1]
-
-        elif mode == 'seg_full':
+        elif self.mode == 'seg_full':
             for joint in self.joint_nodes:
                 self.node_color_map[joint] = DEFAULT_COLORS[0]
  
 
 
 
+
 class Aligner():
     """
     Used to manually find the position of camera relative to robot.
-    """
-    """
+
     W/S - Move forward/backward
     A/D - Move left/right
     Z/X - Move down/up
@@ -348,110 +368,105 @@ class Aligner():
     +/- - Increase/Decrease Step size
     """
 
-    def __init__(
-            self,
-            dataset,
-            skeleton,
-            start_idx = None,
-            end_idx = None
-            ):
+    def __init__(self, dataset, start_idx = None, end_idx = None):
         # Load dataset
-        self.ds = Dataset(dataset, skeleton)
+        self.ds = Dataset(dataset, permissions='a')
 
-        self.renderer = Renderer(dataset, skeleton, mode='seg_full')
+        self.renderer = Renderer(dataset, None, mode='seg_full')
         self.cam_path = self.renderer.cam_path
 
-
-        # Image counter
-        self.idx = 0
         if start_idx is not None:
             self.start_idx = start_idx
         else:
             self.start_idx = 0
+
+        self.idx = self.start_idx
 
         if end_idx is not None:
             self.end_idx = end_idx
         else:
             self.end_idx = self.ds.length - 1
 
+        self.inc = int((self.end_idx - self.start_idx + 1)/20)
+        if self.inc > 10:
+            self.inc = 10
+        if self.inc < 1:
+            self.inc = 1
 
-        # Read in camera pose if it's been written before
-        if os.path.isfile(self.cam_path):
-            self.readCameraPose(self.start_idx)
-        else:
-            # Init pose, write
-            self.c_pose = [1.425,.009,0.416,-.01,np.pi/2,np.pi/2]
-            a = np.zeros((self.ds.length,6))
-            for idx in range(self.ds.length):
-                a[idx] = self.c_pose
-            np.save(self.cam_path,a)
-
+        self.c_pose = self.ds.camera_pose[self.start_idx]
 
         # Movement steps
         self.xyz_steps = [.001,.005,.01,.05,.1,.25,.5]
         self.ang_steps = [.0005,.001,.005,.01,.025,.05,.1]
         self.step_loc = len(self.xyz_steps) - 4
 
+        self._findSections()
+        self.section_idx = 0
 
-    def setCameraPose(self):
-        self.camera_pose_arr = makePose(*self.c_pose)
-        self.renderer.scene.set_pose(self.renderer.camera_node, self.camera_pose_arr)
+        print("Copying Image Array...")
+        self.real_arr = np.copy(self.ds.og_img)
+
+        self.gui = AlignerGUI()
 
 
     def run(self):
         ret = True
+        move = True
 
         while ret:
+            event, values = self.gui.update(self.section_starts, self.section_idx)
+            if event == 'quit':
+                print("Quit by user.")
+                ret = False
+                continue
+            elif event == 'new_section':
+                self._newSection(values)
+            elif event == 'goto':
+                if 0 <= self.idx and self.idx < self.ds.length:
+                    self.idx = values
+                    move = True
 
-            self.setCameraPose()
-            real = self.ds.og_img[self.idx]
-            self.renderer.setPosesFromDS(self.idx)
-            render, depth = self.renderer.render()
-            image = self.combineImages(real, render)
+            self._getSection()
+            self.readCameraPose()
+
+            if move:
+                real = self.real_arr[self.idx]
+                self.renderer.setPosesFromDS(self.idx)
+                render, depth = self.renderer.render()
+                image = self.combineImages(real, render)
+                move = False
             image = self.addOverlay(image)
             cv2.imshow("Aligner", image)
 
-            inp = cv2.waitKey(0)
-            ret = self.moveCamera(inp)
+            inp = cv2.waitKey(1)
+            ret, move = self.moveCamera(inp)
 
+        self.gui.close()
         cv2.destroyAllWindows()
 
 
-
     def moveCamera(self,inp):
-        """
-        W/S - Move forward/backward
-        A/D - Move left/right
-        Z/X - Move up/down
-        Q/E - Roll
-        R/F - Tilt down/up
-        G/H - Pan left/right
-        +/- - Increase/Decrease Step size
-        K/L - Last/Next image
-        0 - Quit
-        """
-
         xyz_step = self.xyz_steps[self.step_loc]
         ang_step = self.ang_steps[self.step_loc]
 
         if inp == ord('0'):
-            return False
+            return False, False
         elif inp == ord('='):
             self.step_loc += 1
             if self.step_loc >= len(self.xyz_steps):
                 self.step_loc = len(self.xyz_steps) - 1
-            return True
+            return True, False
         elif inp == ord('-'):
             self.step_loc -= 1
             if self.step_loc < 0:
                 self.step_loc = 0
-            return True
+            return True, False
         elif inp == ord('k'):
-            self.increment(-5)
-            return True
+            self.increment(-self.inc)
+            return True, True
         elif inp == ord('l'):
-            self.increment(5)
-            return True
+            self.increment(self.inc)
+            return True, True
 
         if inp == ord('w'):
             self.c_pose[0] -= xyz_step
@@ -479,7 +494,7 @@ class Aligner():
             self.c_pose[5] -= ang_step
 
         self.saveCameraPose()
-        return True
+        return True, True
 
 
     def addOverlay(self, image):
@@ -490,6 +505,7 @@ class Aligner():
         image = cv2.putText(image, pose_str,(10,50), cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
         image = cv2.putText(image, str(self.xyz_steps[self.step_loc]),(10,100), cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
         image = cv2.putText(image, str(self.ang_steps[self.step_loc]),(10,150), cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
+        image = cv2.putText(image, str(self.idx),(10,200), cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,255),2)
         return image
 
 
@@ -498,20 +514,81 @@ class Aligner():
 
 
     def increment(self, step):
-        if not (self.idx + step >= self.end_idx) and not (self.idx + step < self.start_idx):
+        if (self.idx + step >= 0) and (self.idx + step < self.ds.length):
             self.idx += step
 
 
     def saveCameraPose(self):
-        arr = np.load(self.cam_path)
         for idx in range(self.start_idx, self.end_idx + 1):
-            arr[idx] = self.c_pose
-        while True:
-            try:
-                np.save(self.cam_path, arr)
-                break
-            except PermissionError:
-                time.sleep(.05)
+            self.ds.camera_pose[idx,:] = self.c_pose
 
-    def readCameraPose(self,idx):
-        self.c_pose = np.load(self.cam_path)[idx]
+    def readCameraPose(self):
+        self.c_pose = self.ds.camera_pose[self.idx,:]
+
+    def _findSections(self):
+        self.section_starts = []
+        p = [0,0,0,0,0,0]
+        for idx in range(self.ds.length):
+            if not np.array_equal(self.ds.camera_pose[idx], p):
+                self.section_starts.append(idx)
+                p = self.ds.camera_pose[idx,:]
+        self.section_starts.append(self.ds.length)
+        self.section_starts
+
+    def _newSection(self, idx):
+        self.section_starts.append(idx)
+        self.section_starts.sort()
+
+    def _getSection(self):
+        section_start = max([x for x in self.section_starts if x <= self.idx])
+        self.section_idx = self.section_starts.index(section_start)
+        self.start_idx = section_start
+        self.end_idx = self.section_starts[self.section_idx + 1] - 1
+
+
+
+
+
+
+class AlignerGUI():
+
+    def __init__(self):
+        control_str = "W/S - Move forward/backward\n"+\
+            "A/D - Move left/right\nZ/X - Move up/down\nQ/E - Roll\n"+\
+            "R/F - Tilt down/up\nG/H - Pan left/right\n+/- - Increase/Decrease Step size\nK/L - Last/Next image"
+        self.layout = [[sg.Text("Currently Editing:"), sg.Text(size=(40,1), key='editing')],
+                        [sg.Input(size=(5,1),key='num_input'),sg.Button('Go To',key='num_goto'), sg.Button('New Section',key='new_section')],
+                        [sg.Text("",key='warn',text_color="red", size=(22,1))],
+                        [sg.Table([[["Sections:"]],[[1,1]]], key='sections'),sg.Text(control_str)],
+                        [sg.Button('Quit',key='quit')]]
+
+        self.window = sg.Window('Aligner Controls', self.layout, return_keyboard_events = True, use_default_focus=False)
+
+    def update(self, section_starts, section_idx):
+        event, values = self.window.read(timeout=1, timeout_key='tm')
+        section_table = []
+        for idx in range(len(section_starts)-1):
+            section_table.append([[f"{section_starts[idx]} - {section_starts[idx+1]-1}"]])
+
+        self.window['editing'].update(f"{section_starts[section_idx]} - {section_starts[section_idx+1]-1}")
+        self.window['sections'].update(section_table)
+
+        try:
+            if event == 'new_section':
+                return ['new_section',int(values['num_input'])]
+            elif event == 'num_goto':
+                return ['goto',int(values['num_input'])]
+            if len(values['num_input']) > 0:
+                if int(values['num_input']) is not None:
+                    self.window['warn'].update("")
+        except ValueError:
+            self.window['warn'].update("Please input a number.")
+
+        if event == 'quit':
+            self.close()
+            return ['quit',None]
+
+        return [None,None]
+
+    def close(self):
+        self.window.close()

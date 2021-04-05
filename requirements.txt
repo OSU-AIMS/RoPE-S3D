@@ -9,3 +9,4 @@ pyrender==0.1.45
 tensorflow-gpu==2.0.0
 pyrealsense2
 labelme
+pysimplegui

@@ -154,6 +154,26 @@ def predToXYZdict(dict_list, ply_data):
 
     return out
 
+
+def predToXYZdict_new(dict_list, ply_data):
+    """
+    Using the complete list of dictionaries and 3D data, find the XYZ coords of each keypoint 
+    """
+    ply_data = np.asarray(ply_data)
+    out = []
+    for d, idx in tqdm(zip(dict_list,range(len(dict_list)))):
+        data = ply_data[idx]
+        out_dict = {}
+        for key, value in zip(d.keys(), d.values()):
+            px = int(value[0])
+            py = int(value[1])
+            out_dict[key] = tuple(data[py,px])
+        
+        out.append(out_dict)
+
+    return out
+
+
 def predToXYZ(preds, ply_data):
     ply_data = np.asarray(ply_data)
     # Make sure there are the same number of frame predictions as ply frames
