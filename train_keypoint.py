@@ -52,7 +52,7 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
         elif model_type == "CutDensenet":
             model = DeepLabCut(train_generator, backbone="densenet121")
         elif model_type == "StackedDensenet":
-            model = StackedDenseNet(train_generator, n_stacks=1, growth_rate=24, pretrained=True)
+            model = StackedDenseNet(train_generator, n_stacks=1, growth_rate=48, pretrained=True)
         elif model_type == "LEAP":
             model = LEAP(train_generator)
         elif model_type == "StackedHourglass":
@@ -64,7 +64,7 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
         # filepath saves the logger data to a .h5 file
         filepath=p.LOG
     )
-    reduce_lr = ReduceLROnPlateau(monitor="val_loss", factor=0.2, verbose=1, patience=20)
+    reduce_lr = ReduceLROnPlateau(monitor="val_loss", factor=0.2, verbose=1, patience=7)
 
     model_checkpoint = ModelCheckpoint(
         model_path,
