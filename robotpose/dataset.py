@@ -259,6 +259,7 @@ class Dataset():
         rebuild: Recreate entirely usng different allocations of files
         """
         self.permissions = permissions
+        self.name = name
 
         valid_types = ['full', 'train', 'validate', 'test']
         assert ds_type in valid_types, f"Invalid Type. Must be one of: {valid_types}"
