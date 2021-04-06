@@ -2,6 +2,7 @@
 data/raw/*.zip
 data/*/
 data/raw/extracted
+data/datasets.json
 !data/raw/
 !data/skeletons/
 .vscode
