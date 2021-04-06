@@ -12,6 +12,7 @@ from deepposekit.callbacks import Logger, ModelCheckpoint
 from robotpose import paths as p
 import os
 import argparse
+from robotpose.utils import workerCount
 
 setMemoryGrowth()
 
@@ -86,10 +87,10 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
 
     model.fit(
         batch_size=batch_size,
-        validation_batch_size=2,
+        validation_batch_size=batch_size,
         callbacks=callbacks,
         epochs=1000,
-        n_workers=2,
+        n_workers=workerCount(),
         steps_per_epoch=None,
     )
 
@@ -102,7 +103,7 @@ if __name__ == "__main__":
                         default='LEAP', help="The type of model to train."
                         )
     parser.add_argument('--batch',type=int, choices=[1,2,4,8,12,16], default=2, help="Batch size for training")
-    parser.add_argument('--valid',type=float, default=0.1, help="Validation size for training")
+    parser.add_argument('--valid',type=float, default=0.2, help="Validation size for training")
     args = parser.parse_args()
 
     run(args.set, args.skeleton, args.model, args.batch, args.valid)

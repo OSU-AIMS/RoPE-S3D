@@ -2,36 +2,44 @@
     "compiled": {
         "full": {
             "names": [
-                "set0",
                 "set10"
             ],
             "paths": [
-                "data/set0\\set0.h5",
                 "data/set10\\set10.h5"
             ]
         },
         "train": {
-            "names": [],
-            "paths": []
+            "names": [
+                "set10"
+            ],
+            "paths": [
+                "data/set10\\set10_train.h5"
+            ]
         },
         "validate": {
-            "names": [],
-            "paths": []
+            "names": [
+                "set10"
+            ],
+            "paths": [
+                "data/set10\\set10_validate.h5"
+            ]
         },
         "test": {
-            "names": [],
-            "paths": []
+            "names": [
+                "set10"
+            ],
+            "paths": [
+                "data/set10\\set10_test.h5"
+            ]
         }
     },
     "uncompiled": {
         "names": [
-            "set0",
             "set10",
             "set6_slu",
             "set7_lu"
         ],
         "paths": [
-            "data/raw\\set0.zip",
             "data/raw\\set10.zip",
             "data/raw\\set6_slu.zip",
             "data/raw\\set7_lu.zip"
