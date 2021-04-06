@@ -34,12 +34,14 @@
                 "A": {
                     "from": "L",
                     "to": "U",
-                    "length": 0.4
+                    "length": 0.4,
+                    "offset":0
                 },
                 "B": {
                     "from": "R",
                     "to": "BT",
-                    "length": 0.233
+                    "length": 0.233,
+                    "offset":0
                 }
             }
         },
@@ -51,7 +53,8 @@
                 "A": {
                     "from": "L",
                     "to": "U",
-                    "length": 0.4
+                    "length": 0.4,
+                    "offset":0
                 }
             }
         },
@@ -63,7 +66,8 @@
                 "A": {
                     "from": "R",
                     "to": "BT",
-                    "length": 0.233
+                    "length": 0.233,
+                    "offset":0
                 }
             }
         },

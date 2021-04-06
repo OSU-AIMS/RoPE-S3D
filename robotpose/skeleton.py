@@ -75,7 +75,7 @@ class Skeleton():
             keypoint_data[keypoint] = default_keypoint_entry
         json_info['keypoints'] = keypoint_data
 
-        default_predictor_entry = {"from": "keypoint","to": "another_keypoint","length": 1.0}
+        default_predictor_entry = {"from": "keypoint","to": "another_keypoint","length": 1.0,"offset":0}
         default_predictors = {"A":default_predictor_entry,"B":default_predictor_entry}
         joint_angle_data = {}
         joint_angle_data['S'] = {"type":2,"max":2,"min":-2,"predictors":default_predictors}

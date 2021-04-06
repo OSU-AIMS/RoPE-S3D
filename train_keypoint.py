@@ -29,7 +29,6 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
         model = load_model(model_path,generator=data_generator)
     else:
 
-
         if model_type == "LEAP":
             ds_fac = 1
         else:

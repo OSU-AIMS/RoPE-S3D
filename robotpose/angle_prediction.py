@@ -48,15 +48,18 @@ class Predictor(Skeleton):
 
         pairs = []
         weights = []
+        offsets = []
         for key in joint_info['predictors'].keys():
             points = [self.detections[joint_info['predictors'][key]['from']]['coords'],
                 self.detections[joint_info['predictors'][key]['to']]['coords']]
             pairs.append(points)
             weighters = [joint_info['predictors'][key]['length'], self.detections[joint_info['predictors'][key]['to']]['confidence']]
             weights.append(weighters)
+            offsets.append(joint_info['predictors'][key]['offset'])
 
         pairs = np.array(pairs)
         weights = np.array(weights)
+        offsets = np.array(offsets)
 
 
 
