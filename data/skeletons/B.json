@@ -39,7 +39,7 @@
                 },
                 "B": {
                     "from": "R",
-                    "to": "BT",
+                    "to": "B",
                     "length": 0.233,
                     "offset":0
                 }
@@ -65,7 +65,7 @@
             "predictors": {
                 "A": {
                     "from": "R",
-                    "to": "BT",
+                    "to": "B",
                     "length": 0.233,
                     "offset":0
                 }

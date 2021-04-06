@@ -41,7 +41,7 @@ reader = VideoReader(ds.seg_vid_path)
 predictions = model.predict(reader)
 tim = Predictor('B')
 tim.load(predictions[50], ds.pointmaps[50])
-print(predictions[50])
+tim.predict()
 
 sys.exit()
 

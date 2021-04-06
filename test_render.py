@@ -13,7 +13,7 @@ def save_video(path, img_arr):
 
 def test_render():
 
-    r = Renderer('bigboi', 'B', ds_type='test')
+    r = Renderer('set10', 'B')
     r.setMode('key')
 
     color_frames =[]
