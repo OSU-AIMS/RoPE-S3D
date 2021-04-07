@@ -7,9 +7,9 @@ data/datasets.json
 !data/skeletons/
 .vscode
 .github
-segmentation/mask_rcnn_models/*.h5
-segmentation/mask_rcnn_models/old/*.h5
-segmentation/mask_rcnn_coco.h5
+deprecated_segmentation/mask_rcnn_models/*.h5
+deprecated_segmentation/mask_rcnn_models/old/*.h5
+deprecated_segmentation/mask_rcnn_coco.h5
 models/segmentation/*.h5
 models/segmentation/*/*.h5
 
@@ -82,3 +82,4 @@ examples/\.ipynb_checkpoints/
 
 
 examples/deepposekit-data
+data/datasets.json

@@ -7,7 +7,6 @@
 #
 # Author: Adam Exley
 
-import open3d as o3d
 import numpy as np
 from . import projection as proj
 from .utils import expandRegion
