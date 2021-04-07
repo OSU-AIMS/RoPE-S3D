@@ -26,7 +26,7 @@ def crop(depthmap, image, mask, roi):
         mask_img[:,:,idx] = mask
     output_image = np.multiply(image, expandRegion(mask_img,25)).astype(np.uint8)
     output_image = output_image[roi[0]:roi[2],roi[1]:roi[3]]
-    pointmap = np.multiply(pointmap, expandRegion(mask_img,25))
+    pointmap = np.multiply(pointmap, mask_img)
     pointmap = pointmap[roi[0]:roi[2],roi[1]:roi[3]]
 
     return output_image, pointmap

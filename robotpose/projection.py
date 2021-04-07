@@ -241,3 +241,40 @@ def deproj_depthmap_to_pointmap_different(intrin_d, intrin_c, depthmap, depth_sc
     
     return cvt_pointmap
 
+
+
+
+def fill_hole(arr, r, c, rad):
+    """
+    expects n x n x 3 array
+    """
+
+    rc_dist = np.zeros((arr.shape[0], arr.shape[1],2))
+    rc_dist[...,0] = np.hstack([np.arange(r,r-rc_dist.shape[0], -1).reshape(rc_dist.shape[0],1)] * rc_dist.shape[1])
+    rc_dist[...,1] = np.vstack([np.arange(c,c-rc_dist.shape[1], -1)] * rc_dist.shape[0])
+
+    rc_dist[r,c] = 100
+
+    weight = np.power((np.square(rc_dist[...,0]) + np.square(rc_dist[...,1])), -0.5)
+    
+    include = np.zeros((arr.shape[0], arr.shape[1]),bool)
+    include[r-rad:r+rad,c-rad:c+rad] = True
+    
+    is_val = np.any(arr, -1)
+    is_val *= include
+
+    pred = np.zeros(3)
+
+    for idx in range(3):
+        r_grad, c_grad = np.gradient(arr[...,idx])
+        preds = arr[...,idx] + rc_dist[...,0]*r_grad + rc_dist[...,1]*c_grad
+
+        preds_weighted = preds*weight
+
+        weight_sum = np.sum(weight[np.where(is_val)])
+        pred_sum = np.sum(preds_weighted[np.where(is_val)])
+
+        pred[idx] = pred_sum / weight_sum
+        
+    return pred
+
