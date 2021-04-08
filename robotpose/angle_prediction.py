@@ -54,6 +54,8 @@ class Predictor(Skeleton):
         if pred is None:
             return None
 
+        pred += self.joint_data[joint_name]['parent_offset']
+
         if pred < self.joint_data[joint_name]['min']:
             pred += 2 * np.pi
         
@@ -96,9 +98,13 @@ class Predictor(Skeleton):
         multipliers = len_multipliers * confidence_multipliers
 
         
-        vecs = np.subtract(pairs[:,1], pairs[:,0])
+        vecs = pairs[:,1] - pairs[:,0]
         rot_y = vecs[:,1]
         rot_x = np.sqrt(vecs[:,0] ** 2 + vecs[:,2] ** 2) * abs(vecs[:,0]) / vecs[:,0]
+
+        if joint_name == 'L':
+            print(vecs)
+
 
         # Convert to angles between +/-pi rad
         preds = np.arctan(rot_y/rot_x)
@@ -108,6 +114,8 @@ class Predictor(Skeleton):
 
         preds[np.where(neg_x & pos_y)] = preds[np.where(neg_x & pos_y)] + np.pi
         preds[np.where(neg_x & neg_y)] = -np.pi/2 - preds[np.where(neg_x & neg_y)]
+
+        preds += offsets
 
         # Range discontinuity around +pi and -pi. Convert to positive angles to see if stdev is lower.
         if len(preds) > 1:
@@ -119,6 +127,7 @@ class Predictor(Skeleton):
                 preds = preds_alt
 
         pred = np.sum(multipliers * preds) / np.sum(multipliers)
+
     
         return pred
 

@@ -3,6 +3,9 @@ import numpy as np
 import cv2
 import open3d as o3d
 from robotpose.turbo_colormap import color_array
+from robotpose.projection import fill_hole
+
+import matplotlib.pyplot as plt
 
 def main():
     cloud = o3d.io.read_point_cloud(r'C:\Users\exley\OneDrive\Documents\GitHub\DeepPoseRobot\data\raw\set5_slu\2021022300005.ply')
@@ -14,11 +17,33 @@ def main():
 
 
 def test():
+
+    r = 300
+    c = 400
+    errs = []
+
     ds = Dataset('set0','B')
     for idx in range(ds.length):
-        cv2.imshow("test",color_array(ds.pointmaps[idx,...,2]))
+        colored = color_array(ds.pointmaps[idx,...,1])
+        
+        #print(f"{ds.pointmaps[idx,r,c]} , {fill_hole(ds.pointmaps[idx],r,c,50)}")
+
+        # if np.any(ds.pointmaps[idx,r,c]):
+        #     err = (fill_hole(ds.pointmaps[idx],r,c,50) - ds.pointmaps[idx,r,c]) / ds.pointmaps[idx,r,c]
+        #     errs.append(err)
+
+        #cv2.circle(colored,(c,r),4,(255,255,255))
         #cv2.imshow("test",np.abs(ds.pointmaps[idx,...,2]-2))
-        cv2.waitKey(150)
+        cv2.imshow("test",colored)
+        cv2.waitKey(50)
+    # errs = np.array(errs)
+    # print(np.mean(errs,0))
+
+    # plt.plot(errs[:,0])
+    # plt.plot(errs[:,1])
+    # plt.plot(errs[:,2])
+    # plt.show()
+
 
 
 if __name__ == "__main__":

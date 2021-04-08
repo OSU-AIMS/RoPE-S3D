@@ -171,7 +171,7 @@ def deproj_pixel_to_point(intrin, pixels, depths):
     return point
 
 
-def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale = 0, x_offset = 0, y_offset = 0):
+def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale = 0):
     """
     Deprojects an entire depthmap into a corresponding pointmap, assuming the same camera intrinsics
 
@@ -192,54 +192,55 @@ def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale = 0, x_offset = 0,
         depthmap *= depth_scale
     depths = depthmap.flatten()
 
-    x = (r_idx - intrin.ppx) / intrin.fx 
-    y = (c_idx - intrin.ppy) / intrin.fy 
+    # Something is a bit messed up here, have to investigate
+    x = (c_idx - intrin.ppx) / intrin.fx 
+    y = (r_idx - intrin.ppy) / intrin.fy 
 
     point_map[r_idx, c_idx, 0] = depths * x
-    point_map[r_idx, c_idx, 1] = depths * y
+    point_map[r_idx, c_idx, 1] = depths * -y
     point_map[r_idx, c_idx, 2] = depths
 
     return point_map
 
 
-def deproj_depthmap_to_pointmap_different(intrin_d, intrin_c, depthmap, depth_scale = 0):
-    """
-    Deprojects an entire depthmap into a corresponding pointmap with differing intrinsics
+# def deproj_depthmap_to_pointmap_different(intrin_d, intrin_c, depthmap, depth_scale = 0):
+#     """
+#     Deprojects an entire depthmap into a corresponding pointmap with differing intrinsics
 
-    Arguments:
-    intrin_d: input depth intrinsics
-    intirn_c: output color intrinsics
-    depthmap: depthmap to project
-    depth_scale: multipler to apply to depthmap if not already applied
-    """
+#     Arguments:
+#     intrin_d: input depth intrinsics
+#     intirn_c: output color intrinsics
+#     depthmap: depthmap to project
+#     depth_scale: multipler to apply to depthmap if not already applied
+#     """
 
-    depthmap = np.array(depthmap, dtype=np.float64)
+#     depthmap = np.array(depthmap, dtype=np.float64)
 
-    point_map = np.zeros((*depthmap.shape,3))
+#     point_map = np.zeros((*depthmap.shape,3))
 
-    r_idx = np.repeat(np.arange(depthmap.shape[0]),1280)
-    c_idx = np.tile(np.arange(depthmap.shape[1]),720)
+#     r_idx = np.repeat(np.arange(depthmap.shape[0]),1280)
+#     c_idx = np.tile(np.arange(depthmap.shape[1]),720)
 
-    if depth_scale != 0:
-        depthmap *= depth_scale
-    depths = depthmap.flatten()
+#     if depth_scale != 0:
+#         depthmap *= depth_scale
+#     depths = depthmap.flatten()
 
-    x = (r_idx - intrin_d.ppx) / intrin_d.fx 
-    y = (c_idx - intrin_d.ppy) / intrin_d.fy 
+#     x = (r_idx - intrin_d.ppx) / intrin_d.fx 
+#     y = (c_idx - intrin_d.ppy) / intrin_d.fy 
 
-    point_map[r_idx, c_idx, 0] = depths * x
-    point_map[r_idx, c_idx, 1] = depths * y
-    point_map[r_idx, c_idx, 2] = depths
+#     point_map[r_idx, c_idx, 0] = depths * x
+#     point_map[r_idx, c_idx, 1] = depths * y
+#     point_map[r_idx, c_idx, 2] = depths
 
-    point_map[...,0] -= .0175   # Correct placement
+#     point_map[...,0] -= .0175   # Correct placement
 
-    pixel_map = proj_point_to_pixel_map(intrin_c,point_map)
-    cvt_pointmap = np.zeros((intrin_c.height, intrin_c.width,3))
-    for r in range(pixel_map.shape[0]):
-        for c in range(pixel_map.shape[1]):
-            cvt_pointmap[pixel_map[r,c,0],pixel_map[r,c,1]] = point_map[r,c]
+#     pixel_map = proj_point_to_pixel_map(intrin_c,point_map)
+#     cvt_pointmap = np.zeros((intrin_c.height, intrin_c.width,3))
+#     for r in range(pixel_map.shape[0]):
+#         for c in range(pixel_map.shape[1]):
+#             cvt_pointmap[pixel_map[r,c,0],pixel_map[r,c,1]] = point_map[r,c]
     
-    return cvt_pointmap
+#     return cvt_pointmap
 
 
 
