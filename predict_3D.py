@@ -57,6 +57,9 @@ S_pred = []
 L_pred = []
 U_pred = []
 B_pred = []
+S_est = []
+L_est = []
+U_est = []
 
 ret, image = cap.read()
 
@@ -80,13 +83,16 @@ while ret:
         detected_holes.append(i)
 
     # Append to lists
-    S_pred.append(pred['S'])
-    L_pred.append(pred['L'])
-    U_pred.append(pred['U'])
+    S_pred.append(pred['S']['val'])
+    L_pred.append(pred['L']['val'])
+    U_pred.append(pred['U']['val'])
+    S_est.append(pred['S']['percent_est'])
+    L_est.append(pred['L']['percent_est'])
+    U_est.append(pred['U']['percent_est'])
     #B_pred.append(B_pred_ang)
 
     # Put depth info on overlay
-    #over = color_array(ds.pointmaps[i,:,:,2], .1)
+    over = color_array(ds.pointmaps[i,:,:,2], .1)
     #Visualize lines
     viz(image, over, predictions[i])
 
@@ -119,12 +125,12 @@ for a, b in zip(["S_act","L_act","U_act","S_pred","L_pred","U_pred"],["S_angles"
 fig, axs = plt.subplots(3,2)
 
 # Plot Raw Angles
-for idx, act, pred, label in zip(range(3),["S_act","L_act","U_act",],["S_pred","L_pred","U_pred"],["S","L","U"]):
+for idx, act, pred, label, est in zip(range(3),["S_act","L_act","U_act",],["S_pred","L_pred","U_pred"],["S","L","U"],["S_est","L_est","U_est"]):
     axs[idx,0].set_title(f'Raw {label} Angle')
     axs[idx,0].plot(globals()[act])
     axs[idx,0].plot(globals()[pred],color='purple')
-    for x in detected_holes:
-        axs[idx,0].axvspan(x-.5, x+.5, color='red', alpha=0.25, ec=None)
+    for val,x in zip(globals()[est], range(len(globals()[est]))):
+        axs[idx,0].axvspan(x-.5, x+.5, color='red', alpha=val, ec=None)
 
 #Residuals
 S_err = np.subtract(S_pred, S_act)
@@ -134,12 +140,12 @@ U_err = np.subtract(U_pred, U_act)
 
 zeros_err = np.zeros(L_act.shape)
 
-for idx, err, label in zip(range(4),["S_err","L_err","U_err"],["S","L","U"]):
+for idx, err, label, est in zip(range(3),["S_err","L_err","U_err"],["S","L","U"],["S_est","L_est","U_est"]):
     axs[idx,1].set_title(f'Angle {label} Error')
     axs[idx,1].plot(zeros_err)
     axs[idx,1].plot(globals()[err],color='purple')
-    for x in detected_holes:
-        axs[idx,1].axvspan(x-.5, x+.5, color='red', alpha=0.25, ec=None)
+    for val,x in zip(globals()[est], range(len(globals()[est]))):
+        axs[idx,1].axvspan(x-.5, x+.5, color='red', alpha=val, ec=None)
 
 
 # Determine average errors

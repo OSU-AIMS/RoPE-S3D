@@ -21,26 +21,26 @@ class Predictor(Skeleton):
 
     def load(self, keypoint_detections, pointmap):
         self.detections = {}
-        fill = False
+
         for name, idx in zip(self.keypoints, range(len(self.keypoints))):
             px = round(keypoint_detections[idx][0])
             py = round(keypoint_detections[idx][1])
 
             coords = pointmap[py,px]
-            
+            estimated = False
             if not np.any(coords):
                 coords = fill_hole(pointmap, py, px, 50)
-                fill = True
+                estimated = True
 
-            self.detections[name] = {'coords':coords, 'confidence':keypoint_detections[idx][2]}
+            self.detections[name] = {'coords':coords, 'confidence':keypoint_detections[idx][2], 'estimated':estimated}
 
-        return fill
 
 
     def predict(self):
         predictions = {}
         for joint in self.predictable_joints:
-            predictions[joint] = self._predictAngle(joint)
+            preds, est = self._predictAngle(joint)
+            predictions[joint] = {"val": preds,"percent_est":est}
 
         return predictions
 
@@ -49,14 +49,14 @@ class Predictor(Skeleton):
         tp = self.joint_data[joint_name]['type']
 
         if tp == 1:
-            pred = self._type1predict(joint_name)
+            pred, est = self._type1predict(joint_name)
         elif tp == 2:
-            pred = self._type2predict(joint_name)
+            pred, est = self._type2predict(joint_name)
         elif tp == 3:
-            pred = self._type3predict(joint_name)
+            pred, est = self._type3predict(joint_name)
 
         if pred is None:
-            return None
+            return None, 1
 
         pred += self.joint_data[joint_name]['parent_offset']
 
@@ -66,12 +66,12 @@ class Predictor(Skeleton):
         while pred > self.joint_data[joint_name]['max']:
             pred -= 2 * np.pi
 
-        return pred
+        return pred, est
 
 
     def _type1predict(self,joint_name):
         """ L, U, B Angles"""
-        pairs, lengs, confidence, offsets = self._getPredictors(joint_name)
+        pairs, lengs, confidence, offsets, estimate = self._getPredictors(joint_name)
         multipliers = self._type1Multipliers(pairs, lengs, confidence)
         
         vecs = pairs[:,1] - pairs[:,0]
@@ -100,12 +100,12 @@ class Predictor(Skeleton):
 
         pred = np.sum(multipliers * preds) / np.sum(multipliers)
     
-        return pred
+        return pred, sum(estimate) / len(estimate)
 
 
     def _type2predict(self,joint_name):
         """ S Angle """
-        pairs, lengs, confidence, offsets = self._getPredictors(joint_name)
+        pairs, lengs, confidence, offsets, estimate = self._getPredictors(joint_name)
     
         vecs = pairs[:,1] - pairs[:,0]
         preds = np.arctan(vecs[:,2]/vecs[:,0])
@@ -115,7 +115,7 @@ class Predictor(Skeleton):
         preds += offsets
         pred = np.sum(multipliers * preds) / np.sum(multipliers)
 
-        return pred
+        return pred, sum(estimate) / len(estimate)
 
 
     def _type3predict(self,joint_name):
@@ -147,6 +147,7 @@ class Predictor(Skeleton):
         lengs = []
         confidence = []
         offsets = []
+        contains_estimate = []
         for key in joint_info['predictors'].keys():
             points = [
                 self.detections[joint_info['predictors'][key]['from']]['coords'],
@@ -160,12 +161,17 @@ class Predictor(Skeleton):
                 ]
             confidence.append(conf)
             offsets.append(joint_info['predictors'][key]['offset'])
+            contains_estimate.append(
+                self.detections[joint_info['predictors'][key]['to']]['estimated'] or
+                self.detections[joint_info['predictors'][key]['from']]['estimated']
+                )
 
         pairs = np.array(pairs)
         lengs = np.array(lengs)
         confidence = np.array(confidence)
         offsets = np.array(offsets)
-        return pairs, lengs, confidence, offsets
+        contains_estimate = np.array(contains_estimate)
+        return pairs, lengs, confidence, offsets, contains_estimate
 
 
     def _distances(self, point_arr):
