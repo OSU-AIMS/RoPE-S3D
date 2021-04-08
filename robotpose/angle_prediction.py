@@ -72,7 +72,7 @@ class Predictor(Skeleton):
     def _type1predict(self,joint_name):
         """ L, U, B Angles"""
         pairs, lengs, confidence, offsets, estimate = self._getPredictors(joint_name)
-        multipliers = self._type1Multipliers(pairs, lengs, confidence)
+        multipliers = self._type1Multipliers(pairs, lengs, confidence, estimate)
         
         vecs = pairs[:,1] - pairs[:,0]
         rot_y = vecs[:,1]
@@ -110,7 +110,7 @@ class Predictor(Skeleton):
         vecs = pairs[:,1] - pairs[:,0]
         preds = np.arctan(vecs[:,2]/vecs[:,0])
 
-        multipliers = self._type2Multipliers(pairs, lengs, confidence, vecs)
+        multipliers = self._type2Multipliers(pairs, lengs, confidence,estimate, vecs)
 
         preds += offsets
         pred = np.sum(multipliers * preds) / np.sum(multipliers)
@@ -123,20 +123,22 @@ class Predictor(Skeleton):
         pass
 
 
-    def _type2Multipliers(self,pairs,lengs,confidence,vecs):
+    def _type2Multipliers(self,pairs,lengs,confidence,estimate,vecs):
         detected_lengs = self._distances(pairs)
         len_multipliers = np.exp(-(np.abs(lengs - detected_lengs)/lengs))
         confidence_multipliers = 2*lengs *(np.power(np.prod(confidence,-1),1.75) / np.square(np.sum(confidence,-1)))
         x_distance_multiplier = vecs[:,0] / detected_lengs
-        multipliers = len_multipliers * confidence_multipliers * x_distance_multiplier
+        est_multipliers = 1 - .5 * estimate
+        multipliers = len_multipliers * confidence_multipliers * x_distance_multiplier * est_multipliers
         return multipliers
 
 
-    def _type1Multipliers(self,pairs,lengs,confidence):
+    def _type1Multipliers(self,pairs,lengs,confidence, estimate):
         detected_lengs = self._distances(pairs)
         len_multipliers = np.exp(-(np.abs(lengs - detected_lengs)/lengs))
         confidence_multipliers = 2*lengs *(np.power(np.prod(confidence,-1),1.75) / np.square(np.sum(confidence,-1)))
-        multipliers = len_multipliers * confidence_multipliers
+        est_multipliers = 1 - .5 * estimate
+        multipliers = len_multipliers * confidence_multipliers * est_multipliers
         return multipliers
 
 
