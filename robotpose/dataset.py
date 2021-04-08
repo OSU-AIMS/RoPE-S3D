@@ -269,11 +269,13 @@ class Dataset():
         d = info.get()
         
         if name in d['compiled'][ds_type]['names'] and not rebuild:
+            building = False
             # Good job, it's here, load it
             self.type = ds_type
             self.dataset_path = d['compiled'][ds_type]['paths'][d['compiled'][ds_type]['names'].index(name)]
             self.dataset_dir = os.path.dirname(self.dataset_path)
         else:
+            building = True
             # Not here, rebuild
             available = d['uncompiled']['names']
             matches = [name in x for x in available]
@@ -285,15 +287,14 @@ class Dataset():
                 self.dataset_path = self.build_from_zip(d['uncompiled']['paths'][matches.index(True)])
                 self.dataset_dir = os.path.dirname(self.dataset_path)
 
+        if recompile and not building:
+            self.recompile()
 
         # Load dataset
         self.load(skeleton)
 
-        if recompile:
-            #self.recompile()
-            pass    
-
     
+
     def exportCameraPose(self):
         np.save(os.path.join(self.dataset_dir,'camera_pose.npy'), self.camera_pose)
 
@@ -338,16 +339,8 @@ class Dataset():
 
 
     def recompile(self):
-        pass
-
-
-
-    def build(self,data_path):
         bob = Builder()
-        bob.build_full(data_path)
-        if self.type == 'full':
-            self.makeNewSubsets()
-
+        bob.recompile(self.dataset_dir, DATASET_VERSION, self.name)
 
     def build_from_zip(self, zip_path):
         """
@@ -368,19 +361,11 @@ class Dataset():
             bob = Builder()
             return bob.build_full(src_dir, DATASET_VERSION, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
 
-
-    def _writeSubset(self, sub_type, idxs):
-        bob = Builder()
-        bob.build_subset(self.dataset_path, sub_type, idxs)
-
-
     def setSkeleton(self,skeleton_name):
         self.skele = Skeleton(skeleton_name)
-
     
     def updateKeypointData(self):
         self.skele.update()
-
 
     def makeDeepPoseDS(self, force=False):
         if force:

@@ -48,6 +48,14 @@ class Builder():
         self._make_camera_poses()
         return self._save_full(dataset_ver)
 
+    def recompile(self, ds_path, dataset_ver, name = None):
+        self._set_dest_path_recompile(ds_path, name)
+        self._load_raw_data_from_ds()
+        self._segment_images_and_maps()
+        self._save_reference_videos()
+        return self._save_recompile(dataset_ver)
+
+
     def build_subset(self, src, sub_type, idxs):
         self._read_full(src)
         dst = src.replace('.h5',f'_{sub_type}.h5')
@@ -69,6 +77,11 @@ class Builder():
         self.name = name
         if not os.path.isdir(self.dest_path):
             os.mkdir(self.dest_path)
+
+    def _set_dest_path_recompile(self, dest_path, name):
+        self.dest_path = dest_path
+        self.name = name
+
 
     def _get_filepaths_from_data_dir(self, data_path):
         self.jsons_p = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.json')]
@@ -127,6 +140,18 @@ class Builder():
             self.depthmap_arr[idx] = np.load(path)
 
         self.depthmap_arr *= self.depth_scale
+
+
+    def _load_raw_data_from_ds(self):
+        with tqdm(total=2, desc="Reading Dataset") as pbar:
+            dest = os.path.join(self.dest_path, self.name + '.h5')
+            with h5py.File(dest, 'r') as f:
+                self.length = f.attrs['length']
+                self.orig_img_arr = np.array(f['images/original'])
+                self.img_height, self.img_width = self.orig_img_arr.shape[1:3]
+                pbar.update(1)
+                self.depthmap_arr = np.array(f['coordinates/depthmaps'])
+                pbar.update(1)
 
     
     def _segment_images_and_maps(self):
@@ -215,6 +240,23 @@ class Builder():
                 pbar.update(1)
 
         return dest
+
+
+    def _save_recompile(self, ver):
+        dest = os.path.join(self.dest_path, self.name + '.h5')
+        with tqdm(total=3, desc="Writing Dataset") as pbar:
+            with h5py.File(dest,'a') as file:
+                file.attrs['version'] = ver
+                file.attrs['compile_date'] = str(datetime.datetime.now())
+                file.attrs['compile_time'] = time.time() - self.build_start_time
+                file.attrs['segmented_resolution'] = self.segmented_img_arr[0].shape
+                file['coordinates/pointmaps'][...] = self.pointmap
+                pbar.update(1)
+                file['images/segmented'][...] = self.segmented_img_arr
+                pbar.update(1)
+                file['images/rois'][...] = self.rois
+                pbar.update(1)
+
 
     def _read_full(self, path):
         with tqdm(total=10, desc="Reading Full Dataset") as pbar:
