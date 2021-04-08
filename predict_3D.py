@@ -36,14 +36,9 @@ U_angles = ds.angles[:,2]
 B_angles = ds.angles[:,4]
 
 # Load model, make predictions
-model = load_model(os.path.join(os.getcwd(),r'models\set6_slu__B__CutMobilenet.h5'))
+model = load_model(os.path.join(os.getcwd(),r'models\set10__B__CutMobilenet.h5'))
 reader = VideoReader(ds.seg_vid_path)
 predictions = model.predict(reader)
-tim = Predictor('B')
-tim.load(predictions[50], ds.pointmaps[50])
-tim.predict()
-
-sys.exit()
 
 # np.save('set6_output.npy',predToXYZ(predictions, ds.ply))
 # print("Predictions saved")
@@ -54,8 +49,8 @@ pred_dict_xyz = predToXYZdict_new(pred_dict, ds.pointmaps)
 # Load video capture and make output
 cap = cv2.VideoCapture(ds.seg_vid_path)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-#out = cv2.VideoWriter(p.video.replace(".avi","_overlay.avi"),fourcc, 12.5, (ds.resolution[1]*2,ds.resolution[0]))
-out = cv2.VideoWriter(p.VIDEO.replace(".avi","_overlay.avi"),fourcc, 12.5, (ds.seg_resolution[1],ds.seg_resolution[0]))
+out = cv2.VideoWriter(p.VIDEO.replace(".avi","_overlay.avi"),fourcc, 20, (ds.seg_resolution[1]*2,ds.seg_resolution[0]))
+#out = cv2.VideoWriter(p.VIDEO.replace(".avi","_overlay.avi"),fourcc, 12.5, (ds.seg_resolution[1],ds.seg_resolution[0]))
 
 # Init predicted angle lists
 S_pred = []
@@ -68,38 +63,28 @@ ret, image = cap.read()
 frame_height = image.shape[0]
 frame_width = image.shape[1]
 
+
+tim = Predictor('B')
+
+
 i = 0
 while ret:
     over = np.zeros((ds.seg_resolution[0],ds.seg_resolution[1],3),dtype=np.uint8)
     coord_dict = pred_dict_xyz[i]
-    
-    # Predict S using the B joint position in reference to the R and U joints
-    S_pred_ang_BR = XYangle(coord_dict['B'][0]-coord_dict['R'][0], coord_dict['B'][2]-coord_dict['R'][2],(-1,5))
-    S_pred_ang_LU = XYangle(coord_dict['B'][0]-coord_dict['U'][0], coord_dict['B'][2]-coord_dict['U'][2],(-1,5))
 
-    # Take average of both angles (one tends to overshoot, one tends to undershoot)
-    # Likely will need to be changed when we get actual S angles
-    S_pred_ang = np.mean([S_pred_ang_BR,S_pred_ang_LU])
+    tim.load(predictions[i], ds.pointmaps[i])
+    pred = tim.predict()
 
-
-    # Predict L
-    L_pred_ang = XYZangle(coord_dict['L'], coord_dict['U'])
-
-    BR_ang = XYZangle(coord_dict['B'], coord_dict['R'],(.5,-10))
-
-    # Predict U
-    U_pred_ang = L_pred_ang - BR_ang
-    # Predict B
-    #B_pred_ang = XYZangle(coord_dict['T'], coord_dict['B'],(1,-10)) - BR_ang
+    L_pred_ang = pred['L']
+    U_pred_ang = pred['U']
 
     # Append to lists
-    S_pred.append(S_pred_ang)
+    S_pred.append(0)
     L_pred.append(L_pred_ang)
     U_pred.append(U_pred_ang)
     #B_pred.append(B_pred_ang)
 
     # Put depth info on overlay
-    #vizDepth_new(ds.ply[i], over)
     over = color_array(ds.pointmaps[i,:,:,2], .1)
     #Visualize lines
     viz(image, over, predictions[i])
@@ -108,9 +93,8 @@ while ret:
     dual[:,0:frame_width] = image
     dual[:,frame_width:frame_width*2] = over
 
-    #out.write(dual)
-    out.write(over)
-    cv2.imshow("test",dual)
+    out.write(dual)
+    cv2.imshow("Angle Predictions",dual)
     cv2.waitKey(1)
     i+=1
     ret, image = cap.read()

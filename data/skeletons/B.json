@@ -30,6 +30,9 @@
             "type": 2,
             "max": 2.967,
             "min": -2.967,
+            "parent":null,
+            "parent_mult":0,
+            "parent_offset":0,
             "predictors": {
                 "A": {
                     "from": "L",
@@ -49,6 +52,9 @@
             "type": 1,
             "max": 2.618,
             "min": -1.1345,
+            "parent":null,
+            "parent_mult":0,
+            "parent_offset":0,
             "predictors": {
                 "A": {
                     "from": "L",
@@ -62,6 +68,9 @@
             "type": 1,
             "max": 4.4506,
             "min": -2.409,
+            "parent":"L",
+            "parent_mult":1,
+            "parent_offset":0,
             "predictors": {
                 "A": {
                     "from": "R",
@@ -75,12 +84,18 @@
             "type": 3,
             "max": 3.3161,
             "min": -3.3161,
+            "parent":null,
+            "parent_mult":0,
+            "parent_offset":0,
             "predictors": {}
         },
         "B": {
             "type": 1,
             "max": 2.356,
             "min": -2.356,
+            "parent":"R",
+            "parent_mult":1,
+            "parent_offset":0,
             "predictors": {}
         }
     }

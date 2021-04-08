@@ -78,14 +78,14 @@ class Skeleton():
         default_predictor_entry = {"from": "keypoint","to": "another_keypoint","length": 1.0,"offset":0}
         default_predictors = {"A":default_predictor_entry,"B":default_predictor_entry}
         joint_angle_data = {}
-        joint_angle_data['S'] = {"type":2,"max":2,"min":-2,"predictors":default_predictors}
-        joint_angle_data['L'] = {"type":1,"max":4,"min":-4,"predictors":default_predictors}
-        joint_angle_data['U'] = {"type":1,"max":4,"min":-4,"predictors":default_predictors}
+        joint_angle_data['S'] = {"type":2,"max":2,"min":-2,"parent":None,"parent_mult":0,"parent_offset":0,"predictors":default_predictors}
+        joint_angle_data['L'] = {"type":1,"max":4,"min":-4,"parent":None,"parent_mult":0,"parent_offset":0,"predictors":default_predictors}
+        joint_angle_data['U'] = {"type":1,"max":4,"min":-4,"parent":'L',"parent_mult":1,"parent_offset":0,"predictors":default_predictors}
         #joint_angle_data['R'] = {"type":3,"max":2,"min":-2,"predictors":default_predictors}
-        joint_angle_data['R'] = {"type":3,"max":2,"min":-2,"predictors":{}}
-        joint_angle_data['B'] = {"type":1,"max":4,"min":-4,"predictors":default_predictors}
+        joint_angle_data['R'] = {"type":3,"max":2,"min":-2,"parent":None,"parent_mult":0,"parent_offset":0,"predictors":{}}
+        joint_angle_data['B'] = {"type":1,"max":4,"min":-4,"parent":'U',"parent_mult":1,"parent_offset":0,"predictors":default_predictors}
         #joint_angle_data['T'] = {"type":3,"max":2,"min":-2,"predictors":default_predictors}
-        joint_angle_data['R'] = {"type":3,"max":2,"min":-2,"predictors":{}}
+        joint_angle_data['T'] = {"type":3,"max":2,"min":-2,"parent":None,"parent_mult":0,"parent_offset":0,"predictors":{}}
 
         json_info['joints'] = joint_angle_data
 

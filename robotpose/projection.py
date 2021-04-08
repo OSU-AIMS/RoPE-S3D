@@ -255,7 +255,7 @@ def fill_hole(arr, r, c, rad):
 
     rc_dist[r,c] = 100
 
-    weight = np.power((np.square(rc_dist[...,0]) + np.square(rc_dist[...,1])), -0.5)
+    weight = np.power((np.square(rc_dist[...,0]) + np.square(rc_dist[...,1])), -1.5)
     
     include = np.zeros((arr.shape[0], arr.shape[1]),bool)
     include[r-rad:r+rad,c-rad:c+rad] = True
