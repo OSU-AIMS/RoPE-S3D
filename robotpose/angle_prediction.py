@@ -21,16 +21,20 @@ class Predictor(Skeleton):
 
     def load(self, keypoint_detections, pointmap):
         self.detections = {}
+        fill = False
         for name, idx in zip(self.keypoints, range(len(self.keypoints))):
             px = round(keypoint_detections[idx][0])
             py = round(keypoint_detections[idx][1])
 
             coords = pointmap[py,px]
-
+            
             if not np.any(coords):
                 coords = fill_hole(pointmap, py, px, 50)
+                fill = True
 
             self.detections[name] = {'coords':coords, 'confidence':keypoint_detections[idx][2]}
+
+        return fill
 
 
     def predict(self):
@@ -56,10 +60,10 @@ class Predictor(Skeleton):
 
         pred += self.joint_data[joint_name]['parent_offset']
 
-        if pred < self.joint_data[joint_name]['min']:
+        while pred < self.joint_data[joint_name]['min']:
             pred += 2 * np.pi
         
-        if pred > self.joint_data[joint_name]['max']:
+        while pred > self.joint_data[joint_name]['max']:
             pred -= 2 * np.pi
 
         return pred
@@ -67,6 +71,76 @@ class Predictor(Skeleton):
 
     def _type1predict(self,joint_name):
         """ L, U, B Angles"""
+        pairs, lengs, confidence, offsets = self._getPredictors(joint_name)
+        multipliers = self._type1Multipliers(pairs, lengs, confidence)
+        
+        vecs = pairs[:,1] - pairs[:,0]
+        rot_y = vecs[:,1]
+        rot_x = np.sqrt(vecs[:,0] ** 2 + vecs[:,2] ** 2) * abs(vecs[:,0]) / vecs[:,0]
+
+        # Convert to angles between +/-pi rad
+        preds = np.arctan(rot_y/rot_x)
+        neg_x = rot_x < 0
+        neg_y = rot_y < 0
+        pos_y = rot_y > 0
+
+        preds[np.where(neg_x & pos_y)] = preds[np.where(neg_x & pos_y)] + np.pi
+        preds[np.where(neg_x & neg_y)] = -np.pi/2 - preds[np.where(neg_x & neg_y)]
+
+        preds += offsets
+
+        # Range discontinuity around +pi and -pi. Convert to positive angles to see if stdev is lower.
+        # if len(preds) > 1:
+        #     base_std = np.std(preds)
+        #     preds_alt = np.copy(preds)
+        #     preds_alt[np.where(preds_alt < 0)] = 2*np.pi + preds_alt[np.where(preds_alt < 0)]
+        #     alt_std = np.std(preds_alt)
+        #     if alt_std < base_std:
+        #         preds = preds_alt
+
+        pred = np.sum(multipliers * preds) / np.sum(multipliers)
+    
+        return pred
+
+
+    def _type2predict(self,joint_name):
+        """ S Angle """
+        pairs, lengs, confidence, offsets = self._getPredictors(joint_name)
+    
+        vecs = pairs[:,1] - pairs[:,0]
+        preds = np.arctan(vecs[:,2]/vecs[:,0])
+
+        multipliers = self._type2Multipliers(pairs, lengs, confidence, vecs)
+
+        preds += offsets
+        pred = np.sum(multipliers * preds) / np.sum(multipliers)
+
+        return pred
+
+
+    def _type3predict(self,joint_name):
+        """ R, T Angles """
+        pass
+
+
+    def _type2Multipliers(self,pairs,lengs,confidence,vecs):
+        detected_lengs = self._distances(pairs)
+        len_multipliers = np.exp(-(np.abs(lengs - detected_lengs)/lengs))
+        confidence_multipliers = 2*lengs *(np.power(np.prod(confidence,-1),1.75) / np.square(np.sum(confidence,-1)))
+        x_distance_multiplier = vecs[:,0] / detected_lengs
+        multipliers = len_multipliers * confidence_multipliers * x_distance_multiplier
+        return multipliers
+
+
+    def _type1Multipliers(self,pairs,lengs,confidence):
+        detected_lengs = self._distances(pairs)
+        len_multipliers = np.exp(-(np.abs(lengs - detected_lengs)/lengs))
+        confidence_multipliers = 2*lengs *(np.power(np.prod(confidence,-1),1.75) / np.square(np.sum(confidence,-1)))
+        multipliers = len_multipliers * confidence_multipliers
+        return multipliers
+
+
+    def _getPredictors(self, joint_name):
         joint_info = self.joint_data[joint_name]
 
         pairs = []
@@ -91,55 +165,7 @@ class Predictor(Skeleton):
         lengs = np.array(lengs)
         confidence = np.array(confidence)
         offsets = np.array(offsets)
-
-        detected_lengs = self._distances(pairs)
-        len_multipliers = np.exp(-(np.abs(lengs - detected_lengs)/lengs))
-        confidence_multipliers = 2*lengs *(np.power(np.prod(confidence,-1),1.75) / np.square(np.sum(confidence,-1)))
-        multipliers = len_multipliers * confidence_multipliers
-
-        
-        vecs = pairs[:,1] - pairs[:,0]
-        rot_y = vecs[:,1]
-        rot_x = np.sqrt(vecs[:,0] ** 2 + vecs[:,2] ** 2) * abs(vecs[:,0]) / vecs[:,0]
-
-        if joint_name == 'L':
-            print(vecs)
-
-
-        # Convert to angles between +/-pi rad
-        preds = np.arctan(rot_y/rot_x)
-        neg_x = rot_x < 0
-        neg_y = rot_y < 0
-        pos_y = rot_y > 0
-
-        preds[np.where(neg_x & pos_y)] = preds[np.where(neg_x & pos_y)] + np.pi
-        preds[np.where(neg_x & neg_y)] = -np.pi/2 - preds[np.where(neg_x & neg_y)]
-
-        preds += offsets
-
-        # Range discontinuity around +pi and -pi. Convert to positive angles to see if stdev is lower.
-        if len(preds) > 1:
-            base_std = np.std(preds)
-            preds_alt = np.copy(preds)
-            preds_alt[np.where(preds_alt < 0)] = 2*np.pi + preds_alt[np.where(preds_alt < 0)]
-            alt_std = np.std(preds_alt)
-            if alt_std < base_std:
-                preds = preds_alt
-
-        pred = np.sum(multipliers * preds) / np.sum(multipliers)
-
-    
-        return pred
-
-
-    def _type2predict(self,joint_name):
-        """ S Angle """
-        pass
-
-
-    def _type3predict(self,joint_name):
-        """ R, T Angles """
-        pass
+        return pairs, lengs, confidence, offsets
 
 
     def _distances(self, point_arr):

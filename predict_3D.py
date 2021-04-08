@@ -66,26 +66,27 @@ frame_width = image.shape[1]
 
 tim = Predictor('B')
 
+detected_holes = []
 
 i = 0
 while ret:
     over = np.zeros((ds.seg_resolution[0],ds.seg_resolution[1],3),dtype=np.uint8)
     coord_dict = pred_dict_xyz[i]
 
-    tim.load(predictions[i], ds.pointmaps[i])
+    fill = tim.load(predictions[i], ds.pointmaps[i])
     pred = tim.predict()
 
-    L_pred_ang = pred['L']
-    U_pred_ang = pred['U']
+    if fill:
+        detected_holes.append(i)
 
     # Append to lists
-    S_pred.append(0)
-    L_pred.append(L_pred_ang)
-    U_pred.append(U_pred_ang)
+    S_pred.append(pred['S'])
+    L_pred.append(pred['L'])
+    U_pred.append(pred['U'])
     #B_pred.append(B_pred_ang)
 
     # Put depth info on overlay
-    over = color_array(ds.pointmaps[i,:,:,2], .1)
+    #over = color_array(ds.pointmaps[i,:,:,2], .1)
     #Visualize lines
     viz(image, over, predictions[i])
 
@@ -115,40 +116,30 @@ for a, b in zip(["S_act","L_act","U_act","S_pred","L_pred","U_pred"],["S_angles"
 
 
 # Make Subplots
-fig, axs = plt.subplots(3,3)
+fig, axs = plt.subplots(3,2)
 
 # Plot Raw Angles
 for idx, act, pred, label in zip(range(3),["S_act","L_act","U_act",],["S_pred","L_pred","U_pred"],["S","L","U"]):
     axs[idx,0].set_title(f'Raw {label} Angle')
     axs[idx,0].plot(globals()[act])
-    axs[idx,0].plot(globals()[pred])
-
-
-# Offset Angles
-S_offset = np.add(np.mean(np.subtract(S_act,S_pred)),S_pred)
-L_offset = np.add(np.mean(np.subtract(L_act,L_pred)),L_pred)
-U_offset = np.add(np.mean(np.subtract(U_act,U_pred)),U_pred)
-#B_offset = np.add(np.mean(np.subtract(B_act,B_pred)),B_pred)
-
-for idx, act, offset, label in zip(range(4),["S_act","L_act","U_act"],["S_offset","L_offset","U_offset"],["S","L","U"]):
-    axs[idx,1].set_title(f'Offset {label} Angle')
-    axs[idx,1].plot(globals()[act])
-    axs[idx,1].plot(globals()[offset])
-
-
+    axs[idx,0].plot(globals()[pred],color='purple')
+    for x in detected_holes:
+        axs[idx,0].axvspan(x-.5, x+.5, color='red', alpha=0.25, ec=None)
 
 #Residuals
-S_err = np.subtract(S_offset, S_act)
-L_err = np.subtract(L_offset, L_act)
-U_err = np.subtract(U_offset, U_act)
+S_err = np.subtract(S_pred, S_act)
+L_err = np.subtract(L_pred, L_act)
+U_err = np.subtract(U_pred, U_act)
 #B_err = np.subtract(B_offset, B_act)
 
 zeros_err = np.zeros(L_act.shape)
 
 for idx, err, label in zip(range(4),["S_err","L_err","U_err"],["S","L","U"]):
-    axs[idx,2].set_title(f'Angle {label} Error')
-    axs[idx,2].plot(zeros_err)
-    axs[idx,2].plot(globals()[err])
+    axs[idx,1].set_title(f'Angle {label} Error')
+    axs[idx,1].plot(zeros_err)
+    axs[idx,1].plot(globals()[err],color='purple')
+    for x in detected_holes:
+        axs[idx,1].axvspan(x-.5, x+.5, color='red', alpha=0.25, ec=None)
 
 
 # Determine average errors
