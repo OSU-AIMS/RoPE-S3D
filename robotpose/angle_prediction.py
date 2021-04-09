@@ -35,7 +35,6 @@ class Predictor(Skeleton):
             self.detections[name] = {'coords':coords, 'confidence':keypoint_detections[idx][2], 'estimated':estimated}
 
 
-
     def predict(self):
         predictions = {}
         for joint in self.predictable_joints:

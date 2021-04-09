@@ -22,9 +22,12 @@ def test():
     c = 400
     errs = []
 
-    ds = Dataset('set0','B')
+    
+
+    ds = Dataset('set10','B')
+    map = np.copy(ds.pointmaps[...,2])
     for idx in range(ds.length):
-        colored = color_array(ds.pointmaps[idx,...,1])
+        colored = color_array(map[idx])
         
         #print(f"{ds.pointmaps[idx,r,c]} , {fill_hole(ds.pointmaps[idx],r,c,50)}")
 
@@ -35,7 +38,7 @@ def test():
         #cv2.circle(colored,(c,r),4,(255,255,255))
         #cv2.imshow("test",np.abs(ds.pointmaps[idx,...,2]-2))
         cv2.imshow("test",colored)
-        cv2.waitKey(50)
+        cv2.waitKey(1)
     # errs = np.array(errs)
     # print(np.mean(errs,0))
 

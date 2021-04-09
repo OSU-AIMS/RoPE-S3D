@@ -43,9 +43,6 @@ predictions = model.predict(reader)
 # np.save('set6_output.npy',predToXYZ(predictions, ds.ply))
 # print("Predictions saved")
 
-pred_dict = predToDictList_new(predictions)
-pred_dict_xyz = predToXYZdict_new(pred_dict, ds.pointmaps)
-
 # Load video capture and make output
 cap = cv2.VideoCapture(ds.seg_vid_path)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -66,21 +63,15 @@ ret, image = cap.read()
 frame_height = image.shape[0]
 frame_width = image.shape[1]
 
-
 tim = Predictor('B')
 
-detected_holes = []
 
 i = 0
 while ret:
     over = np.zeros((ds.seg_resolution[0],ds.seg_resolution[1],3),dtype=np.uint8)
-    coord_dict = pred_dict_xyz[i]
 
-    fill = tim.load(predictions[i], ds.pointmaps[i])
+    tim.load(predictions[i], ds.pointmaps[i])
     pred = tim.predict()
-
-    if fill:
-        detected_holes.append(i)
 
     # Append to lists
     S_pred.append(pred['S']['val'])
@@ -92,7 +83,7 @@ while ret:
     #B_pred.append(B_pred_ang)
 
     # Put depth info on overlay
-    over = color_array(ds.pointmaps[i,:,:,2], .1)
+    over = color_array(ds.pointmaps[i,...,2])
     #Visualize lines
     viz(image, over, predictions[i])
 
@@ -179,8 +170,6 @@ print("Avg Error (deg):")
 print(f"\tS: {avg_S_err:.2f}\n\tL: {avg_L_err:.2f}\n\tU: {avg_U_err:.2f}")
 print("Stdev (deg):")
 print(f"\tS: {S_err_std:.2f}\n\tL: {L_err_std:.2f}\n\tU: {U_err_std:.2f}")
-
-
 
 
 
