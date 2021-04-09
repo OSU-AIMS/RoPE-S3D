@@ -41,16 +41,24 @@ def normalize_and_interpolate(x, x_min, x_max):
 
 import numpy as np
 
-def color_array(x, mn=None, mx=None, colormap=turbo_colormap_data):
+def color_array(x, mn=None, mx=None, colormap=turbo_colormap_data, ignore_zero=True):
     colormap = np.array(colormap)
 
-
     x = x.astype(np.float64)
+    if ignore_zero:
+        mask = np.where(x==0)
     
     if mn is None:
-        mn = np.min(x)
+        if ignore_zero:
+            mn = np.min(x[x!=0])
+        else:
+            mn = np.min(x)
     if mx is None:
-        mx = np.max(x)
+        if ignore_zero:
+            mx = np.max(x[x!=0])
+        else:
+            mx = np.max(x)
+
     x = (x - mn)/(mx - mn)
     x = np.clip(x,0,1)
 
@@ -58,12 +66,15 @@ def color_array(x, mn=None, mx=None, colormap=turbo_colormap_data):
     b = np.clip(a+1, 0, 255)
 
     f_ = x*255.0 - a
+
     f = np.zeros((*f_.shape,3))
     for idx in range(3):
         f[...,idx] = f_ 
-    out = np.zeros((x.shape[0], x.shape[1],3), dtype=np.float64)
+
     out = colormap[a] + (colormap[b] - colormap[a]) * f
     out *= 255
     out = out.astype(np.uint8)
+    if ignore_zero:
+        out[mask] = (0,0,0)
 
     return out

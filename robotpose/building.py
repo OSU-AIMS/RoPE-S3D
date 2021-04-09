@@ -34,7 +34,8 @@ def save_video(path, img_arr):
 
 
 class Builder():
-    def __init__(self):
+    def __init__(self, compression_level = 2):
+        self.compression_level = compression_level
         self.build_start_time = time.time()
 
     def build_full(self, data_path, dataset_ver, name = None):
@@ -46,6 +47,14 @@ class Builder():
         self._save_reference_videos()
         self._make_camera_poses()
         return self._save_full(dataset_ver)
+
+    def recompile(self, ds_path, dataset_ver, name = None):
+        self._set_dest_path_recompile(ds_path, name)
+        self._load_raw_data_from_ds()
+        self._segment_images_and_maps()
+        self._save_reference_videos()
+        return self._save_recompile(dataset_ver)
+
 
     def build_subset(self, src, sub_type, idxs):
         self._read_full(src)
@@ -68,6 +77,11 @@ class Builder():
         self.name = name
         if not os.path.isdir(self.dest_path):
             os.mkdir(self.dest_path)
+
+    def _set_dest_path_recompile(self, dest_path, name):
+        self.dest_path = dest_path
+        self.name = name
+
 
     def _get_filepaths_from_data_dir(self, data_path):
         self.jsons_p = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.json')]
@@ -126,6 +140,18 @@ class Builder():
             self.depthmap_arr[idx] = np.load(path)
 
         self.depthmap_arr *= self.depth_scale
+
+
+    def _load_raw_data_from_ds(self):
+        with tqdm(total=2, desc="Reading Dataset") as pbar:
+            dest = os.path.join(self.dest_path, self.name + '.h5')
+            with h5py.File(dest, 'r') as f:
+                self.length = f.attrs['length']
+                self.orig_img_arr = np.array(f['images/original'])
+                self.img_height, self.img_width = self.orig_img_arr.shape[1:3]
+                pbar.update(1)
+                self.depthmap_arr = np.array(f['coordinates/depthmaps'])
+                pbar.update(1)
 
     
     def _segment_images_and_maps(self):
@@ -187,33 +213,50 @@ class Builder():
                 file.attrs['depth_intrinsics'] = self.intrin_depth
                 file.attrs['color_intrinsics'] = self.intrin_color
                 file.attrs['depth_scale'] = self.depth_scale
-                file.create_dataset('angles', data = self.ang_arr, compression="gzip")
+                file.create_dataset('angles', data = self.ang_arr, compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                file.create_dataset('positions', data = self.pos_arr, compression="gzip")
+                file.create_dataset('positions', data = self.pos_arr, compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 coord_grop = file.create_group('coordinates')
-                dm = coord_grop.create_dataset('depthmaps', data = self.depthmap_arr, compression="gzip")
+                dm = coord_grop.create_dataset('depthmaps', data = self.depthmap_arr, compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 dm.attrs['depth_scale'] = self.depth_scale
-                coord_grop.create_dataset('pointmaps', data = self.pointmap, compression="gzip")
+                coord_grop.create_dataset('pointmaps', data = self.pointmap, compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 img_grp = file.create_group('images')
-                img_grp.create_dataset('original', data = self.orig_img_arr, compression="gzip")
+                img_grp.create_dataset('original', data = self.orig_img_arr, compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                img_grp.create_dataset('segmented', data = self.segmented_img_arr, compression="gzip")
+                img_grp.create_dataset('segmented', data = self.segmented_img_arr, compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                img_grp.create_dataset('rois', data = self.rois, compression="gzip")
+                img_grp.create_dataset('rois', data = self.rois, compression="gzip",compression_opts=self.compression_level)
                 img_grp.create_dataset('camera_poses', data = self.camera_poses)
                 pbar.update(1)
                 path_grp = file.create_group('paths')
-                path_grp.create_dataset('jsons', data = np.array(self.jsons, dtype=h5py.string_dtype()), compression="gzip")
+                path_grp.create_dataset('jsons', data = np.array(self.jsons, dtype=h5py.string_dtype()), compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                path_grp.create_dataset('depthmaps', data = np.array(self.maps, dtype=h5py.string_dtype()), compression="gzip")
+                path_grp.create_dataset('depthmaps', data = np.array(self.maps, dtype=h5py.string_dtype()), compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                path_grp.create_dataset('images', data = np.array(self.imgs, dtype=h5py.string_dtype()), compression="gzip")
+                path_grp.create_dataset('images', data = np.array(self.imgs, dtype=h5py.string_dtype()), compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
 
         return dest
+
+
+    def _save_recompile(self, ver):
+        dest = os.path.join(self.dest_path, self.name + '.h5')
+        with tqdm(total=3, desc="Writing Dataset") as pbar:
+            with h5py.File(dest,'a') as file:
+                file.attrs['version'] = ver
+                file.attrs['compile_date'] = str(datetime.datetime.now())
+                file.attrs['compile_time'] = time.time() - self.build_start_time
+                file.attrs['segmented_resolution'] = self.segmented_img_arr[0].shape
+                file['coordinates/pointmaps'][...] = self.pointmap
+                pbar.update(1)
+                file['images/segmented'][...] = self.segmented_img_arr
+                pbar.update(1)
+                file['images/rois'][...] = self.rois
+                pbar.update(1)
+
 
     def _read_full(self, path):
         with tqdm(total=10, desc="Reading Full Dataset") as pbar:
@@ -259,30 +302,30 @@ class Builder():
                 file.attrs['compile_date'] = str(datetime.datetime.now())
                 file.attrs['compile_time'] = 0
                 file.attrs['type'] = sub_type
-                file.create_dataset('angles', data = self.ang_arr[idxs], compression="gzip")
+                file.create_dataset('angles', data = self.ang_arr[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                file.create_dataset('positions', data = self.pos_arr[idxs], compression="gzip")
+                file.create_dataset('positions', data = self.pos_arr[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 coord_grop = file.create_group('coordinates')
-                dm = coord_grop.create_dataset('depthmaps', data = self.depthmap_arr[idxs], compression="gzip")
+                dm = coord_grop.create_dataset('depthmaps', data = self.depthmap_arr[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 dm.attrs['depth_scale'] = self.depth_scale
-                coord_grop.create_dataset('pointmaps', data = self.pointmap[idxs], compression="gzip")
+                coord_grop.create_dataset('pointmaps', data = self.pointmap[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 img_grp = file.create_group('images')
-                img_grp.create_dataset('original', data = self.orig_img_arr[idxs], compression="gzip")
+                img_grp.create_dataset('original', data = self.orig_img_arr[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                img_grp.create_dataset('segmented', data = self.segmented_img_arr[idxs], compression="gzip")
+                img_grp.create_dataset('segmented', data = self.segmented_img_arr[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                img_grp.create_dataset('rois', data = self.rois[idxs], compression="gzip")
-                img_grp.create_dataset('camera_poses', data = self.camera_poses[idxs], compression="gzip")
+                img_grp.create_dataset('rois', data = self.rois[idxs], compression="gzip",compression_opts=self.compression_level)
+                img_grp.create_dataset('camera_poses', data = self.camera_poses[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 path_grp = file.create_group('paths')
-                path_grp.create_dataset('jsons', data = np.array(self.jsons[idxs], dtype=h5py.string_dtype()), compression="gzip")
+                path_grp.create_dataset('jsons', data = np.array(self.jsons[idxs], dtype=h5py.string_dtype()), compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                path_grp.create_dataset('depthmaps', data = np.array(self.maps[idxs], dtype=h5py.string_dtype()), compression="gzip")
+                path_grp.create_dataset('depthmaps', data = np.array(self.maps[idxs], dtype=h5py.string_dtype()), compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                path_grp.create_dataset('images', data = np.array(self.imgs[idxs],dtype=h5py.string_dtype()), compression="gzip")
+                path_grp.create_dataset('images', data = np.array(self.imgs[idxs],dtype=h5py.string_dtype()), compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
 
         

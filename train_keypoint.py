@@ -12,6 +12,7 @@ from deepposekit.callbacks import Logger, ModelCheckpoint
 from robotpose import paths as p
 import os
 import argparse
+from robotpose.utils import workerCount
 
 setMemoryGrowth()
 
@@ -23,12 +24,11 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
     print("Data Generator loaded")
 
     model_path = os.path.join(p.MODELS,os.path.basename(os.path.normpath(ds.deepposeds_path)).replace('.h5',f'_{model_type}.h5'))
-    model_path = os.path.join(p.MODELS,f"{ds.name}__{ds.skeleton}__{model_type}.h5")
+    model_path = os.path.join(p.MODELS,f"{ds.name}__{ds.skele.name}__{model_type}.h5")
 
     if os.path.isfile(model_path):
         model = load_model(model_path,generator=data_generator)
     else:
-
 
         if model_type == "LEAP":
             ds_fac = 1
@@ -52,7 +52,7 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
         elif model_type == "CutDensenet":
             model = DeepLabCut(train_generator, backbone="densenet121")
         elif model_type == "StackedDensenet":
-            model = StackedDenseNet(train_generator, n_stacks=1, growth_rate=24, pretrained=True)
+            model = StackedDenseNet(train_generator, n_stacks=1, growth_rate=48, pretrained=True)
         elif model_type == "LEAP":
             model = LEAP(train_generator)
         elif model_type == "StackedHourglass":
@@ -64,7 +64,7 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
         # filepath saves the logger data to a .h5 file
         filepath=p.LOG
     )
-    reduce_lr = ReduceLROnPlateau(monitor="val_loss", factor=0.2, verbose=1, patience=20)
+    reduce_lr = ReduceLROnPlateau(monitor="val_loss", factor=0.2, verbose=1, patience=7)
 
     model_checkpoint = ModelCheckpoint(
         model_path,
@@ -87,10 +87,10 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
 
     model.fit(
         batch_size=batch_size,
-        validation_batch_size=2,
+        validation_batch_size=batch_size,
         callbacks=callbacks,
         epochs=1000,
-        n_workers=2,
+        n_workers=workerCount(),
         steps_per_epoch=None,
     )
 
@@ -103,7 +103,7 @@ if __name__ == "__main__":
                         default='LEAP', help="The type of model to train."
                         )
     parser.add_argument('--batch',type=int, choices=[1,2,4,8,12,16], default=2, help="Batch size for training")
-    parser.add_argument('--valid',type=float, default=0.1, help="Validation size for training")
+    parser.add_argument('--valid',type=float, default=0.2, help="Validation size for training")
     args = parser.parse_args()
 
     run(args.set, args.skeleton, args.model, args.batch, args.valid)
