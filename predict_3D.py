@@ -27,7 +27,7 @@ import sys
 setMemoryGrowth()
 
 # Load dataset
-ds = Dataset('set0','B')
+ds = Dataset('set10','B')
 
 # Read in Actual angles from JSONs to compare predicted angles to
 S_angles = ds.angles[:,0]
@@ -83,7 +83,7 @@ while ret:
     #B_pred.append(B_pred_ang)
 
     # Put depth info on overlay
-    over = color_array(ds.pointmaps[i,...,2])
+    #over = color_array(ds.pointmaps[i,...,2])
     #Visualize lines
     viz(image, over, predictions[i])
 

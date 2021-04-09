@@ -38,13 +38,13 @@ class Predictor(Skeleton):
     def predict(self):
         predictions = {}
         for joint in self.predictable_joints:
-            preds, est = self._predictAngle(joint)
-            predictions[joint] = {"val": preds,"percent_est":est}
-
+            pred, est = self._predictAngle(joint,predictions)
+            predictions[joint] = {"val": pred,"percent_est":est}
+            
         return predictions
 
 
-    def _predictAngle(self,joint_name):
+    def _predictAngle(self,joint_name, predictions):
         tp = self.joint_data[joint_name]['type']
 
         if tp == 1:
@@ -57,7 +57,10 @@ class Predictor(Skeleton):
         if pred is None:
             return None, 1
 
-        pred += self.joint_data[joint_name]['parent_offset']
+        pred *= self.joint_data[joint_name]['self_mult']
+
+        if self.joint_data[joint_name]['parent']:
+            pred += self.joint_data[joint_name]['parent_mult'] * predictions[self.joint_data[joint_name]['parent']]['val'] + self.joint_data[joint_name]['parent_offset']
 
         while pred < self.joint_data[joint_name]['min']:
             pred += 2 * np.pi

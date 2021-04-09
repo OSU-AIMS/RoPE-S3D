@@ -33,6 +33,7 @@
             "parent":null,
             "parent_mult":0,
             "parent_offset":0,
+            "self_mult":1,
             "predictors": {
                 "A": {
                     "from": "L",
@@ -55,6 +56,7 @@
             "parent":null,
             "parent_mult":0,
             "parent_offset":0,
+            "self_mult":-1,
             "predictors": {
                 "A": {
                     "from": "L",
@@ -71,6 +73,7 @@
             "parent":"L",
             "parent_mult":1,
             "parent_offset":0,
+            "self_mult":1,
             "predictors": {
                 "A": {
                     "from": "R",
@@ -87,6 +90,7 @@
             "parent":null,
             "parent_mult":0,
             "parent_offset":0,
+            "self_mult":1,
             "predictors": {}
         },
         "B": {
@@ -96,6 +100,7 @@
             "parent":"R",
             "parent_mult":1,
             "parent_offset":0,
+            "self_mult":1,
             "predictors": {}
         }
     }
