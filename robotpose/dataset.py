@@ -8,6 +8,7 @@
 # Author: Adam Exley
 
 import json
+from h5py._hl import dataset
 import numpy as np
 import os
 import tempfile
@@ -15,6 +16,7 @@ import zipfile
 
 from deepposekit.io import initialize_dataset
 import h5py
+import PySimpleGUI as sg
 
 from . import paths as p
 from .building import Builder
@@ -120,14 +122,14 @@ def dataset_split(joint_angles):
 class DatasetInfo():
     def __init__(self):
         self._update()
+        self.get()
 
     def get(self):
         with open(INFO_JSON, 'r') as f:
             self.data = json.load(f)
         return self.data
 
-    def __str__(self):
-        self.get()
+    def unique_sets(self):
         datasets = set()
         for t in ['full','train','validate','test']:
             datasets.update(self.data['compiled'][t]['names'])
@@ -135,6 +137,12 @@ class DatasetInfo():
 
         datasets = list(datasets)
         datasets.sort()
+        return datasets
+        
+
+    def __str__(self):
+        self.get()
+        datasets = self.unique_sets()
 
         full = []
         train = []
@@ -399,3 +407,24 @@ class Dataset():
 
     def __str__(self):
         return str(self.attrs)
+
+
+
+
+class DatasetWizard(DatasetInfo):
+    def __init__(self):
+        super().__init__()
+
+        self.layout = [          
+            [sg.InputCombo(self.unique_sets(), size=(20, 1))],
+            [sg.Button("Load",tooltip='Load dataset, building if required.'), 
+                sg.Button("Recompile",tooltip='Reprocess raw data from dataset.'),
+                sg.Button("Build",tooltip='Build dataset from scratch.')],
+            [sg.Button("Align",tooltip='In dev', disabled=True), 
+                sg.Button("Annotate",tooltip='In dev', disabled=True)]
+            ]
+
+        self.window = sg.Window('Dataset Wizard', self.layout)
+        event, values = self.window.read()      
+
+        self.window.close()     
