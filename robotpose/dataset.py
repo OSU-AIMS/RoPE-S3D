@@ -118,7 +118,7 @@ def dataset_split(joint_angles):
 
 
 class DatasetInfo():
-    def __init__(self, update):
+    def __init__(self):
         self._update()
 
     def get(self):

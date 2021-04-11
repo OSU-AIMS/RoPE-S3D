@@ -8,11 +8,13 @@
 # Author: Adam Exley
 
 import PySimpleGUI as sg
+import os
 
 from .dataset import DatasetInfo, Dataset
 from .render import Aligner, Renderer
 from .skeleton import valid_skeletons
 from .autoAnnotate import AutomaticKeypointAnnotator, AutomaticSegmentationAnnotator
+from deepposekit import Annotator
 
 
 
@@ -39,8 +41,8 @@ class DatasetWizard(DatasetInfo):
                 sg.Button("Build",key='-build-',tooltip='Build dataset from scratch.')],
             [sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')],
             [sg.Text("Skeleton:"),sg.InputCombo(valid_skeletons(),key='-skeleton-', size=(20, 1))],
-            [sg.Button("AutoAnnotate",key='-annotate-',tooltip='In dev', disabled=True)],
-            [],
+            [sg.Button("AutoAnnotate",key='-annotate-',tooltip='In dev', disabled=True),
+                sg.Button("View Annotations",key='-manual_annotate-', disabled=True)],
             [sg.Button("Quit",key='-quit-',tooltip='Quit Dataset Wizard')]
             ]
 
@@ -64,9 +66,9 @@ class DatasetWizard(DatasetInfo):
             for button in ['-load-','-recompile-','-build-','-align-']:
                 self.window[button].update(disabled = False)
             if values['-skeleton-'] in valid_skeletons():
-                self.window['-annotate-'].update(disabled = True)
+                self.window['-manual_annotate-'].update(disabled = False)
             else:
-                self.window['-annotate-'].update(disabled = True)
+                self.window['-manual_annotate-'].update(disabled = True)
         else:
             for button in ['-load-','-recompile-','-build-','-align-','-annotate-']:
                 self.window[button].update(disabled = True)
@@ -83,7 +85,19 @@ class DatasetWizard(DatasetInfo):
             self._rebuild(values['-dataset-'])
         elif event == '-annotate-':
             self._annotate(values['-dataset-'], values['-skeleton-'])
+        elif event == '-manual_annotate-':
+            self._manualAnnotate(values['-dataset-'], values['-skeleton-'])
            
+    def _manualAnnotate(self,dataset,skeleton):
+        ds = Dataset(dataset,skeleton)
+        ds.makeDeepPoseDS()
+        app = Annotator(datapath=os.path.abspath(ds.deepposeds_path),
+                dataset='images',
+                skeleton=ds.skele.csv_path,
+                shuffle_colors=False,
+                text_scale=1)
+
+        app.run()
 
     def _annotate(self,dataset,skeleton):
         annotate(dataset,skeleton)
