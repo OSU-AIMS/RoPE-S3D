@@ -38,21 +38,24 @@ A skeleton is created by first creating a CSV per DeepPoseKit's standards, which
 
 Datasets are expected to contain RGB images in a ```.png``` format with accopanying depthmaps in a ```.npy``` array file, and a ```.json``` information file.
 
-More information can be found in the ```data``` directory README.
+To build, recompile, or view a dataset, simply run the dataset wizard:
+```bash
+python wizard.py
+```
 
 ## Automatic Annotation
 
 ### Alignment
 
-Before running any automatic annotation, first align the dataset with the render using the Aligner:
+Before running any automatic annotation, first align the dataset with the render using the Aligner found in the dataset wizard:
 
 ```bash
-python align.py dataset_name skeleton_name
+python wizard.py
 ```
+1. Select Dataset
+2. Click "Align"
 
 ### Annotation
-
-To run automatic  annotation, first  align the dataset as described above.
 
 Then, use the automatic annotation script:
 
