@@ -10,7 +10,6 @@
 import numpy as np
 import os
 import json
-import time
 
 import cv2
 import trimesh
@@ -18,9 +17,10 @@ import pyrender
 import PySimpleGUI as sg
 
 from . import paths as p
-#from .autoAnnotate import makeMask
 from .dataset import Dataset
 from .projection import makeIntrinsics
+
+
 
 MESH_CONFIG = os.path.join(p.DATASETS,'mesh_config.json')
 
@@ -225,8 +225,6 @@ class Renderer():
         ml.load()
         name_list = ml.getNames()
         self.meshes = ml.getMeshes()
-
-        self.cam_path = os.path.join(self.ds.dataset_dir,'camera_pose.npy')
          
         if camera_pose is not None:
             c_pose = camera_pose
@@ -373,7 +371,6 @@ class Aligner():
         self.ds = Dataset(dataset, permissions='a')
 
         self.renderer = Renderer(dataset, None, mode='seg_full')
-        self.cam_path = self.renderer.cam_path
 
         if start_idx is not None:
             self.start_idx = start_idx
