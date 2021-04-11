@@ -1,5 +1,4 @@
 import argparse
-from tokenize import endpats
 from robotpose.render import Aligner
 
 def align(dataset, start, end):

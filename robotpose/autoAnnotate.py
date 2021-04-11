@@ -189,7 +189,7 @@ class AutomaticSegmentationAnnotator():
         color_dict = self.rend.getColorDict()
         self.anno = SegmentationAnnotator(color_dict = color_dict)
 
-        self.ds = Dataset(dataset, skeleton)
+        self.ds = Dataset(dataset, skeleton, update_info=False)
 
         if not os.path.isdir(self.ds.seg_anno_path):
             os.mkdir(self.ds.seg_anno_path)
@@ -211,7 +211,7 @@ class AutomaticSegmentationAnnotator():
         cv2.destroyAllWindows()
         inputs = []
 
-        for frame in tqdm(range(self.ds.length),desc="Packing Segmenttion Pool"):
+        for frame in tqdm(range(self.ds.length),desc="Packing Segmentation Pool"):
             inputs.append((self.ds.og_img[frame],color_imgs[frame],os.path.join(self.ds.seg_anno_path,f"{frame:05d}")))
 
         print("Starting Segmentation Pool...")

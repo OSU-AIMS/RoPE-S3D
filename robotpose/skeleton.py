@@ -16,6 +16,10 @@ import csv
 from . import paths as p
 
 
+def valid_skeletons():
+    return [x.replace('.csv','') for x in os.listdir(p.SKELETONS) if x.endswith('.csv') and os.path.isfile(os.path.join(p.SKELETONS,x.replace('.csv','.json')))]
+
+
 class Skeleton():
 
     def __init__(self, name):

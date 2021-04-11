@@ -8,7 +8,6 @@
 # Author: Adam Exley
 
 import json
-from h5py._hl import dataset
 import numpy as np
 import os
 import tempfile
@@ -16,7 +15,6 @@ import zipfile
 
 from deepposekit.io import initialize_dataset
 import h5py
-import PySimpleGUI as sg
 
 from . import paths as p
 from .building import Builder
@@ -120,9 +118,9 @@ def dataset_split(joint_angles):
 
 
 class DatasetInfo():
-    def __init__(self):
-        self._update()
-        self.get()
+    def __init__(self, update = True):
+        if update:
+            self._update()
 
     def get(self):
         with open(INFO_JSON, 'r') as f:
@@ -254,7 +252,8 @@ class Dataset():
             ds_type = 'full',
             recompile = False,
             rebuild = False,
-            permissions = 'r'
+            permissions = 'r',
+            update_info = True
             ):
         """
         Create a dataset instance, loading/building/compiling it if needed.
@@ -272,7 +271,7 @@ class Dataset():
         valid_types = ['full', 'train', 'validate', 'test']
         assert ds_type in valid_types, f"Invalid Type. Must be one of: {valid_types}"
 
-        info = DatasetInfo()
+        info = DatasetInfo(update=update_info)
 
         d = info.get()
         
@@ -319,7 +318,6 @@ class Dataset():
 
 
     def load(self, skeleton=None):
-        print("\nLoading Dataset...")
         file = h5py.File(self.dataset_path,self.permissions)
         self.attrs = dict(file.attrs)
         self.og_resolution = self.attrs['original_resolution']
@@ -343,7 +341,6 @@ class Dataset():
         if skeleton is not None:
             self.setSkeleton(skeleton)
 
-        print("Dataset Loaded.\n")
 
 
     def recompile(self):
@@ -371,6 +368,7 @@ class Dataset():
 
     def setSkeleton(self,skeleton_name):
         self.skele = Skeleton(skeleton_name)
+        self.deepposeds_path = self.deepposeds_path.replace('.h5',f"{self.skele.name}_.h5")
     
     def updateKeypointData(self):
         self.skele.update()
@@ -411,20 +409,4 @@ class Dataset():
 
 
 
-class DatasetWizard(DatasetInfo):
-    def __init__(self):
-        super().__init__()
-
-        self.layout = [          
-            [sg.InputCombo(self.unique_sets(), size=(20, 1))],
-            [sg.Button("Load",tooltip='Load dataset, building if required.'), 
-                sg.Button("Recompile",tooltip='Reprocess raw data from dataset.'),
-                sg.Button("Build",tooltip='Build dataset from scratch.')],
-            [sg.Button("Align",tooltip='In dev', disabled=True), 
-                sg.Button("Annotate",tooltip='In dev', disabled=True)]
-            ]
-
-        self.window = sg.Window('Dataset Wizard', self.layout)
-        event, values = self.window.read()      
-
-        self.window.close()     
+ 
