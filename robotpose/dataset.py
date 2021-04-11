@@ -118,9 +118,8 @@ def dataset_split(joint_angles):
 
 
 class DatasetInfo():
-    def __init__(self, update = True):
-        if update:
-            self._update()
+    def __init__(self, update):
+        self._update()
 
     def get(self):
         with open(INFO_JSON, 'r') as f:
@@ -253,7 +252,6 @@ class Dataset():
             recompile = False,
             rebuild = False,
             permissions = 'r',
-            update_info = True
             ):
         """
         Create a dataset instance, loading/building/compiling it if needed.
@@ -271,7 +269,7 @@ class Dataset():
         valid_types = ['full', 'train', 'validate', 'test']
         assert ds_type in valid_types, f"Invalid Type. Must be one of: {valid_types}"
 
-        info = DatasetInfo(update=update_info)
+        info = DatasetInfo()
 
         d = info.get()
         

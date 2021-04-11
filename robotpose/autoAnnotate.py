@@ -189,7 +189,7 @@ class AutomaticSegmentationAnnotator():
         color_dict = self.rend.getColorDict()
         self.anno = SegmentationAnnotator(color_dict = color_dict)
 
-        self.ds = Dataset(dataset, skeleton, update_info=False)
+        self.ds = Dataset(dataset, skeleton)
 
         if not os.path.isdir(self.ds.seg_anno_path):
             os.mkdir(self.ds.seg_anno_path)

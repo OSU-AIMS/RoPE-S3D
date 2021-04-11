@@ -64,7 +64,7 @@ class DatasetWizard(DatasetInfo):
             for button in ['-load-','-recompile-','-build-','-align-']:
                 self.window[button].update(disabled = False)
             if values['-skeleton-'] in valid_skeletons():
-                self.window['-annotate-'].update(disabled = False)
+                self.window['-annotate-'].update(disabled = True)
             else:
                 self.window['-annotate-'].update(disabled = True)
         else:
