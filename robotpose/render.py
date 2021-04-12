@@ -169,6 +169,9 @@ def coordsFromData(ang, pos):
     coord[:,4,4] = -1 * ang[:,1] + ang[:,2] + np.pi/2   # Pitch of R
     coord[:,5,4] = -1 * ang[:,1] + ang[:,2] + ang[:,4]  # Pitch of BT
 
+    coord[:,4,3] = ang[:,3]
+    coord[:,5,3] = ang[:,3]
+
     return coord
 
 
