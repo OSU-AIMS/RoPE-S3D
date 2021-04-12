@@ -39,10 +39,8 @@ class DatasetWizard(DatasetInfo):
 
         self.layout = [          
             [sg.Text("Dataset:"),sg.InputCombo(self.unique_sets(),key='-dataset-', size=(20, 1))],
-            [sg.Button("Load",key='-load-',tooltip='Load dataset, building if required.'), 
-                sg.Button("Recompile",key='-recompile-',tooltip='Reprocess raw data from dataset.'),
-                sg.Button("Build",key='-build-',tooltip='Build dataset from scratch.')],
-            [sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')],
+            [sg.Button("View Details",key='-load-',tooltip='View dataset details'),
+                sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')],
             [sg.HorizontalSeparator()],
             [sg.Text("Skeleton:"),
                 sg.InputCombo(valid_skeletons(),key='-skeleton-', size=(20, 1)),
@@ -71,7 +69,7 @@ class DatasetWizard(DatasetInfo):
     def _updateButtons(self,values):
         
         if values['-dataset-'] in self.unique_sets():
-            for button in ['-load-','-recompile-','-build-','-align-']:
+            for button in ['-load-','-align-']:
                 self.window[button].update(disabled = False)
             if values['-skeleton-'] in valid_skeletons():
                 for button in ['-manual_annotate-']:
@@ -80,7 +78,7 @@ class DatasetWizard(DatasetInfo):
                 for button in ['-manual_annotate-']:
                     self.window[button].update(disabled = True)
         else:
-            for button in ['-load-','-recompile-','-build-','-align-','-annotate-']:
+            for button in ['-load-','-align-','-annotate-']:
                 self.window[button].update(disabled = True)
 
         if values['-skeleton-'] in valid_skeletons():
@@ -97,10 +95,6 @@ class DatasetWizard(DatasetInfo):
             self._runAligner(values['-dataset-'])
         elif event == '-load-':
             pass
-        elif event == '-recompile-':
-            self._recompile(values['-dataset-'])
-        elif event == '-build-':
-            self._rebuild(values['-dataset-'])
         elif event == '-annotate-':
             self._annotate(values['-dataset-'], values['-skeleton-'])
         elif event == '-manual_annotate-':
@@ -122,18 +116,8 @@ class DatasetWizard(DatasetInfo):
     def _annotate(self,dataset,skeleton):
         annotate(dataset,skeleton)
 
-    def _recompile(self,dataset):
-        print(f'Recompiling {dataset}')
-        ds = Dataset(dataset, recompile=True)
-        print('Recompilation Complete')
-
-    def _rebuild(self,dataset):
-        print(f'Building {dataset}')
-        ds = Dataset(dataset,rebuild=True)
-        print('Build Complete')
-
     def _runAligner(self, dataset):
-        print(f'Building {dataset}')
+        print(f'Aligning {dataset}')
         align = Aligner(dataset)
         align.run()
         print(f'Alignment Complete')
@@ -157,7 +141,7 @@ class SkeletonWizard(Skeleton):
         super().__init__(name)
 
         self.rend = SkeletonRenderer(name)
-        self.base_pose = [1.5,1.5,.35, 0,np.pi/2,np.pi/2]
+        self.base_pose = [1.5,-1.5,.35, 0,np.pi/2,0]
         self._setRotation(0,0)
 
         self.rend.setJointAngles([0,0,0,0,0,0])
@@ -220,11 +204,11 @@ class SkeletonWizard(Skeleton):
         self.rotation_v = (rotation_v/180) * np.pi
 
         self.c_pose = np.copy(self.base_pose)
-        self.c_pose[0] *= (1 - np.sin(self.rotation_v) * np.tan(self.rotation_v)) * np.cos(self.rotation_h)
-        self.c_pose[1] *= np.sin(self.rotation_h)
+        self.c_pose[1] *= (1 - np.sin(self.rotation_v) * np.tan(self.rotation_v)) * np.cos(self.rotation_h)
+        self.c_pose[0] *= np.sin(self.rotation_h)
         self.c_pose[2] = np.sin(self.rotation_v) * 1 + .15
         self.c_pose[4] = np.pi/2 - self.rotation_v
-        self.c_pose[5] = self.rotation_h + np.pi/2
+        self.c_pose[5] = self.rotation_h
         self.rend.setCameraPose(self.c_pose)
 
 
@@ -240,7 +224,6 @@ class SkeletonWizard(Skeleton):
 
         self.rend.setJointAngles(joint_angles)
     
-
 
     def render(self):
         color, depth = self.rend.render()
