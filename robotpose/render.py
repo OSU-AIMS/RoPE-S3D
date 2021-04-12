@@ -93,12 +93,12 @@ def cameraFromIntrinsics(rs_intrinsics):
 
 
 
-def angToPoseArr(ang1,ang2,ang3, arr = None):
+def angToPoseArr(yaw,pitch,roll, arr = None):
     """Returns 4x4 pose array.
     Converts rotations to a pose array
     """
     # Takes pitch, roll, yaw and converts into a pose arr
-    angs = np.array([ang1,ang2,ang3])
+    angs = np.array([yaw,pitch,roll])
     c = np.cos(angs)
     s = np.sin(angs)
     if arr is None:
@@ -121,7 +121,7 @@ def angToPoseArr(ang1,ang2,ang3, arr = None):
     pose[3,3] = 1.0
 
     return pose
-
+    
 def translatePoseArr(x,y,z, arr = None):
     """Returns 4x4 pose array.
     Translates a pose array
@@ -166,7 +166,7 @@ def coordsFromData(ang, pos):
 
     coord[:,2,4] = -1 * ang[:,1]                        # Pitch of L
     coord[:,3,4] = -1 * ang[:,1] + ang[:,2]             # Pitch of U
-    coord[:,4,4] = -1 * ang[:,1] + ang[:,2] + np.pi/2   # Pitch of R
+    coord[:,4,4] = -1 * ang[:,1] + ang[:,2]             # Pitch of R
     coord[:,5,4] = -1 * ang[:,1] + ang[:,2] + ang[:,4]  # Pitch of BT
 
     coord[:,4,3] = ang[:,3]
