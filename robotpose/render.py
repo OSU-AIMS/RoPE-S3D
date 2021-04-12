@@ -156,21 +156,19 @@ def coordsFromData(ang, pos):
     coord = np.zeros((pos.shape[0],6,6))
 
     # 1:6 are movable joints, correspond to S,L,U,R and BT
-    coord[:,1:6,2] = pos[:,:5,2]        # z is equal
-    coord[:,1:6,0] = -1 * pos[:,:5,1]   # x = -y
-    coord[:,1:6,1] = pos[:,:5,0]        # y = x
+    coord[:,1:6,0:3] = pos[:,:5]            
+
+    coord[:,2,3] = ang[:,1]                        # Pitch of L
+    coord[:,3,3] = ang[:,1] - ang[:,2]             # Pitch of U
+    coord[:,4,3] = ang[:,1] - ang[:,2]             # Pitch of R
+    coord[:,5,3] = ang[:,1] - ang[:,2] + ang[:,4]  # Pitch of BT
+
+    coord[:,4,4] = ang[:,3] # Roll of R
+    coord[:,5,4] = ang[:,3] # Roll of BT
 
     # Yaw of all movings parts is just the S angle
     for idx in range(1,6):
         coord[:,idx,5] = ang[:,0]
-
-    coord[:,2,4] = -1 * ang[:,1]                        # Pitch of L
-    coord[:,3,4] = -1 * ang[:,1] + ang[:,2]             # Pitch of U
-    coord[:,4,4] = -1 * ang[:,1] + ang[:,2]             # Pitch of R
-    coord[:,5,4] = -1 * ang[:,1] + ang[:,2] + ang[:,4]  # Pitch of BT
-
-    coord[:,4,3] = ang[:,3]
-    coord[:,5,3] = ang[:,3]
 
     return coord
 
@@ -468,13 +466,13 @@ class Aligner():
             self.increment(self.inc)
             return True, True
 
-        if inp == ord('w'):
+        if inp == ord('d'):
             self.c_pose[0] -= xyz_step
-        elif inp == ord('s'):
-            self.c_pose[0] += xyz_step
         elif inp == ord('a'):
+            self.c_pose[0] += xyz_step
+        elif inp == ord('w'):
             self.c_pose[1] -= xyz_step
-        elif inp == ord('d'):
+        elif inp == ord('s'):
             self.c_pose[1] += xyz_step
         elif inp == ord('z'):
             self.c_pose[2] += xyz_step

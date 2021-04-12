@@ -8,6 +8,7 @@
 # Author: Adam Exley
 
 import json
+from json.decoder import JSONDecodeError
 import numpy as np
 import os
 import tempfile
@@ -122,8 +123,13 @@ class DatasetInfo():
         self._update()
 
     def get(self):
-        with open(INFO_JSON, 'r') as f:
-            self.data = json.load(f)
+        while True:
+            try:
+                with open(INFO_JSON, 'r') as f:
+                    self.data = json.load(f)
+                break
+            except JSONDecodeError:
+                pass
         return self.data
 
     def unique_sets(self):

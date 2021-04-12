@@ -51,7 +51,7 @@ class SkeletonRenderer(Skeleton):
         if camera_pose is not None:
             c_pose = camera_pose
         else:
-            c_pose = [1.425,.087,.4, 0,1.551,1.546]
+            c_pose = [.087,-1.425,.4, 0,1.551,-.025]
 
         self.scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])  # Make scene
 
