@@ -134,9 +134,17 @@ class DatasetInfo():
 
     def unique_sets(self):
         datasets = set()
+        datasets.update(self.compiled_sets())
+        datasets.update(self.data['uncompiled']['names'])
+
+        datasets = list(datasets)
+        datasets.sort()
+        return datasets
+
+    def compiled_sets(self):
+        datasets = set()
         for t in ['full','train','validate','test']:
             datasets.update(self.data['compiled'][t]['names'])
-        datasets.update(self.data['uncompiled']['names'])
 
         datasets = list(datasets)
         datasets.sort()

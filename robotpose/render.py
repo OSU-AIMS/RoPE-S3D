@@ -155,20 +155,22 @@ def coordsFromData(ang, pos):
     #Make arr in x,y,z,roll,pitch,yaw format
     coord = np.zeros((pos.shape[0],6,6))
 
+    # Yaw of all movings parts is just the S angle
+    for idx in range(1,6):
+        coord[:,idx,5] = ang[:,0]
+
     # 1:6 are movable joints, correspond to S,L,U,R and BT
     coord[:,1:6,0:3] = pos[:,:5]            
 
     coord[:,2,3] = ang[:,1]                        # Pitch of L
     coord[:,3,3] = ang[:,1] - ang[:,2]             # Pitch of U
     coord[:,4,3] = ang[:,1] - ang[:,2]             # Pitch of R
-    coord[:,5,3] = ang[:,1] - ang[:,2] + ang[:,4]  # Pitch of BT
+    coord[:,5,4] = -(ang[:,1] - ang[:,2] + ang[:,4])# Pitch of BT          
 
     coord[:,4,4] = ang[:,3] # Roll of R
-    coord[:,5,4] = ang[:,3] # Roll of BT
+    coord[:,5,3] = ang[:,3] #+ ang[:,2] * np.sin(ang[:,3])# Roll of BT
 
-    # Yaw of all movings parts is just the S angle
-    for idx in range(1,6):
-        coord[:,idx,5] = ang[:,0]
+    coord[:,5,5] -= np.pi/2
 
     return coord
 

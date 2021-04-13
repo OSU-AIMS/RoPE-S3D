@@ -60,7 +60,7 @@ class SkeletonRenderer(Skeleton):
 
         self.camera_node = self.scene.add(camera, pose=cam_pose)
 
-        dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=15.0)
+        dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=10.0)
         
         self.scene.add(dl, pose=makePose(15,0,15,0,np.pi/4,np.pi/2)) # Add light above camera
         self.scene.add(dl, pose=makePose(15,0,-15,0,3*np.pi/4,np.pi/2)) # Add light below camera
@@ -82,13 +82,13 @@ class SkeletonRenderer(Skeleton):
         self._updateKeypoints()
         return self.rend.render(
             self.scene,
-            flags=pyrender.constants.RenderFlags.SEG,
+            flags=pyrender.constants.RenderFlags.SEG * (self.mode != 'real'),
             seg_node_map=self.node_color_map
             )
 
 
     def setMode(self, mode):
-        valid_modes = ['seg','key','seg_full']
+        valid_modes = ['seg','key','seg_full','real']
         assert mode in valid_modes, f"Mode invalid; must be one of: {valid_modes}"
         self.mode = mode
         self._updateMode()

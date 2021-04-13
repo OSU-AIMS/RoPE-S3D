@@ -38,7 +38,7 @@ class DatasetWizard(DatasetInfo):
         self.get()
 
         self.layout = [          
-            [sg.Text("Dataset:"),sg.InputCombo(self.unique_sets(),key='-dataset-', size=(20, 1))],
+            [sg.Text("Dataset:"),sg.InputCombo(self.compiled_sets(),key='-dataset-', size=(20, 1))],
             [sg.Button("View Details",key='-load-',tooltip='View dataset details'),
                 sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')],
             [sg.HorizontalSeparator()],
@@ -143,15 +143,17 @@ class SkeletonWizard(Skeleton):
         self.rend = SkeletonRenderer(name)
         self.base_pose = [1.5,-1.5,.35, 0,np.pi/2,0]
         self._setRotation(0,0)
+        self.mode = 0
 
         self.rend.setJointAngles([0,0,0,0,0,0])
 
         self.layout = [          
             [sg.Text(f"Skeleton: {name}")],
-            [sg.Frame('View Orientation',[
+            [sg.Frame('View Settings',[
                 [sg.Slider(range=(-45, 45), orientation='v', size=(5, 20), default_value=0,key='-vert_slider-'),
                     sg.VerticalSeparator(),
-                    sg.Button("Reset",key='-view_reset-')],
+                    sg.Button("Reset",key='-view_reset-'),
+                    sg.Button("Change Mode",key='-view_mode-')],
                 [sg.Slider(range=(-180, 180), orientation='h', size=(20, 20), default_value=0, key='-horiz_slider-')]
             ]
             )],
@@ -192,6 +194,12 @@ class SkeletonWizard(Skeleton):
             self._resetRotation()
         if event == '-joint_reset-':
             self._resetJointAngles()
+        if event == '-view_mode-':
+            modes = ['key','seg','seg_full','real']
+            self.mode += 1
+            if self.mode >= len(modes):
+                self.mode = 0
+            self.rend.setMode(modes[self.mode])
 
 
     def _resetRotation(self):
