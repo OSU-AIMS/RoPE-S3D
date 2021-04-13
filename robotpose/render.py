@@ -7,11 +7,14 @@
 #
 # Author: Adam Exley
 
+from networkx.algorithms.traversal.breadth_first_search import bfs_tree
 import numpy as np
 import os
 import json
 
 import cv2
+from numpy.core.numeric import rollaxis
+from numpy.linalg.linalg import _pinv_dispatcher
 import trimesh
 import pyrender
 import PySimpleGUI as sg
@@ -122,6 +125,7 @@ def angToPoseArr(yaw,pitch,roll, arr = None):
 
     return pose
     
+
 def translatePoseArr(x,y,z, arr = None):
     """Returns 4x4 pose array.
     Translates a pose array
@@ -159,7 +163,7 @@ def coordsFromData(ang, pos):
     for idx in range(1,6):
         coord[:,idx,5] = ang[:,0]
 
-    # 1:6 are movable joints, correspond to S,L,U,R and BT
+    # 1-5 are movable joints, correspond to S,L,U,R and BT
     coord[:,1:6,0:3] = pos[:,:5]            
 
     coord[:,2,3] = ang[:,1]                        # Pitch of L
@@ -172,7 +176,87 @@ def coordsFromData(ang, pos):
 
     coord[:,5,5] -= np.pi/2
 
+    # Determine BT with vectors because it's easier
+
+    bt = pos[:,5] - pos[:,4]    # Vectors from B to T
+    ub = pos[:,4] - pos[:,2]    # Vectors from U to B
+
+    y = np.cross(bt, ub)
+    z = np.cross(bt, y)
+
+    z = z/np.linalg.norm(z)
+    y = y/np.linalg.norm(y)
+    x = bt/np.linalg.norm(bt)
+
+    b_poses = np.zeros((pos.shape[0],4,4))
+
+    b_poses[:,:3,0] = x
+    b_poses[:,:3,1] = y
+    b_poses[:,:3,2] = z
+    b_poses[:,3,3] = 1
+
+    roll = np.arctan2(b_poses[:,1,2],b_poses[:,2,2])
+    pitch = np.arcsin(-b_poses[:,0,2])
+    yaw = np.arctan2(b_poses[:,0,1],b_poses[:,0,0])
+
+    coord[:,5,3] = pitch
+    coord[:,5,4] = roll
+    coord[:,5,5] = yaw
+
     return coord
+
+
+def posesFromData(ang, pos):
+    """Returns Zx6x6 array of positions and angles.
+    Given angle and positon arrays, make an array of mesh locations and rotations.
+    """
+    #Make arr in x,y,z,roll,pitch,yaw format
+    coord = np.zeros((pos.shape[0],6,6))
+
+    # Yaw of all movings parts is just the S angle
+    for idx in range(1,6):
+        coord[:,idx,5] = ang[:,0]
+
+    # 1-5 are movable joints, correspond to S,L,U,R and BT
+    coord[:,1:6,0:3] = pos[:,:5]            
+
+    coord[:,2,3] = ang[:,1]                        # Pitch of L
+    coord[:,3,3] = ang[:,1] - ang[:,2]             # Pitch of U
+    coord[:,4,3] = ang[:,1] - ang[:,2]             # Pitch of R       
+
+    coord[:,4,4] = ang[:,3] # Roll of R
+
+
+    # Determine BT with vectors because it's easier
+
+    bt = pos[:,5] - pos[:,4]    # Vectors from B to T
+    ub = pos[:,4] - pos[:,2]    # Vectors from U to B
+
+    y = np.cross(ub, bt)
+    z = np.cross(bt, y)
+
+    z = z/np.linalg.norm(z)
+    y = y/np.linalg.norm(y)
+    x = bt/np.linalg.norm(bt)
+
+    b_poses = np.zeros((pos.shape[0],4,4))
+
+    b_poses[:,:3,0] = x # X Unit
+    b_poses[:,:3,1] = y # Y Unit
+    b_poses[:,:3,2] = z # Z Unit
+    b_poses[:,3,3] = 1
+    b_poses[:,:3,3] = pos[:,4] # XYZ Offset
+
+    poses = np.zeros((coord.shape[0],6,4,4))
+    # X frames, 6 joints, 4x4 pose for each
+    for idx in range(coord.shape[0]):
+        for sub_idx in range(5):
+            poses[idx,sub_idx] = makePose(*coord[idx,sub_idx])
+
+    poses[:,-1] = b_poses
+
+    return poses
+
 
 
 def makePoses(coords):

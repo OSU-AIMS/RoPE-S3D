@@ -20,7 +20,7 @@ import PySimpleGUI as sg
 from .. import paths as p
 from ..projection import makeIntrinsics
 from ..skeleton import Skeleton
-from ..render import MeshLoader, cameraFromIntrinsics, makePose, makePoses, setPoses, DEFAULT_COLORS, coordsFromData
+from ..render import MeshLoader, cameraFromIntrinsics, makePose, makePoses, setPoses, DEFAULT_COLORS, coordsFromData, posesFromData
 
 from .fwd_kinematics_mh5l import FwdKinematic_MH5L_AllJoints as fwdKinematics
 
@@ -98,7 +98,7 @@ class SkeletonRenderer(Skeleton):
         setPoses(self.scene, [self.camera_node], [makePose(*pose)])
 
     def setJointAngles(self, angles):
-        setPoses(self.scene, self.joint_nodes,makePoses(coordsFromData(np.array([angles]), np.array([fwdKinematics(angles)])))[0])
+        setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([fwdKinematics(angles)]))[0])
 
     def getColorDict(self):
         if self.mode == 'seg':
@@ -159,7 +159,5 @@ class SkeletonRenderer(Skeleton):
         elif self.mode == 'seg_full':
             for joint in self.joint_nodes:
                 self.node_color_map[joint] = DEFAULT_COLORS[0]
-
-
 
 
