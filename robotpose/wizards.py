@@ -7,29 +7,17 @@
 #
 # Author: Adam Exley
 
-import PySimpleGUI as sg
 import os
 import cv2
 import numpy as np
 
-from .dataset import DatasetInfo, Dataset
-from .render import Aligner, Renderer
-from .skeleton import Skeleton, valid_skeletons
-from .autoAnnotate import AutomaticKeypointAnnotator, AutomaticSegmentationAnnotator
-from .simulation.rendering import SkeletonRenderer
 from deepposekit import Annotator
+import PySimpleGUI as sg
 
-
-
-def annotate(dataset,skeleton):
-    print(f'Annotating {dataset} using skeleton {skeleton}')
-    rend = Renderer(dataset, skeleton)
-    key = AutomaticKeypointAnnotator(dataset, skeleton, renderer = rend)
-    key.run()
-    del key
-    seg = AutomaticSegmentationAnnotator(dataset, skeleton, renderer = rend)
-    seg.run()
-    print('Annotation Complete')
+from .dataset import DatasetInfo, Dataset
+from .render import Aligner
+from .skeleton import Skeleton, valid_skeletons
+from .simulation.rendering import SkeletonRenderer
 
 
 class DatasetWizard(DatasetInfo):
@@ -42,11 +30,10 @@ class DatasetWizard(DatasetInfo):
             [sg.Button("View Details",key='-load-',tooltip='View dataset details'),
                 sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')],
             [sg.HorizontalSeparator()],
-            [sg.Text("Skeleton:"),
+            [sg.Text("Keypoint Skeleton:"),
                 sg.InputCombo(valid_skeletons(),key='-skeleton-', size=(20, 1)),
                 sg.Button("Edit Skeleton",key='-edit_skele-',tooltip='Edit Skeleton with Skeleton Wizard')],
-            [sg.Button("AutoAnnotate",key='-annotate-',tooltip='In dev', disabled=True),
-                sg.Button("View Annotations",key='-manual_annotate-', disabled=True)],
+            [sg.Button("View Annotations",key='-manual_annotate-', disabled=True)],
             [sg.HorizontalSeparator()],
             [sg.Button("Quit",key='-quit-',tooltip='Quit Dataset Wizard')]
             ]
@@ -78,7 +65,7 @@ class DatasetWizard(DatasetInfo):
                 for button in ['-manual_annotate-']:
                     self.window[button].update(disabled = True)
         else:
-            for button in ['-load-','-align-','-annotate-']:
+            for button in ['-load-','-align-']:
                 self.window[button].update(disabled = True)
 
         if values['-skeleton-'] in valid_skeletons():
@@ -95,8 +82,6 @@ class DatasetWizard(DatasetInfo):
             self._runAligner(values['-dataset-'])
         elif event == '-load-':
             pass
-        elif event == '-annotate-':
-            self._annotate(values['-dataset-'], values['-skeleton-'])
         elif event == '-manual_annotate-':
             self._manualAnnotate(values['-dataset-'], values['-skeleton-'])
         elif event == '-edit_skele-':
@@ -113,8 +98,6 @@ class DatasetWizard(DatasetInfo):
 
         app.run()
 
-    def _annotate(self,dataset,skeleton):
-        annotate(dataset,skeleton)
 
     def _runAligner(self, dataset):
         print(f'Aligning {dataset}')
@@ -147,8 +130,14 @@ class SkeletonWizard(Skeleton):
 
         self.rend.setJointAngles([0,0,0,0,0,0])
 
+        def jointSlider(name, lower, upper):
+            return [sg.Text(f"{name}:"),
+                sg.Slider(range=(lower, upper),
+                    orientation='h', tick_interval=90, 
+                    size=(20, 20), default_value=0, key=f'-{name}-')]
+
         self.layout = [          
-            [sg.Text(f"Skeleton: {name}")],
+            [sg.Text(f"Keypoint Skeleton: {name}")],
             [sg.Frame('View Settings',[
                 [sg.Slider(range=(-45, 45), orientation='v', size=(5, 20), default_value=0,key='-vert_slider-'),
                     sg.VerticalSeparator(),
@@ -158,11 +147,11 @@ class SkeletonWizard(Skeleton):
             ]
             )],
             [sg.Frame('Robot Joints',[
-                [sg.Text(f"B:"),sg.Slider(range=(-135, 135), orientation='h', size=(20, 20), default_value=0, key='-B-')],
-                [sg.Text(f"R:"),sg.Slider(range=(-190, 190), orientation='h', size=(20, 20), default_value=0, key='-R-')],
-                [sg.Text(f"U:"),sg.Slider(range=(-138, 255), orientation='h', size=(20, 20), default_value=0, key='-U-')],
-                [sg.Text(f"L:"),sg.Slider(range=(-65, 150), orientation='h', size=(20, 20), default_value=0, key='-L-')],
-                [sg.Text(f"S:"),sg.Slider(range=(-170, 170), orientation='h', size=(20, 20), default_value=0, key='-S-')],
+                jointSlider("B",-135,135),
+                jointSlider("R",-190,190),
+                jointSlider("U",-135,255),
+                jointSlider("L",-65,150),
+                jointSlider("S",-170,170),
                 [sg.Button("Reset",key='-joint_reset-')]
             ]
             )],
@@ -178,9 +167,9 @@ class SkeletonWizard(Skeleton):
         while event not in (sg.WIN_CLOSED,'-quit-'):
             event, values = self.window.read(1)
             if event not in (sg.WIN_CLOSED,'-quit-'):
-                #self._updateButtons(values)
                 self._runEvent(event, values)
                 self.render()
+            self.window.bring_to_front()
 
         self.window.close()
 

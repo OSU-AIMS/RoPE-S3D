@@ -205,9 +205,6 @@ def vizDepth_new(ply_frame_data, image):
     """
     Overlays the depth information given on an image
     """
-    # z_no_out = reject_outliers(ply_frame_data[:,4],m=2)
-    # z_min = np.min(z_no_out)
-    # z_max = np.max(z_no_out)
     z_min, z_max = outlier_min_max(ply_frame_data[:,4], iqr_mult=3.0)
     idx_arr = ply_frame_data[:,0:2].astype(int)
     #print(f"Min: {np.min(ply_frame_data[:,4])}\t{z_min}\nMax: {np.max(ply_frame_data[:,4])}\t{z_max}\n")

@@ -7,23 +7,16 @@
 #
 # Author: Adam Exley
 
-
 import numpy as np
-import os
-import json
 
-import cv2
-import trimesh
 import pyrender
-import PySimpleGUI as sg
+import trimesh
 
-from .. import paths as p
 from ..projection import makeIntrinsics
+from ..render import DEFAULT_COLORS, MeshLoader, cameraFromIntrinsics, makePose, posesFromData, setPoses
 from ..skeleton import Skeleton
-from ..render import MeshLoader, cameraFromIntrinsics, makePose, makePoses, setPoses, DEFAULT_COLORS, coordsFromData, posesFromData
 
 from .fwd_kinematics_mh5l import FwdKinematic_MH5L_AllJoints as fwdKinematics
-
 
 
 
@@ -42,7 +35,6 @@ class SkeletonRenderer(Skeleton):
 
         self.mode = mode
 
-        # Load meshes
         ml = MeshLoader()
         ml.load()
         name_list = ml.getNames()
@@ -57,13 +49,9 @@ class SkeletonRenderer(Skeleton):
 
         camera = cameraFromIntrinsics(intrin)
         cam_pose = makePose(*c_pose)
-
         self.camera_node = self.scene.add(camera, pose=cam_pose)
 
         dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=10.0)
-        
-        self.scene.add(dl, pose=makePose(15,0,15,0,np.pi/4,np.pi/2)) # Add light above camera
-        self.scene.add(dl, pose=makePose(15,0,-15,0,3*np.pi/4,np.pi/2)) # Add light below camera
         self.scene.add(dl, parent_node=self.camera_node) # Add light at camera pose
 
         # Add in joints
@@ -139,7 +127,6 @@ class SkeletonRenderer(Skeleton):
         except ValueError as e:
             if str(e) == 'No parent node with name joint_name found':
                 raise ValueError('No parent node with name joint_name found\n\nIt is likely that the template keypoint .json has not been modified')
-
 
         self._updateMode()
 

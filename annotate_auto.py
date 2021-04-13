@@ -18,14 +18,10 @@ from robotpose.render import Renderer
 
 
 def label(dataset, skeleton, preview):
-
     rend = Renderer(dataset, skeleton)
-
     key = AutomaticKeypointAnnotator(dataset, skeleton, renderer = rend, preview = preview)
     key.run()
-
     del key
-
     seg = AutomaticSegmentationAnnotator(dataset, skeleton, renderer = rend, preview = preview)
     seg.run()
 
