@@ -136,13 +136,13 @@ class SkeletonWizard(Skeleton):
                     orientation='h', tick_interval=90, 
                     size=(20, 20), default_value=0, key=f'-{name}-')]
 
-        self.layout = [          
-            [sg.Text(f"Keypoint Skeleton: {name}")],
+        column1 = [
             [sg.Frame('View Settings',[
-                [sg.Slider(range=(-45, 45), orientation='v', size=(5, 20), default_value=0,key='-vert_slider-'),
+                [sg.Slider(range=(-30, 30), orientation='v', size=(5, 20), default_value=0,key='-vert_slider-'),
                     sg.VerticalSeparator(),
-                    sg.Button("Reset",key='-view_reset-'),
-                    sg.Button("Change Mode",key='-view_mode-')],
+                    sg.Button("Change Mode",key='-view_mode-'),
+                    sg.VerticalSeparator(),
+                    sg.Button("Reset",key='-view_reset-')],
                 [sg.Slider(range=(-180, 180), orientation='h', size=(20, 20), default_value=0, key='-horiz_slider-')]
             ]
             )],
@@ -154,7 +154,12 @@ class SkeletonWizard(Skeleton):
                 jointSlider("S",-170,170),
                 [sg.Button("Reset",key='-joint_reset-')]
             ]
-            )],
+            )]
+            ]
+
+        self.layout = [          
+            [sg.Text(f"Keypoint Skeleton: {name}")],
+            [sg.Column(column1)],
             [sg.Button("Quit",key='-quit-',tooltip='Quit Skeleton Wizard')]
             ]
         
