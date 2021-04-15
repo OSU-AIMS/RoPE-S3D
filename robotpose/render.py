@@ -161,16 +161,19 @@ def posesFromData(ang, pos):
     coord[:,4,4] = -ang[:,3]    # Roll of R
 
 
+    poses = np.zeros((coord.shape[0],6,4,4))    # X frames, 6 joints, 4x4 pose for each
+    for idx in range(coord.shape[0]):
+        for sub_idx in range(5):
+            poses[idx,sub_idx] = makePose(*coord[idx,sub_idx])
+
     # Determine BT with vectors because it's easier
 
     bt = pos[:,5] - pos[:,4]    # Vectors from B to T
-    ub = pos[:,4] - pos[:,2]    # Vectors from U to B
 
-    y = np.cross(ub, bt)
+    y = poses[:,4,:3,1] # Y Axis is common with R joint
     z = np.cross(bt, y)
 
     z = z/np.linalg.norm(z)
-    y = y/np.linalg.norm(y)
     x = bt/np.linalg.norm(bt)
 
     b_poses = np.zeros((pos.shape[0],4,4))
@@ -181,10 +184,7 @@ def posesFromData(ang, pos):
     b_poses[:,3,3] = 1
     b_poses[:,:3,3] = pos[:,4] # XYZ Offset
 
-    poses = np.zeros((coord.shape[0],6,4,4))    # X frames, 6 joints, 4x4 pose for each
-    for idx in range(coord.shape[0]):
-        for sub_idx in range(5):
-            poses[idx,sub_idx] = makePose(*coord[idx,sub_idx])
+
 
     poses[:,-1] = b_poses
 
