@@ -16,7 +16,7 @@ import PySimpleGUI as sg
 
 from .dataset import DatasetInfo, Dataset
 from .render import Aligner
-from .skeleton import Skeleton, valid_skeletons
+from .skeleton import Skeleton, SkeletonInfo
 from .simulation.rendering import SkeletonRenderer
 
 
@@ -25,16 +25,25 @@ class DatasetWizard(DatasetInfo):
         super().__init__()
         self.get()
 
-        self.layout = [          
+        self.skinf = SkeletonInfo()
+
+
+        dataset_menu = [
             [sg.Text("Dataset:"),sg.InputCombo(self.compiled_sets(),key='-dataset-', size=(20, 1))],
             [sg.Button("View Details",key='-load-',tooltip='View dataset details'),
-                sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')],
-            [sg.HorizontalSeparator()],
+                sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')]]
+
+        keypoint_menu = [
             [sg.Text("Keypoint Skeleton:"),
-                sg.InputCombo(valid_skeletons(),key='-skeleton-', size=(20, 1)),
-                sg.Button("Edit Skeleton",key='-edit_skele-',tooltip='Edit Skeleton with Skeleton Wizard')],
+                sg.InputCombo(self.skinf.valid(),key='-skeleton-', size=(10, 1))],
+            [sg.Button("Edit",key='-edit_skele-',tooltip='Edit Skeleton with Skeleton Wizard')],
             [sg.Button("View Annotations",key='-manual_annotate-', disabled=True)],
-            [sg.HorizontalSeparator()],
+            [sg.Button("Create New Skeleton",key='-new_skele-'),sg.Button("Finish Skeleton Creation",key='-finish_skele-',visible=False)]
+            ]
+
+        self.layout = [
+            [sg.Frame("Dataset Options", dataset_menu)],
+            [sg.Frame("Keypoint Options", keypoint_menu)],
             [sg.Button("Quit",key='-quit-',tooltip='Quit Dataset Wizard')]
             ]
 
@@ -58,7 +67,7 @@ class DatasetWizard(DatasetInfo):
         if values['-dataset-'] in self.unique_sets():
             for button in ['-load-','-align-']:
                 self.window[button].update(disabled = False)
-            if values['-skeleton-'] in valid_skeletons():
+            if values['-skeleton-'] in self.skinf.valid():
                 for button in ['-manual_annotate-']:
                     self.window[button].update(disabled = False)
             else:
@@ -68,12 +77,17 @@ class DatasetWizard(DatasetInfo):
             for button in ['-load-','-align-']:
                 self.window[button].update(disabled = True)
 
-        if values['-skeleton-'] in valid_skeletons():
+        if values['-skeleton-'] in self.skinf.valid():
             for button in ['-edit_skele-']:
                 self.window[button].update(disabled = False)
         else:
             for button in ['-edit_skele-']:
                 self.window[button].update(disabled = True)
+        
+        if self.skinf.num_incomplete() > 0:
+            self.window['-finish_skele-'].update(visible = True)
+        else:
+            self.window['-finish_skele-'].update(visible = False)
                 
 
 
@@ -86,7 +100,31 @@ class DatasetWizard(DatasetInfo):
             self._manualAnnotate(values['-dataset-'], values['-skeleton-'])
         elif event == '-edit_skele-':
             self._runKeypointWizard(values['-skeleton-'])
+        elif event == '-new_skele-':
+            self._makeNewSkeleton()
+        elif event == '-finish_skele-':
+            self._finishSkeleton()
+
            
+
+    def _finishSkeleton(self):
+        pass
+
+
+    def _makeNewSkeleton(self):
+        name = sg.popup_get_text("Name for new keypoint skeleton:",title='Create Keypoint Skeleton')
+
+        if name is not None:
+            name = name.upper()
+            confirm = sg.popup_ok_cancel(f"Create new skeleton with name {name} ?")
+            if confirm == 'OK':
+                path = self.skinf.create_csv(name)
+                sg.popup_ok(f"Please edit {path} to include the needed keypoints along with their parent keypoints.",
+                "Then return and select 'Finish Skeleton Creation' to create a JSON config file for the skeleton.",
+                "More keypoints may be added later (by editing the skeleton), but it is suggested to add them now to save time"
+                )
+
+
     def _manualAnnotate(self,dataset,skeleton):
         ds = Dataset(dataset,skeleton)
         ds.makeDeepPoseDS()
@@ -130,28 +168,39 @@ class SkeletonWizard(Skeleton):
 
         self.rend.setJointAngles([0,0,0,0,0,0])
 
+        self.current_mode = 'key'
+
         def jointSlider(name, lower, upper):
             return [sg.Text(f"{name}:"),
                 sg.Slider(range=(lower, upper),
                     orientation='h', tick_interval=90, 
                     size=(20, 20), default_value=0, key=f'-{name}-')]
 
+
+        render_modes = [
+            [sg.Radio("Keypoint","render", default=True, key="-render_key-")],
+            [sg.Radio("Segmented Joints","render", key="-render_seg-")],
+            [sg.Radio("Segmented Body","render", key="-render_body-")],
+            [sg.Radio("Realistic Metallic","render", key="-render_real-")]
+        ]
+
+
         column1 = [
             [sg.Frame('View Settings',[
                 [sg.Slider(range=(-30, 30), orientation='v', size=(5, 20), default_value=0,key='-vert_slider-'),
                     sg.VerticalSeparator(),
-                    sg.Button("Change Mode",key='-view_mode-'),
+                    sg.Column(render_modes),
                     sg.VerticalSeparator(),
                     sg.Button("Reset",key='-view_reset-')],
                 [sg.Slider(range=(-180, 180), orientation='h', size=(20, 20), default_value=0, key='-horiz_slider-')]
             ]
             )],
             [sg.Frame('Robot Joints',[
-                jointSlider("B",-135,135),
-                jointSlider("R",-190,190),
-                jointSlider("U",-135,255),
-                jointSlider("L",-65,150),
                 jointSlider("S",-170,170),
+                jointSlider("L",-65,150),
+                jointSlider("U",-135,255),
+                jointSlider("R",-190,190),
+                jointSlider("B",-135,135),
                 [sg.Button("Reset",key='-joint_reset-')]
             ]
             )]
@@ -173,6 +222,7 @@ class SkeletonWizard(Skeleton):
             event, values = self.window.read(1)
             if event not in (sg.WIN_CLOSED,'-quit-'):
                 self._runEvent(event, values)
+                self._setViewMode(values)
                 self.render()
             self.window.bring_to_front()
 
@@ -188,12 +238,18 @@ class SkeletonWizard(Skeleton):
             self._resetRotation()
         if event == '-joint_reset-':
             self._resetJointAngles()
-        if event == '-view_mode-':
-            modes = ['key','seg','seg_full','real']
-            self.mode += 1
-            if self.mode >= len(modes):
-                self.mode = 0
-            self.rend.setMode(modes[self.mode])
+
+
+    def _setViewMode(self, values):
+        modes = ['key','seg','seg_full','real']
+        mode_keys = ['-render_key-','-render_seg-','-render_body-','-render_real-']
+        mode = [modes[x] for x in range(len(modes)) if values[mode_keys[x]]][0]
+        if self.current_mode == mode:
+            return
+        else:
+            self.rend.setMode(mode)
+            self.current_mode = mode
+
 
 
     def _resetRotation(self):

@@ -10,19 +10,35 @@
 import json
 import numpy as np
 import os
-import sys
 import csv
 
 from . import paths as p
 
+DEFAULT_CSV = "name,parent,swap\nbase,,\nL,base,\nmidL,L,\nU,midL,\npreR,U,\nR,preR,\nB,R,\nT,B,\n"
 
-def valid_skeletons():
-    return [x.replace('.csv','') for x in os.listdir(p.SKELETONS) if x.endswith('.csv') and os.path.isfile(os.path.join(p.SKELETONS,x.replace('.csv','.json')))]
+
+
+class SkeletonInfo:
+    
+    def __init__(self):
+        pass
+
+    def valid(self):
+        return [x.replace('.csv','') for x in os.listdir(p.SKELETONS) if x.endswith('.csv') and os.path.isfile(os.path.join(p.SKELETONS,x.replace('.csv','.json')))]
+
+    def num_incomplete(self):
+        return len([x for x in os.listdir(p.SKELETONS) if x.endswith(".csv")]) - len(self.valid())
+
+    def create_csv(self,name):
+        with open(os.path.join(p.SKELETONS,f"{name}.csv"), 'w') as f:
+            f.write(DEFAULT_CSV)
+        return os.path.join(p.SKELETONS,f"{name}.csv")
+
 
 
 class Skeleton():
 
-    def __init__(self, name):
+    def __init__(self, name, create = False):
         self.name = name
 
         csv_ = name + '.csv' in os.listdir(p.SKELETONS)
@@ -30,15 +46,20 @@ class Skeleton():
 
         if not csv_:
             raise ValueError(
-                f"The skeleton base document, {name + '.csv'} was not found in {p.SKELETONS}.\
-                Please create a skeleton before attempting to use it.")
+                f"The skeleton base document, {name + '.csv'} was not found in {p.SKELETONS}."+
+                "Please create a skeleton before attempting to use it.")
 
         self.csv_path = os.path.join(p.SKELETONS, name + '.csv')
 
         if json_:
             self.json_path = os.path.join(p.SKELETONS, name + '.json')
-        else:
+        elif create:
             self._makeJSON()
+        else:
+            raise ValueError(
+                f"The skeleton JSON document, {name + '.json'} was not found in {p.SKELETONS}"+
+                "And the skeleton was not created with the intent of making a new JSON.\n"+
+                "To create a JSON, call Skeleton with create = True.")
 
         self.update()
 
@@ -96,7 +117,7 @@ class Skeleton():
         with open(self.csv_path.replace('.csv','.json'),'w') as f:
             f.write(self._removePoseIndent(json.dumps(json_info, indent=4)))
 
-        sys.exit(f"\nMade JSON configuration for skeleton {self.name}\nPlease configure before using.\n")
+        print(f"\nMade JSON configuration for skeleton {self.name}\nPlease configure before using.\n")
 
 
     def _removePoseIndent(self, string):
