@@ -17,9 +17,9 @@ import zipfile
 from deepposekit.io import initialize_dataset
 import h5py
 
-from . import paths as p
+from .. import paths as p
 from .building import Builder
-from .skeleton import Skeleton
+from ..skeleton import Skeleton
 
 
 INFO_JSON = os.path.join(p.DATASETS, 'datasets.json')

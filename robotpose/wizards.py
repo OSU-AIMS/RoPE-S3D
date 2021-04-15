@@ -14,10 +14,10 @@ import numpy as np
 from deepposekit import Annotator
 import PySimpleGUI as sg
 
-from .dataset import DatasetInfo, Dataset
+from .data import DatasetInfo, Dataset
 from .render import Aligner
 from .skeleton import Skeleton, SkeletonInfo
-from .simulation.render import SkeletonRenderer
+from .simulation import SkeletonRenderer
 
 
 class DatasetWizard(DatasetInfo):
@@ -35,7 +35,7 @@ class DatasetWizard(DatasetInfo):
 
         keypoint_menu = [
             [sg.Text("Keypoint Skeleton:"),
-                sg.InputCombo(self.skinf.valid(),key='-skeleton-', size=(10, 1))],
+                sg.InputCombo([x for x in self.skinf.valid() if x != 'BASE'],key='-skeleton-', size=(10, 1))],
             [sg.Button("Edit",key='-edit_skele-',tooltip='Edit Skeleton with Skeleton Wizard')],
             [sg.Button("View Annotations",key='-manual_annotate-', disabled=True)],
             [sg.Button("Create New Skeleton",key='-new_skele-'),sg.Button("Finish Skeleton Creation",key='-finish_skele-',visible=False)]

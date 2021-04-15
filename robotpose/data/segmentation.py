@@ -14,8 +14,8 @@ import cv2
 import os
 import numpy as np
 import pyrealsense2 as rs
-from . import paths as p
-from . import projection as proj
+from .. import paths as p
+from .. import projection as proj
 
 
 class RobotSegmenter():

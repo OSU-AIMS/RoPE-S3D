@@ -8,8 +8,8 @@
 # Author: Adam Exley
 
 import numpy as np
-from . import projection as proj
-from .utils import expandRegion
+from .. import projection as proj
+from ..utils import expandRegion
 
 
 def crop(depthmap, image, mask, roi):

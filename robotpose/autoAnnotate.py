@@ -17,7 +17,7 @@ import h5py
 from labelme.label_file import LabelFile
 from tqdm import tqdm
 
-from .dataset import Dataset
+from .data import Dataset
 from .simulation.render import DatasetRenderer
 from .utils import workerCount, expandRegion
 

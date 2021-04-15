@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from robotpose.utils import *
 from robotpose import paths as p
-from robotpose.dataset import Dataset
+from robotpose import Dataset
 from robotpose.utils import reject_outliers_iqr
 from robotpose.turbo_colormap import color_array
 

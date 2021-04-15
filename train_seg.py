@@ -15,7 +15,7 @@ import shutil
 
 from pixellib.custom_train import instance_custom_training
 
-from robotpose.dataset import Dataset
+from robotpose import Dataset
 import robotpose.paths as p
 
 

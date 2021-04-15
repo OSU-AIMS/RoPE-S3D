@@ -15,9 +15,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyrealsense2 as rs
 from robotpose.utils import *
-import pickle
 from robotpose import paths as p
-from robotpose.dataset import Dataset
+from robotpose import Dataset
 
 setMemoryGrowth()
 

@@ -14,8 +14,7 @@ import numpy as np
 import cv2
 import pyrealsense2 as rs
 from tqdm import tqdm
-from robotpose import paths as p
-import open3d as o3d
+from . import paths as p
 import time
 from .projection import makeIntrinsics
 from .turbo_colormap import normalize_and_interpolate

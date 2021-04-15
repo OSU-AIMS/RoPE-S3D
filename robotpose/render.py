@@ -13,9 +13,9 @@ import numpy as np
 import cv2
 import PySimpleGUI as sg
 
-from .dataset import Dataset
+from .data import Dataset
 
-from .simulation.render import DatasetRenderer
+from .simulation import DatasetRenderer
 
 
 class Aligner():

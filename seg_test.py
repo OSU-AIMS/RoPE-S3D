@@ -1,6 +1,6 @@
 import cv2
 import os
-from robotpose.segmentation import RobotSegmenter
+from robotpose.data.segmentation import RobotSegmenter
 import robotpose.paths as p
 a = RobotSegmenter(intrinsics='1280_720_color', model_path=os.path.join(p.SEG_MODELS,'C.h5'))
 for i in range(1,10):

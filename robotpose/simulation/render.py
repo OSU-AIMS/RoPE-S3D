@@ -15,7 +15,7 @@ import trimesh
 from ..projection import makeIntrinsics
 from .render_utils import DEFAULT_COLORS, MeshLoader, cameraFromIntrinsics, makePose, posesFromData, setPoses
 from ..skeleton import Skeleton
-from ..dataset import Dataset
+from ..data import Dataset
 
 from .fwd_kinematics_mh5l import FwdKinematic_MH5L_AllJoints as fwdKinematics
 

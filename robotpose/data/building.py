@@ -20,9 +20,9 @@ import h5py
 from tqdm import tqdm
 
 from .multithread import crop
-from . import paths as p
+from .. import paths as p
 from .segmentation import RobotSegmenter
-from .utils import workerCount
+from ..utils import workerCount
 
 
 def save_video(path, img_arr):
