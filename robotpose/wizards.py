@@ -30,7 +30,7 @@ class DatasetWizard(DatasetInfo):
 
         dataset_menu = [
             [sg.Text("Dataset:"),sg.InputCombo(self.compiled_sets(),key='-dataset-', size=(20, 1))],
-            [sg.Button("View Details",key='-load-',tooltip='View dataset details'),
+            [sg.Button("View Details",key='-details-',tooltip='View dataset details'),
                 sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')]]
 
         keypoint_menu = [
@@ -65,7 +65,7 @@ class DatasetWizard(DatasetInfo):
     def _updateButtons(self,values):
         
         if values['-dataset-'] in self.unique_sets():
-            for button in ['-load-','-align-']:
+            for button in ['-details-','-align-']:
                 self.window[button].update(disabled = False)
             if values['-skeleton-'] in self.skinf.valid():
                 for button in ['-manual_annotate-']:
@@ -74,7 +74,7 @@ class DatasetWizard(DatasetInfo):
                 for button in ['-manual_annotate-']:
                     self.window[button].update(disabled = True)
         else:
-            for button in ['-load-','-align-']:
+            for button in ['-details-','-align-']:
                 self.window[button].update(disabled = True)
 
         if values['-skeleton-'] in self.skinf.valid():
@@ -94,8 +94,8 @@ class DatasetWizard(DatasetInfo):
     def _runEvent(self,event,values):
         if event =='-align-':
             self._runAligner(values['-dataset-'])
-        elif event == '-load-':
-            pass
+        elif event == '-details-':
+            self._showDetails(values['-dataset-'])
         elif event == '-manual_annotate-':
             self._manualAnnotate(values['-dataset-'], values['-skeleton-'])
         elif event == '-edit_skele-':
@@ -106,6 +106,10 @@ class DatasetWizard(DatasetInfo):
             self._finishSkeleton()
 
            
+    def _showDetails(self, dataset):
+        ds = Dataset(dataset)
+        sg.popup_ok(str(ds), title=f"{dataset} Details")
+
 
     def _finishSkeleton(self):
         layout = [[sg.Text("Skeleton To Finish:"),

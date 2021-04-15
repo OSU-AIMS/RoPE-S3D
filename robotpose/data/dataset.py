@@ -421,7 +421,20 @@ class Dataset():
         return f"RobotPose dataset located at {self.dataset_path}."
 
     def __str__(self):
-        return str(self.attrs)
+        out = ''
+        out += f"Name: {self.attrs['name']}\n"
+        out += f"Type: {self.attrs['type']}\n"
+        out += f"Length: {self.attrs['length']} Poses\n"
+        out += f"Dataset Version: {self.attrs['version']}\n\n"
+        out += f"Build Date: {self.attrs['build_date']}\n"
+        out += f"Compile Date: {self.attrs['compile_date']}\n"
+        out += f"Compile Time: {self.attrs['compile_time']}\n\n"
+        out += f"Original Resolution: {self.attrs['original_resolution']}\n"
+        out += f"Segmented Resolution: {self.attrs['segmented_resolution']}\n"
+        out += f"Color Intrinsics: {self.attrs['color_intrinsics']}\n"
+        out += f"Depth Intrinsics: {self.attrs['depth_intrinsics']}\n"
+        out += f"Depth Scale: {self.attrs['depth_scale']}\n"
+        return out
 
 
 
