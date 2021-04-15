@@ -43,6 +43,8 @@ class SkeletonInfo:
 class Skeleton():
 
     def __init__(self, name, create = False):
+        if name is None:
+            name = 'BASE'
         self.name = name
 
         csv_ = name + '.csv' in os.listdir(p.SKELETONS)

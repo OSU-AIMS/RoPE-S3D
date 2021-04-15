@@ -245,9 +245,14 @@ class DatasetInfo():
                 'paths': uncompiled_paths
             }
         }
-
-        with open(INFO_JSON,'w') as f:
-            json.dump(info, f, indent=4)
+        while True:
+            try:
+                with open(INFO_JSON,'w') as f:
+                    json.dump(info, f, indent=4)
+                break
+            except PermissionError:
+                pass
+            
 
 
 

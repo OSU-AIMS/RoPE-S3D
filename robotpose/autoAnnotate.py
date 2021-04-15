@@ -18,7 +18,7 @@ from labelme.label_file import LabelFile
 from tqdm import tqdm
 
 from .dataset import Dataset
-from .render import Renderer
+from .simulation.render import DatasetRenderer
 from .utils import workerCount, expandRegion
 
 
@@ -177,7 +177,7 @@ class AutomaticSegmentationAnnotator():
         assert mode in modes, f"Mode must be one of: {modes}"
 
         if renderer is None:
-            self.rend = Renderer(
+            self.rend = DatasetRenderer(
                 dataset,
                 skeleton,
                 mode = mode
@@ -287,7 +287,7 @@ class AutomaticKeypointAnnotator(KeypointAnnotator):
         self.preview = preview
 
         if renderer is None:
-            self.rend = Renderer(
+            self.rend = DatasetRenderer(
                 dataset,
                 skeleton,
                 mode = 'key'

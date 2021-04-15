@@ -13,14 +13,14 @@ import pyrender
 import trimesh
 
 from ..projection import makeIntrinsics
-from ..render import DEFAULT_COLORS, MeshLoader, cameraFromIntrinsics, makePose, posesFromData, setPoses
+from .render_utils import DEFAULT_COLORS, MeshLoader, cameraFromIntrinsics, makePose, posesFromData, setPoses
 from ..skeleton import Skeleton
+from ..dataset import Dataset
 
 from .fwd_kinematics_mh5l import FwdKinematic_MH5L_AllJoints as fwdKinematics
 
 
-
-class SkeletonRenderer(Skeleton):
+class BaseRenderer(Skeleton):
     
     def __init__(
             self,
@@ -87,9 +87,6 @@ class SkeletonRenderer(Skeleton):
     def setCameraPose(self, pose):
         setPoses(self.scene, [self.camera_node], [makePose(*pose)])
 
-    def setJointAngles(self, angles):
-        setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([fwdKinematics(angles)]))[0])
-
     def getColorDict(self):
         if self.mode == 'seg':
             out = {}
@@ -102,6 +99,8 @@ class SkeletonRenderer(Skeleton):
                 if node in self.key_nodes:
                     out[node.name] = color
             return out
+        elif self.mode == 'seg_full':
+            return {'robot': DEFAULT_COLORS[0]}
 
 
     def _updateKeypoints(self):
@@ -151,4 +150,55 @@ class SkeletonRenderer(Skeleton):
             for joint in self.joint_nodes:
                 self.node_color_map[joint] = DEFAULT_COLORS[0]
 
+
+
+
+
+class SkeletonRenderer(BaseRenderer):
+    
+    def __init__(
+            self,
+            skeleton_name,
+            mode = 'key',
+            camera_pose = None,
+            camera_intrin = '1280_720_color',
+            suppress_warnings = False
+            ):
+
+        super().__init__(skeleton_name, mode, camera_pose, camera_intrin, suppress_warnings)
+
+    def setJointAngles(self, angles):
+        setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([fwdKinematics(angles)]))[0])
+
+
+
+
+
+
+class DatasetRenderer(BaseRenderer):
+    
+    def __init__(
+            self,
+            dataset,
+            skeleton,
+            ds_type = 'full',
+            mode = 'seg',
+            camera_pose = None,
+            camera_intrin = '1280_720_color',
+            robot_name="mh5"
+            ):
+
+        super().__init__(skeleton, mode, camera_pose, camera_intrin)
+        self.ds = Dataset(dataset, skeleton, ds_type = ds_type)
+
+
+    def setObjectPoses(self, poses):
+        setPoses(self.scene, self.joint_nodes, poses)
+
+
+    def setPosesFromDS(self, idx):
+        if not hasattr(self,'ds_poses'):
+            self.ds_poses = posesFromData(self.ds.angles, self.ds.positions)
+        self.setObjectPoses(self.ds_poses[idx])
+        setPoses(self.scene, [self.camera_node], [makePose(*self.ds.camera_pose[idx])])
 

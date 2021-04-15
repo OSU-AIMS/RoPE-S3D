@@ -17,7 +17,7 @@ import PySimpleGUI as sg
 from .dataset import DatasetInfo, Dataset
 from .render import Aligner
 from .skeleton import Skeleton, SkeletonInfo
-from .simulation.rendering import SkeletonRenderer
+from .simulation.render import SkeletonRenderer
 
 
 class DatasetWizard(DatasetInfo):
