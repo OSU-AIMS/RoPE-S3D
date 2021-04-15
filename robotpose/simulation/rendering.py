@@ -27,13 +27,15 @@ class SkeletonRenderer(Skeleton):
             skeleton_name,
             mode = 'key',
             camera_pose = None,
-            camera_intrin = '1280_720_color'
+            camera_intrin = '1280_720_color',
+            suppress_warnings = False
             ):
 
         super().__init__(skeleton_name)
         intrin = makeIntrinsics(camera_intrin)
 
         self.mode = mode
+        self.suppress_warnings = suppress_warnings
 
         ml = MeshLoader()
         ml.load()
@@ -126,7 +128,9 @@ class SkeletonRenderer(Skeleton):
                 self.key_nodes.append(n)
         except ValueError as e:
             if str(e) == 'No parent node with name joint_name found':
-                raise ValueError('No parent node with name joint_name found\n\nIt is likely that the template keypoint .json has not been modified')
+                if not self.suppress_warnings:
+                    raise ValueError('No parent node with name joint_name found.'+
+                        ' It is likely that the template keypoint .json has not been modified')
 
         self._updateMode()
 

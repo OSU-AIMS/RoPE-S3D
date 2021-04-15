@@ -108,7 +108,21 @@ class DatasetWizard(DatasetInfo):
            
 
     def _finishSkeleton(self):
-        pass
+        layout = [[sg.Text("Skeleton To Finish:"),
+                sg.InputCombo(self.skinf.incomplete(),key='-skeleton-', size=(10, 1))],
+                [sg.Submit(),sg.Cancel()]]
+        window = sg.Window("Finish Skeleton",layout)
+        event, values = window.read()
+        window.close()
+        if event != 'Submit':
+            return
+        else:
+            skele = Skeleton(values['-skeleton-'], create=True)
+            sg.popup_ok(f"Please edit the skeleton JSON to include keypoint positions along with angle prediction relations.",
+                "This can be done completely manually or by selecting the skeleton and clicking 'Edit' in the wizard.",
+                )
+
+        
 
 
     def _makeNewSkeleton(self):
@@ -161,7 +175,7 @@ class SkeletonWizard(Skeleton):
     def __init__(self, name):
         super().__init__(name)
 
-        self.rend = SkeletonRenderer(name)
+        self.rend = SkeletonRenderer(name, suppress_warnings=True)
         self.base_pose = [1.5,-1.5,.35, 0,np.pi/2,0]
         self._setRotation(0,0)
         self.mode = 0
@@ -218,12 +232,15 @@ class SkeletonWizard(Skeleton):
         self.window = sg.Window('Skeleton Wizard', self.layout)
 
         event = ''
+        prev_values = {}
         while event not in (sg.WIN_CLOSED,'-quit-'):
-            event, values = self.window.read(1)
+            event, values = self.window.read(1, timeout_key='TIMEOUT')
             if event not in (sg.WIN_CLOSED,'-quit-'):
-                self._runEvent(event, values)
-                self._setViewMode(values)
-                self.render()
+                if event != 'TIMEOUT' or values != prev_values:
+                    self._runEvent(event, values)
+                    self._setViewMode(values)
+                    self.render()
+                    prev_values = values
             self.window.bring_to_front()
 
         self.window.close()
