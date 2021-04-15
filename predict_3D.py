@@ -7,22 +7,19 @@
 #
 # Author: Adam Exley
 
-from imgaug.augmenters import color
 from deepposekit.models import load_model
 from deepposekit.io import VideoReader
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-import pyrealsense2 as rs
 from robotpose.utils import *
-import pickle
 from robotpose import paths as p
-from robotpose.dataset import Dataset
+from robotpose import Dataset
 from robotpose.utils import reject_outliers_iqr
 from robotpose.turbo_colormap import color_array
 
 from robotpose.angle_prediction import Predictor
-import sys
+
 
 setMemoryGrowth()
 

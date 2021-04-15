@@ -13,13 +13,9 @@ from pixellib.instance import custom_segmentation
 import cv2
 import os
 import numpy as np
-import open3d as o3d
 import pyrealsense2 as rs
-from .utils import Timer, vizDepth_new
-from tqdm import tqdm
-from . import paths as p
-import time
-from . import projection as proj
+from .. import paths as p
+from .. import projection as proj
 
 
 class RobotSegmenter():

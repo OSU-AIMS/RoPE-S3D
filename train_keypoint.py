@@ -1,9 +1,8 @@
-from json import load
+
 from robotpose.utils import setMemoryGrowth
-from robotpose.dataset import Dataset
+from robotpose import Dataset
 import tensorflow as tf
-import numpy as np
-import matplotlib.pyplot as plt
+
 from deepposekit.io import TrainingGenerator, DataGenerator
 from deepposekit.models import DeepLabCut, StackedDenseNet, StackedHourglass, LEAP
 from deepposekit.models import load_model

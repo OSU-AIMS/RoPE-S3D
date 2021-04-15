@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from robotpose.render import Renderer
+from robotpose.render import DatasetRenderer
 
 
 
@@ -13,7 +13,7 @@ def save_video(path, img_arr):
 
 def test_render():
 
-    r = Renderer('set10', 'B')
+    r = DatasetRenderer('set10', 'B')
     r.setMode('key')
 
     color_frames =[]

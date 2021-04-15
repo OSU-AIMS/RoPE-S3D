@@ -26,15 +26,11 @@
     "uncompiled": {
         "names": [
             "set0",
-            "set10",
-            "set6_slu",
-            "set7_lu"
+            "set10"
         ],
         "paths": [
             "data/raw\\set0.zip",
-            "data/raw\\set10.zip",
-            "data/raw\\set6_slu.zip",
-            "data/raw\\set7_lu.zip"
+            "data/raw\\set10.zip"
         ]
     }
 }

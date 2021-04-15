@@ -8,6 +8,7 @@
 # Author: Adam Exley
 
 import json
+from json.decoder import JSONDecodeError
 import numpy as np
 import os
 import tempfile
@@ -16,9 +17,9 @@ import zipfile
 from deepposekit.io import initialize_dataset
 import h5py
 
-from . import paths as p
+from .. import paths as p
 from .building import Builder
-from .skeleton import Skeleton
+from ..skeleton import Skeleton
 
 
 INFO_JSON = os.path.join(p.DATASETS, 'datasets.json')
@@ -122,19 +123,37 @@ class DatasetInfo():
         self._update()
 
     def get(self):
-        with open(INFO_JSON, 'r') as f:
-            self.data = json.load(f)
+        while True:
+            try:
+                with open(INFO_JSON, 'r') as f:
+                    self.data = json.load(f)
+                break
+            except JSONDecodeError:
+                pass
         return self.data
 
-    def __str__(self):
-        self.get()
+    def unique_sets(self):
         datasets = set()
-        for t in ['full','train','validate','test']:
-            datasets.update(self.data['compiled'][t]['names'])
+        datasets.update(self.compiled_sets())
         datasets.update(self.data['uncompiled']['names'])
 
         datasets = list(datasets)
         datasets.sort()
+        return datasets
+
+    def compiled_sets(self):
+        datasets = set()
+        for t in ['full','train','validate','test']:
+            datasets.update(self.data['compiled'][t]['names'])
+
+        datasets = list(datasets)
+        datasets.sort()
+        return datasets
+        
+
+    def __str__(self):
+        self.get()
+        datasets = self.unique_sets()
 
         full = []
         train = []
@@ -226,9 +245,14 @@ class DatasetInfo():
                 'paths': uncompiled_paths
             }
         }
-
-        with open(INFO_JSON,'w') as f:
-            json.dump(info, f, indent=4)
+        while True:
+            try:
+                with open(INFO_JSON,'w') as f:
+                    json.dump(info, f, indent=4)
+                break
+            except PermissionError:
+                pass
+            
 
 
 
@@ -246,7 +270,7 @@ class Dataset():
             ds_type = 'full',
             recompile = False,
             rebuild = False,
-            permissions = 'r'
+            permissions = 'r',
             ):
         """
         Create a dataset instance, loading/building/compiling it if needed.
@@ -311,7 +335,6 @@ class Dataset():
 
 
     def load(self, skeleton=None):
-        print("\nLoading Dataset...")
         file = h5py.File(self.dataset_path,self.permissions)
         self.attrs = dict(file.attrs)
         self.og_resolution = self.attrs['original_resolution']
@@ -335,7 +358,6 @@ class Dataset():
         if skeleton is not None:
             self.setSkeleton(skeleton)
 
-        print("Dataset Loaded.\n")
 
 
     def recompile(self):
@@ -363,6 +385,7 @@ class Dataset():
 
     def setSkeleton(self,skeleton_name):
         self.skele = Skeleton(skeleton_name)
+        self.deepposeds_path = self.deepposeds_path.replace('.h5',f"{self.skele.name}_.h5")
     
     def updateKeypointData(self):
         self.skele.update()
@@ -399,3 +422,8 @@ class Dataset():
 
     def __str__(self):
         return str(self.attrs)
+
+
+
+
+ 

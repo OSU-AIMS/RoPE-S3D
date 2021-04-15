@@ -20,9 +20,9 @@ import h5py
 from tqdm import tqdm
 
 from .multithread import crop
-from . import paths as p
+from .. import paths as p
 from .segmentation import RobotSegmenter
-from .utils import workerCount
+from ..utils import workerCount
 
 
 def save_video(path, img_arr):
@@ -180,10 +180,13 @@ class Builder():
                 crop_inputs = []
                 for idx in range(start,start+batch_size):
                     crop_inputs.append((self.depthmap_arr[idx], self.orig_img_arr[idx], self.mask_arr[idx], self.rois[idx]))
-
-                # Run pool to segment PLYs
-                with mp.Pool(workerCount()) as pool:
-                    crop_outputs = pool.starmap(crop, crop_inputs)
+                
+                def a():
+                    # Run pool to segment PLYs
+                    with mp.Pool(workerCount()) as pool:
+                        crop_outputs = pool.starmap(crop, crop_inputs)
+                    return crop_outputs
+                crop_outputs = a()
 
                 for idx in range(start,start+batch_size):
                     self.segmented_img_arr[idx] = crop_outputs[idx-start][0]
@@ -195,7 +198,7 @@ class Builder():
         save_video(os.path.join(self.dest_path,"seg_vid.avi"), self.segmented_img_arr)
 
     def _make_camera_poses(self):
-        self.camera_poses = np.vstack([[1.425,.087,.399,-.01,1.551,1.546]] * self.length)
+        self.camera_poses = np.vstack([[.087,-1.425,.4, 0,1.551,-.025]] * self.length)
 
     def _save_full(self, ver):
         dest = os.path.join(self.dest_path, self.name + '.h5')

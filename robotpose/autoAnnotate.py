@@ -17,9 +17,8 @@ import h5py
 from labelme.label_file import LabelFile
 from tqdm import tqdm
 
-from .dataset import Dataset
-from . import paths as p
-from .render import Renderer
+from .data import Dataset
+from .simulation.render import DatasetRenderer
 from .utils import workerCount, expandRegion
 
 
@@ -144,26 +143,44 @@ class SegmentationAnnotator():
 
 
 class AutomaticSegmentationAnnotator():
+    """
+    Given an aligned dataset, produce the full-body or per-joint segmentation annotations.
+    """
     def __init__(
             self,
             dataset,
             skeleton,
             mode = 'seg_full',
-            camera_pose = None,
             renderer = None,
             preview = True
             ):
+        """
+        Create annotator
+
+        Args:
+            dataset (str):
+                The dataset to use.
+            skeleton (str):
+                The skeleton to use.
+            mode (str):
+                'seg_full','seg'
+                The mode to use.
+                seg_full is full-body annotation while seg is per-joint
+            renderer (robotpose.Renderer):
+                Optional preset renderer to use to avoid reloading meshes.
+            preview (bool):
+                Whether or not to show the render as it is created.
+        """
 
         self.preview = preview
         modes = ['seg_full','seg']
         assert mode in modes, f"Mode must be one of: {modes}"
 
         if renderer is None:
-            self.rend = Renderer(
+            self.rend = DatasetRenderer(
                 dataset,
                 skeleton,
-                mode = mode,
-                camera_pose = camera_pose
+                mode = mode
                 )
         else:
             self.rend = renderer
@@ -194,7 +211,7 @@ class AutomaticSegmentationAnnotator():
         cv2.destroyAllWindows()
         inputs = []
 
-        for frame in range(self.ds.length):
+        for frame in tqdm(range(self.ds.length),desc="Packing Segmentation Pool"):
             inputs.append((self.ds.og_img[frame],color_imgs[frame],os.path.join(self.ds.seg_anno_path,f"{frame:05d}")))
 
         print("Starting Segmentation Pool...")
@@ -243,39 +260,51 @@ class KeypointAnnotator():
 
 
 
-class AutomaticKeypointAnnotator():
+class AutomaticKeypointAnnotator(KeypointAnnotator):
     
     def __init__(
             self,
             dataset,
             skeleton,
-            camera_pose = None,
             renderer = None,
             preview = True
             ):
+        """
+        Create annotator
+
+        Args:
+            dataset (str):
+                The dataset to use.
+            skeleton (str):
+                The skeleton to use.
+            renderer (robotpose.Renderer):
+                Optional preset renderer to use to avoid reloading meshes.
+            preview (bool):
+                Whether or not to show the render as it is created.
+        """
+        
         
         self.preview = preview
 
         if renderer is None:
-            self.rend = Renderer(
+            self.rend = DatasetRenderer(
                 dataset,
                 skeleton,
-                mode = 'key',
-                camera_pose = camera_pose
+                mode = 'key'
                 )
         else:
             self.rend = renderer
             self.rend.setMode('key')
 
         color_dict = self.rend.getColorDict()
-        self.anno = KeypointAnnotator(color_dict,dataset,skeleton)
+        super().__init__(color_dict,dataset,skeleton)
 
     def run(self):
 
-        for frame in tqdm(range(self.anno.ds.length),desc="Annotating Keypoints"):
+        for frame in tqdm(range(self.ds.length),desc="Annotating Keypoints"):
             self.rend.setPosesFromDS(frame)
             color,depth = self.rend.render()
-            self.anno.annotate(color,frame)
+            self.annotate(color,frame)
             if self.preview:
                 cv2.imshow("Automatic Keypoint Annotator", color)
                 cv2.waitKey(1)

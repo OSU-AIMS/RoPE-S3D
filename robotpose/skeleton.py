@@ -10,15 +10,41 @@
 import json
 import numpy as np
 import os
-import sys
 import csv
 
 from . import paths as p
+from .CompactJSONEncoder import CompactJSONEncoder
+
+DEFAULT_CSV = "name,parent,swap\nbase,,\nL,base,\nmidL,L,\nU,midL,\npreR,U,\nR,preR,\nB,R,\nT,B,\n"
+
+
+
+class SkeletonInfo:
+    
+    def __init__(self):
+        pass
+
+    def valid(self):
+        return [x.replace('.csv','') for x in os.listdir(p.SKELETONS) if x.endswith('.csv') and os.path.isfile(os.path.join(p.SKELETONS,x.replace('.csv','.json')))]
+
+    def incomplete(self):
+        return [x.replace('.csv','') for x in os.listdir(p.SKELETONS) if x.endswith(".csv") and x.replace('.csv','') not in self.valid()]
+
+    def num_incomplete(self):
+        return len([x for x in os.listdir(p.SKELETONS) if x.endswith(".csv")]) - len(self.valid())
+
+    def create_csv(self,name):
+        with open(os.path.join(p.SKELETONS,f"{name}.csv"), 'w') as f:
+            f.write(DEFAULT_CSV)
+        return os.path.join(p.SKELETONS,f"{name}.csv")
+
 
 
 class Skeleton():
 
-    def __init__(self, name):
+    def __init__(self, name, create = False):
+        if name is None:
+            name = 'BASE'
         self.name = name
 
         csv_ = name + '.csv' in os.listdir(p.SKELETONS)
@@ -26,15 +52,20 @@ class Skeleton():
 
         if not csv_:
             raise ValueError(
-                f"The skeleton base document, {name + '.csv'} was not found in {p.SKELETONS}.\
-                Please create a skeleton before attempting to use it.")
+                f"The skeleton base document, {name + '.csv'} was not found in {p.SKELETONS}."+
+                "Please create a skeleton before attempting to use it.")
 
         self.csv_path = os.path.join(p.SKELETONS, name + '.csv')
 
         if json_:
             self.json_path = os.path.join(p.SKELETONS, name + '.json')
-        else:
+        elif create:
             self._makeJSON()
+        else:
+            raise ValueError(
+                f"The skeleton JSON document, {name + '.json'} was not found in {p.SKELETONS}"+
+                "And the skeleton was not created with the intent of making a new JSON.\n"+
+                "To create a JSON, call Skeleton with create = True.")
 
         self.update()
 
@@ -49,6 +80,7 @@ class Skeleton():
             self.joint_data = self.data['joints']
         except KeyError:
             print("Skeleton Joint Config Missing")
+
 
     def _hasJointConfig(self):
         return 'joints' in self.data.keys()
@@ -81,21 +113,14 @@ class Skeleton():
         joint_angle_data['S'] = {"type":2,"max":2,"min":-2,"parent":None,"parent_mult":0,"parent_offset":0,"self_mult":1,"predictors":default_predictors}
         joint_angle_data['L'] = {"type":1,"max":4,"min":-4,"parent":None,"parent_mult":0,"parent_offset":0,"self_mult":1,"predictors":default_predictors}
         joint_angle_data['U'] = {"type":1,"max":4,"min":-4,"parent":'L',"parent_mult":1,"parent_offset":0,"self_mult":1,"predictors":default_predictors}
-        #joint_angle_data['R'] = {"type":3,"max":2,"min":-2,"predictors":default_predictors}
         joint_angle_data['R'] = {"type":3,"max":2,"min":-2,"parent":None,"parent_mult":0,"parent_offset":0,"self_mult":1,"predictors":{}}
         joint_angle_data['B'] = {"type":1,"max":4,"min":-4,"parent":'U',"parent_mult":1,"parent_offset":0,"self_mult":1,"predictors":default_predictors}
-        #joint_angle_data['T'] = {"type":3,"max":2,"min":-2,"predictors":default_predictors}
         joint_angle_data['T'] = {"type":3,"max":2,"min":-2,"parent":None,"parent_mult":0,"parent_offset":0,"self_mult":1,"predictors":{}}
 
         json_info['joints'] = joint_angle_data
 
-        with open(self.csv_path.replace('.csv','.json'),'w') as f:
-            f.write(self._removePoseIndent(json.dumps(json_info, indent=4)))
+        self.json_path = self.csv_path.replace('.csv','.json')
+        with open(self.json_path,'w') as f:
+            f.write(CompactJSONEncoder(indent=4).encode(json_info))
 
-        sys.exit(f"\nMade JSON configuration for skeleton {self.name}\nPlease configure before using.\n")
-
-
-    def _removePoseIndent(self, string):
-        return string.replace(
-            '"pose": [\n                0.1,\n                0,\n                0,\n                1.5707963267948966,\n                0,\n                0\n            ]',
-            '"pose": [0.1, 0, 0, 1.5707963267948966, 0, 0]')
+        print(f"\nMade JSON configuration for skeleton {self.name}\nPlease configure before using.\n")
