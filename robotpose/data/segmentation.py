@@ -14,13 +14,13 @@ import cv2
 import os
 import numpy as np
 import pyrealsense2 as rs
-from .. import paths as p
+from ..paths import Paths as p
 from .. import projection as proj
 
 
 class RobotSegmenter():
 
-    def __init__(self, resolution = (720,800), model_path = os.path.join(p.SEG_MODELS,'D.h5'), intrinsics = '1280_720_color'):
+    def __init__(self, resolution = (720,800), model_path = os.path.join(p().SEG_MODELS,'D.h5'), intrinsics = '1280_720_color'):
         self.master = custom_segmentation()
         self.master.inferConfig(num_classes= 1, class_names= ["BG", "mh5"])
         self.master.load_model(model_path)

@@ -21,7 +21,7 @@
             "pose": [-0.233,-0.0525,0,1.5707963267948966,0,1.5707963267948966]
         },
         "B": {
-            "parent_joint": "BT",
+            "parent_joint": "B",
             "pose": [0,-0.055,0,1.5707963267948966,0,1.5707963267948966]
         }
     },
@@ -32,7 +32,7 @@
             "min": -2.967,
             "parent":null,
             "parent_mult":0,
-            "parent_offset":0,
+            "offset":0,
             "self_mult":1,
             "predictors": {
                 "A": {
@@ -55,7 +55,7 @@
             "min": -1.1345,
             "parent":null,
             "parent_mult":0,
-            "parent_offset":0,
+            "offset":0,
             "self_mult":-1,
             "predictors": {
                 "A": {
@@ -72,7 +72,7 @@
             "min": -2.409,
             "parent":"L",
             "parent_mult":1,
-            "parent_offset":0,
+            "offset":0,
             "self_mult":1,
             "predictors": {
                 "A": {
@@ -89,7 +89,7 @@
             "min": -3.3161,
             "parent":null,
             "parent_mult":0,
-            "parent_offset":0,
+            "offset":0,
             "self_mult":1,
             "predictors": {}
         },
@@ -99,7 +99,7 @@
             "min": -2.356,
             "parent":"R",
             "parent_mult":1,
-            "parent_offset":0,
+            "offset":0,
             "self_mult":1,
             "predictors": {}
         }

@@ -1,16 +1,13 @@
-"""
-General Paths
-"""
+import json
+JSON_PATH = r'data/paths.json'
 
-skeleton_mult = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\mult_skeleton.csv'
-model_mult = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\model_LEAP_mult.h5'
-ds_mult = r'C:\Users\exley\OneDrive - The Ohio State University\CDME\RobotPose\data\mult_ds.h5'
+class Paths:
+    def __init__(self):
+        self._load()
 
-DATASETS = r'data/'
-SKELETONS = r'data/skeletons'
-MODELS = r'models/'
-SEG_MODELS = r'models/segmentation'
-VIDEO = r'output/video.avi'
-ROBOT_CAD = r'urdf/MH5L-URDF/meshes'
+    def _load(self):
+        with open(JSON_PATH,'r') as f:
+            data = json.load(f)
 
-LOG = r'models/log/log.h5'
+        for key in data:
+            exec(f"self.{key}=r'{data[key]}'")

@@ -25,8 +25,7 @@ class DatasetWizard(DatasetInfo):
         super().__init__()
         self.get()
 
-        self.skinf = SkeletonInfo()
-
+        self.sk_inf = SkeletonInfo()
 
         dataset_menu = [
             [sg.Text("Dataset:"),sg.InputCombo(self.compiled_sets(),key='-dataset-', size=(20, 1))],
@@ -35,7 +34,7 @@ class DatasetWizard(DatasetInfo):
 
         keypoint_menu = [
             [sg.Text("Keypoint Skeleton:"),
-                sg.InputCombo([x for x in self.skinf.valid() if x != 'BASE'],key='-skeleton-', size=(10, 1))],
+                sg.InputCombo([x for x in self.sk_inf.valid() if x != 'BASE'],key='-skeleton-', size=(10, 1))],
             [sg.Button("Edit",key='-edit_skele-',tooltip='Edit Skeleton with Skeleton Wizard')],
             [sg.Button("View Annotations",key='-manual_annotate-', disabled=True)],
             [sg.Button("Create New Skeleton",key='-new_skele-'),sg.Button("Finish Skeleton Creation",key='-finish_skele-',visible=False)]
@@ -67,7 +66,7 @@ class DatasetWizard(DatasetInfo):
         if values['-dataset-'] in self.unique_sets():
             for button in ['-details-','-align-']:
                 self.window[button].update(disabled = False)
-            if values['-skeleton-'] in self.skinf.valid():
+            if values['-skeleton-'] in self.sk_inf.valid():
                 for button in ['-manual_annotate-']:
                     self.window[button].update(disabled = False)
             else:
@@ -77,14 +76,14 @@ class DatasetWizard(DatasetInfo):
             for button in ['-details-','-align-']:
                 self.window[button].update(disabled = True)
 
-        if values['-skeleton-'] in self.skinf.valid():
+        if values['-skeleton-'] in self.sk_inf.valid():
             for button in ['-edit_skele-']:
                 self.window[button].update(disabled = False)
         else:
             for button in ['-edit_skele-']:
                 self.window[button].update(disabled = True)
         
-        if self.skinf.num_incomplete() > 0:
+        if self.sk_inf.num_incomplete() > 0:
             self.window['-finish_skele-'].update(visible = True)
         else:
             self.window['-finish_skele-'].update(visible = False)
@@ -113,7 +112,7 @@ class DatasetWizard(DatasetInfo):
 
     def _finishSkeleton(self):
         layout = [[sg.Text("Skeleton To Finish:"),
-                sg.InputCombo(self.skinf.incomplete(),key='-skeleton-', size=(10, 1))],
+                sg.InputCombo(self.sk_inf.incomplete(),key='-skeleton-', size=(10, 1))],
                 [sg.Submit(),sg.Cancel()]]
         window = sg.Window("Finish Skeleton",layout)
         event, values = window.read()
@@ -136,7 +135,7 @@ class DatasetWizard(DatasetInfo):
             name = name.upper()
             confirm = sg.popup_ok_cancel(f"Create new skeleton with name {name} ?")
             if confirm == 'OK':
-                path = self.skinf.create_csv(name)
+                path = self.sk_inf.create_csv(name)
                 sg.popup_ok(f"Please edit {path} to include the needed keypoints along with their parent keypoints.",
                 "Then return and select 'Finish Skeleton Creation' to create a JSON config file for the skeleton.",
                 "More keypoints may be added later (by editing the skeleton), but it is suggested to add them now to save time"

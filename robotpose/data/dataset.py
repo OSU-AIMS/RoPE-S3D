@@ -17,13 +17,13 @@ import zipfile
 from deepposekit.io import initialize_dataset
 import h5py
 
-from .. import paths as p
+from ..paths import Paths as p
 from .building import Builder
 from ..skeleton import Skeleton
 
 
-INFO_JSON = os.path.join(p.DATASETS, 'datasets.json')
-CONFIG_JSON = os.path.join(p.DATASETS, 'dataset_config.json')
+INFO_JSON = os.path.join(p().DATASETS, 'datasets.json')
+CONFIG_JSON = os.path.join(p().DATASETS, 'dataset_config.json')
 
 DATASET_VERSION = 4.0
 """
@@ -182,7 +182,7 @@ class DatasetInfo():
         return f"Dataset Information stored in {INFO_JSON}."
 
     def _update(self):
-        uncompiled_paths = [ f.path for f in os.scandir(os.path.join(p.DATASETS,'raw')) if str(f.path).endswith('.zip') ]
+        uncompiled_paths = [ f.path for f in os.scandir(os.path.join(p().DATASETS,'raw')) if str(f.path).endswith('.zip') ]
         uncompiled_names = [ os.path.basename(os.path.normpath(x)).replace('.zip','') for x in uncompiled_paths ]
         compiled_full_paths = []
         compiled_full_names = []
@@ -193,7 +193,7 @@ class DatasetInfo():
         compiled_test_paths = []
         compiled_test_names = []
 
-        for dirpath, subdirs, files in os.walk(p.DATASETS):
+        for dirpath, subdirs, files in os.walk(p().DATASETS):
             for file in files:
 
                 def full():

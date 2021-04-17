@@ -14,7 +14,7 @@ import numpy as np
 import cv2
 import pyrealsense2 as rs
 from tqdm import tqdm
-from . import paths as p
+from .paths import Paths as p
 import time
 from .projection import makeIntrinsics
 from .turbo_colormap import normalize_and_interpolate
