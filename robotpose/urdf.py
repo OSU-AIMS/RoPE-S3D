@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 import os
 import json
 from .CompactJSONEncoder import CompactJSONEncoder
+import numpy as np
 
 JSON_PATH = r'data/paths.json'
 
@@ -45,3 +46,9 @@ class URDFReader():
         for link in root.findall('link'):
             self.meshes.append(link.find('visual').find('geometry').find('mesh').get('filename'))
         self.meshes = [os.path.join('urdf',x.replace('package://',"").replace('STL','stl')) for x in self.meshes]
+
+        self.joint_limits = []
+        for joint in root.findall('joint'):
+            j = joint.find('limit')
+            self.joint_limits.append([float(j.get('lower')),float(j.get('upper'))])
+        self.joint_limits = np.array(self.joint_limits)

@@ -214,6 +214,11 @@ class SkeletonWizard(Skeleton):
         self._setRotation(0,0)
         self.mode = 0
 
+        u_reader = URDFReader()
+        lims = u_reader.joint_limits
+        lims *= (180/np.pi) 
+        lims = np.round(lims)
+
         self.rend.setJointAngles([0,0,0,0,0,0])
 
         self.current_mode = 'key'
@@ -232,7 +237,6 @@ class SkeletonWizard(Skeleton):
             [sg.Radio("Realistic Metallic","render", key="-render_real-")]
         ]
 
-
         column1 = [
             [sg.Frame('View Settings',[
                 [sg.Slider(range=(-30, 30), orientation='v', size=(5, 20), default_value=0,key='-vert_slider-'),
@@ -244,11 +248,11 @@ class SkeletonWizard(Skeleton):
             ]
             )],
             [sg.Frame('Robot Joints',[
-                jointSlider("S",-170,170),
-                jointSlider("L",-65,150),
-                jointSlider("U",-135,255),
-                jointSlider("R",-190,190),
-                jointSlider("B",-135,135),
+                jointSlider("S",*lims[0]),
+                jointSlider("L",*lims[1]),
+                jointSlider("U",*lims[2]),
+                jointSlider("R",*lims[3]),
+                jointSlider("B",*lims[4]),
                 [sg.Button("Reset",key='-joint_reset-')]
             ]
             )]

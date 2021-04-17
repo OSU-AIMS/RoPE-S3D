@@ -14,6 +14,7 @@ import csv
 
 from .paths import Paths as p
 from .CompactJSONEncoder import CompactJSONEncoder
+from .urdf import URDFReader
 
 DEFAULT_CSV = "name,parent,swap\nbase,,\nL,base,\nmidL,L,\nU,midL,\npreR,U,\nR,preR,\nB,R,\nT,B,\n"
 
@@ -177,15 +178,18 @@ class Skeleton():
             keypoint_data[keypoint] = {"parent_keypoint": parent,"parent_joint": "joint_name","pose":[0.1,0,0,1.570796,0,0]}
         json_info['keypoints'] = keypoint_data
 
+        u_reader = URDFReader()
+        lims = u_reader.joint_limits
+
         default_predictor_entry = {"from": "keypoint","to": "another_keypoint","length": 1.0,"offset":0}
         default_predictors = {"A":default_predictor_entry,"B":default_predictor_entry}
         joint_angle_data = {}
-        joint_angle_data['S'] = {"type":2,"max":2.9671,"min":-2.9671,"parent":None,"parent_mult":0,"offset":0,"self_mult":1,"predictors":default_predictors}
-        joint_angle_data['L'] = {"type":1,"max":4,"min":-1.1345,"parent":None,"parent_mult":0,"offset":-np.pi/2,"self_mult":-1,"predictors":default_predictors}
-        joint_angle_data['U'] = {"type":1,"max":4,"min":-4,"parent":'L',"parent_mult":1,"offset":0,"self_mult":1,"predictors":default_predictors}
-        joint_angle_data['R'] = {"type":3,"max":2,"min":-2,"parent":None,"parent_mult":0,"offset":0,"self_mult":1,"predictors":{}}
-        joint_angle_data['B'] = {"type":1,"max":4,"min":-4,"parent":'U',"parent_mult":1,"offset":0,"self_mult":1,"predictors":default_predictors}
-        joint_angle_data['T'] = {"type":3,"max":2,"min":-2,"parent":None,"parent_mult":0,"offset":0,"self_mult":1,"predictors":{}}
+        joint_angle_data['S'] = {"type":2,"max":lims[0,1],"min":lims[0,0],"parent":None,"parent_mult":0,"offset":0,"self_mult":1,"predictors":default_predictors}
+        joint_angle_data['L'] = {"type":1,"max":lims[1,1],"min":lims[1,0],"parent":None,"parent_mult":0,"offset":-np.pi/2,"self_mult":-1,"predictors":default_predictors}
+        joint_angle_data['U'] = {"type":1,"max":lims[2,1],"min":lims[2,0],"parent":'L',"parent_mult":1,"offset":0,"self_mult":1,"predictors":default_predictors}
+        joint_angle_data['R'] = {"type":3,"max":lims[3,1],"min":lims[3,0],"parent":None,"parent_mult":0,"offset":0,"self_mult":1,"predictors":{}}
+        joint_angle_data['B'] = {"type":1,"max":lims[4,1],"min":lims[4,0],"parent":'U',"parent_mult":1,"offset":0,"self_mult":1,"predictors":default_predictors}
+        joint_angle_data['T'] = {"type":3,"max":lims[5,1],"min":lims[5,0],"parent":None,"parent_mult":0,"offset":0,"self_mult":1,"predictors":{}}
 
         json_info['joints'] = joint_angle_data
 
