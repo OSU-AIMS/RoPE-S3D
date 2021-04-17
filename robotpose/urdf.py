@@ -32,6 +32,12 @@ class URDFReader():
         else:
             return False
 
+    def return_path(self):
+        if self.get_path():
+            return self.path
+        else:
+            return None
+
     def load(self):
         tree = ET.parse(self.path)
         root = tree.getroot()

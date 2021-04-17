@@ -18,6 +18,7 @@ from .data import DatasetInfo, Dataset
 from .render import Aligner
 from .skeleton import Skeleton, SkeletonInfo
 from .simulation import SkeletonRenderer
+from .urdf import URDFReader
 
 
 class DatasetWizard(DatasetInfo):
@@ -26,6 +27,15 @@ class DatasetWizard(DatasetInfo):
         self.get()
 
         self.sk_inf = SkeletonInfo()
+        self.urdf_reader = URDFReader()
+
+        self.valid_urdf = self.urdf_reader.return_path() != None
+
+        urdf_menu = [
+            [sg.Text("Current URDF:")],
+            [sg.Text(self.urdf_reader.return_path(),key='-current_urdf-'),
+                sg.Button("Change",key='-browse_urdf-',tooltip='Select URDF path')]
+        ]
 
         dataset_menu = [
             [sg.Text("Dataset:"),sg.InputCombo(self.compiled_sets(),key='-dataset-', size=(20, 1))],
@@ -41,6 +51,7 @@ class DatasetWizard(DatasetInfo):
             ]
 
         self.layout = [
+            [sg.Frame("URDF Options", urdf_menu)],
             [sg.Frame("Dataset Options", dataset_menu)],
             [sg.Frame("Keypoint Options", keypoint_menu)],
             [sg.Button("Quit",key='-quit-',tooltip='Quit Dataset Wizard')]
@@ -62,7 +73,7 @@ class DatasetWizard(DatasetInfo):
 
 
     def _updateButtons(self,values):
-        
+
         if values['-dataset-'] in self.unique_sets():
             for button in ['-details-','-align-']:
                 self.window[button].update(disabled = False)
@@ -87,6 +98,10 @@ class DatasetWizard(DatasetInfo):
             self.window['-finish_skele-'].update(visible = True)
         else:
             self.window['-finish_skele-'].update(visible = False)
+
+        if not self.valid_urdf:
+            for button in ['-align-','-edit_skele-']:
+                self.window[button].update(disabled = True)
                 
 
 
@@ -103,12 +118,28 @@ class DatasetWizard(DatasetInfo):
             self._makeNewSkeleton()
         elif event == '-finish_skele-':
             self._finishSkeleton()
+        elif event == '-browse_urdf-':
+            self._changeURDF()
 
+
+    def _changeURDF(self):
+        self.valid_urdf = False
+        path = sg.popup_get_file("Select new URDF",
+            title="URDF Selection",
+            file_types=(("URDF Files", ".urdf"),), 
+            initial_folder=os.getcwd())
+        if path is not None:
+            if os.path.isfile(path) and path.endswith('.urdf'):
+                path = os.path.relpath(path, os.path.commonprefix([path,os.getcwd()]))
+                self.urdf_reader.store_path(path.replace('\\','/'))
+                self.valid_urdf = True
+            else:
+                sg.popup_ok("Error:","Invalid URDF file selection.")
+        self.window['-current_urdf-'].update(self.urdf_reader.return_path())
            
     def _showDetails(self, dataset):
         ds = Dataset(dataset)
         sg.popup_ok(str(ds), title=f"{dataset} Details")
-
 
     def _finishSkeleton(self):
         layout = [[sg.Text("Skeleton To Finish:"),
