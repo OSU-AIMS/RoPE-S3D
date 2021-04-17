@@ -121,14 +121,14 @@ class BaseRenderer(Skeleton):
 
         try:
             for name in self.keypoints:
-                parent = self.keypoint_data[name]['parent_joint']
+                parent = self.keypoint_data[name]['parent_link']
                 pose = makePose(*self.keypoint_data[name]['pose'])
                 n = self.scene.add(marker, name=name, pose=pose, parent_name=parent)
                 self.key_nodes.append(n)
         except ValueError as e:
-            if str(e) == 'No parent node with name joint_name found':
+            if str(e) == 'No parent node with name link_name found':
                 if not self.suppress_warnings:
-                    raise ValueError('No parent node with name joint_name found.'+
+                    raise ValueError('No parent node with name link_name found.'+
                         ' It is likely that the template keypoint .json has not been modified')
 
         self._updateMode()

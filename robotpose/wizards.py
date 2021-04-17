@@ -8,6 +8,7 @@
 # Author: Adam Exley
 
 import os
+from PySimpleGUI.PySimpleGUI import TreeData
 import cv2
 import numpy as np
 
@@ -223,6 +224,9 @@ class SkeletonWizard(Skeleton):
 
         self.current_mode = 'key'
 
+        self.tree_data = sg.TreeData()
+        self.tree_data.insert('','-a-','test',['123'])
+
         def jointSlider(name, lower, upper):
             return [sg.Text(f"{name}:"),
                 sg.Slider(range=(lower, upper),
@@ -258,9 +262,17 @@ class SkeletonWizard(Skeleton):
             )]
             ]
 
+        column2 = [
+            [sg.Frame("Keypoints",[
+            [sg.Tree(data = self.tree_data,
+                headings=['Size', ],
+            )]]
+            )]
+        ]
+
         self.layout = [          
             [sg.Text(f"Keypoint Skeleton: {name}")],
-            [sg.Column(column1)],
+            [sg.Column(column1),sg.Column(column2)],
             [sg.Button("Quit",key='-quit-',tooltip='Quit Skeleton Wizard')]
             ]
         
@@ -282,7 +294,6 @@ class SkeletonWizard(Skeleton):
             self.window.bring_to_front()
 
         self.window.close()
-
 
 
     def _runEvent(self, event, values):
@@ -343,3 +354,19 @@ class SkeletonWizard(Skeleton):
         cv2.imshow("Keypoint Wizard",color)
         cv2.waitKey(1)
 
+
+
+
+class MeshTree(Skeleton):
+    pass
+    # Mesh
+        # Keypoints
+            #x/y/z/r/p/y
+
+
+
+class JointTree(Skeleton):
+    pass    
+    # Joint
+        # Predictors
+            # From/To, length, offset

@@ -5,35 +5,35 @@
     },
     "keypoints": {
         "base": {
-            "parent_joint": "joint_name",
+            "parent_link": "link_name",
             "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
         },
         "L": {
-            "parent_joint": "joint_name",
+            "parent_link": "link_name",
             "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
         },
         "midL": {
-            "parent_joint": "joint_name",
+            "parent_link": "link_name",
             "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
         },
         "U": {
-            "parent_joint": "joint_name",
+            "parent_link": "link_name",
             "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
         },
         "preR": {
-            "parent_joint": "joint_name",
+            "parent_link": "link_name",
             "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
         },
         "R": {
-            "parent_joint": "joint_name",
+            "parent_link": "link_name",
             "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
         },
         "B": {
-            "parent_joint": "joint_name",
+            "parent_link": "link_name",
             "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
         },
         "T": {
-            "parent_joint": "joint_name",
+            "parent_link": "link_name",
             "pose": [1, 0, 0, 1.5707963267948966, 0, 0]
         }
     },

@@ -95,7 +95,7 @@ class Skeleton():
             f.write(f"{keypoint},,\n")
 
     def _addKeypoint_json(self, keypoint):
-        self.data['keypoints'][keypoint] = {"parent_keypoint": None,"parent_joint": "joint_name","pose":[0.1,0,0,1.570796,0,0]}
+        self.data['keypoints'][keypoint] = {"parent_keypoint": None,"parent_link": "link_name","pose":[0.1,0,0,1.570796,0,0]}
         self._writeJSON()
 
     def _changeParent_csv(self, keypoint, parent):
@@ -175,7 +175,7 @@ class Skeleton():
         for keypoint, parent in zip(keypoints,parents):
             if parent == '':
                 parent = None
-            keypoint_data[keypoint] = {"parent_keypoint": parent,"parent_joint": "joint_name","pose":[0.1,0,0,1.570796,0,0]}
+            keypoint_data[keypoint] = {"parent_keypoint": parent,"parent_link": "link_name","pose":[0.1,0,0,1.570796,0,0]}
         json_info['keypoints'] = keypoint_data
 
         u_reader = URDFReader()
