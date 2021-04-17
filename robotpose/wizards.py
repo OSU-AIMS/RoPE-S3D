@@ -7,10 +7,12 @@
 #
 # Author: Adam Exley
 
+from logging import disable
 import os
 from PySimpleGUI.PySimpleGUI import TreeData
 import cv2
 import numpy as np
+from numpy.core.numeric import True_
 
 from deepposekit import Annotator
 import PySimpleGUI as sg
@@ -223,9 +225,11 @@ class SkeletonWizard(Skeleton):
         self.rend.setJointAngles([0,0,0,0,0,0])
 
         self.current_mode = 'key'
+        self.crop = True
+        self.use_cv = False
 
-        self.tree_data = sg.TreeData()
-        self.tree_data.insert('','-a-','test',['123'])
+        self.jointTree = JointTree(name)
+        self.meshTree = MeshTree(name)
 
         def jointSlider(name, lower, upper):
             return [sg.Text(f"{name}:"),
@@ -237,18 +241,18 @@ class SkeletonWizard(Skeleton):
         render_modes = [
             [sg.Radio("Keypoint","render", default=True, key="-render_key-")],
             [sg.Radio("Segmented Joints","render", key="-render_seg-")],
-            [sg.Radio("Segmented Body","render", key="-render_body-")],
-            [sg.Radio("Realistic Metallic","render", key="-render_real-")]
+            [sg.Radio("Realistic Metallic","render", key="-render_real-")],
+            [sg.Checkbox("Crop To Fit", default=True,key='-crop-'), sg.Text('Pad:'),sg.Input('10',key='-crop_pad-',size=(3,None))],
+            [sg.Checkbox("Display in New Window", default=False, key='-disp_cv-')]
         ]
 
         column1 = [
             [sg.Frame('View Settings',[
                 [sg.Slider(range=(-30, 30), orientation='v', size=(5, 20), default_value=0,key='-vert_slider-'),
                     sg.VerticalSeparator(),
-                    sg.Column(render_modes),
-                    sg.VerticalSeparator(),
-                    sg.Button("Reset",key='-view_reset-')],
-                [sg.Slider(range=(-180, 180), orientation='h', size=(20, 20), default_value=0, key='-horiz_slider-')]
+                    sg.Column(render_modes)],
+                [sg.Slider(range=(-180, 180), orientation='h', size=(20, 20), default_value=0, key='-horiz_slider-'),
+                    sg.Button("Reset",key='-view_reset-')]
             ]
             )],
             [sg.Frame('Robot Joints',[
@@ -263,16 +267,17 @@ class SkeletonWizard(Skeleton):
             ]
 
         column2 = [
-            [sg.Frame("Keypoints",[
-            [sg.Tree(data = self.tree_data,
-                headings=['Size', ],
-            )]]
-            )]
+            [sg.Frame("Mesh Tree",[[self.meshTree()]])],
+            [sg.Frame("Joint Tree",[[self.jointTree()]])]
+        ]
+
+        view_column = [
+            [sg.Frame('Preview',[[sg.Image(key='-preview_img-')]])]
         ]
 
         self.layout = [          
             [sg.Text(f"Keypoint Skeleton: {name}")],
-            [sg.Column(column1),sg.Column(column2)],
+            [sg.Column(column1),sg.Column(column2),sg.Column(view_column,key='-preview_column-')],
             [sg.Button("Quit",key='-quit-',tooltip='Quit Skeleton Wizard')]
             ]
         
@@ -287,18 +292,31 @@ class SkeletonWizard(Skeleton):
             event, values = self.window.read(1, timeout_key='TIMEOUT')
             if event not in (sg.WIN_CLOSED,'-quit-'):
                 if event != 'TIMEOUT' or values != prev_values:
+                    self._updateDisabled(values)
                     self._runEvent(event, values)
                     self._setViewMode(values)
-                    self.render()
+                    self.show(self.render())
                     prev_values = values
             self.window.bring_to_front()
 
         self.window.close()
 
+    def _updateDisabled(self, values):
+        self.window['-crop_pad-'].update(disabled=(not values['-crop-']))
+        self.window['-preview_column-'].update(visible=(not values['-disp_cv-']))
+
 
     def _runEvent(self, event, values):
         self._setRotation(values['-horiz_slider-'],values['-vert_slider-'])
         self._setJointAngles(values)
+
+        self.crop = values['-crop-']
+        try:
+            self.pad = int(values['-crop_pad-'])
+        except ValueError:
+            self.pad = 10
+
+        self.use_cv = values['-disp_cv-']
 
         if event == '-view_reset-':
             self._resetRotation()
@@ -307,8 +325,8 @@ class SkeletonWizard(Skeleton):
 
 
     def _setViewMode(self, values):
-        modes = ['key','seg','seg_full','real']
-        mode_keys = ['-render_key-','-render_seg-','-render_body-','-render_real-']
+        modes = ['key','seg','real']
+        mode_keys = ['-render_key-','-render_seg-','-render_real-']
         mode = [modes[x] for x in range(len(modes)) if values[mode_keys[x]]][0]
         if self.current_mode == mode:
             return
@@ -351,22 +369,96 @@ class SkeletonWizard(Skeleton):
 
     def render(self):
         color, depth = self.rend.render()
-        cv2.imshow("Keypoint Wizard",color)
-        cv2.waitKey(1)
+        if self.crop:
+            color = self._cropImage(color)
+        return color
+    
+    def show(self, image):
+        if self.use_cv:
+            cv2.imshow("Keypoint Wizard",image)
+            cv2.waitKey(1)
+        else:
+            cv2.destroyAllWindows()
+            imgbytes = cv2.imencode('.png', image)[1].tobytes()
+            self.window['-preview_img-'].update(data=imgbytes)
+
+
+
+    def _cropImage(self, image):
+        # Aim for 700 w by 720 h
+        occupied = np.any(image,-1)
+        rows, columns = np.where(occupied)
+        min_row = max(0,min(rows)-self.pad)
+        max_row = min(image.shape[0]-1,max(rows)+self.pad)
+        min_col = max(0,min(columns)-self.pad)
+        max_col = min(image.shape[1]-1,max(columns)+self.pad)
+        while max_col - min_col < 699:
+            if max_col < image.shape[1]:
+                max_col +=1
+            if min_col > 0:
+                min_col -=1
+        while max_row - min_row < 705:
+            if max_row < image.shape[0]:
+                max_row +=1
+            if min_row > 0:
+                min_row -=1
+        return image[min_row:max_row,min_col:max_col]
 
 
 
 
 class MeshTree(Skeleton):
-    pass
-    # Mesh
-        # Keypoints
-            #x/y/z/r/p/y
+    def __init__(self, name):
+        super().__init__(name)
+        self.update()
+        self.treedata = sg.TreeData()
+        self.urdf_reader = URDFReader()
+        self._addMeshes()
+        self._addKeypointsToTree()
+
+    def _addMeshes(self):
+        for mesh in self.urdf_reader.mesh_names:
+            self.treedata.insert('',mesh,mesh,[])
+
+    def _addKeypointsToTree(self):
+        for keypoint in self.keypoints:
+            dat = self.keypoint_data[keypoint]
+            pose = list(np.round(np.array(dat['pose']),2))
+            self.treedata.insert(
+                dat['parent_link'],
+                keypoint,
+                keypoint,
+                pose
+                )
+            
+
+    def __call__(self):
+        return sg.Tree(self.treedata,('X','Y','Z','R','P','Y'), def_col_width=3, auto_size_columns=False, num_rows=8, key='-mesh_tree-')
 
 
 
 class JointTree(Skeleton):
-    pass    
-    # Joint
-        # Predictors
-            # From/To, length, offset
+    def __init__(self, name):
+        super().__init__(name)
+        self.update()
+        self.treedata = sg.TreeData()
+        self._addJoints()
+        self._addJointPredictors()
+
+    def _addJoints(self):
+        for joint in self.joint_data.keys():
+            self.treedata.insert('',joint,joint,[])
+        
+    def _addJointPredictors(self):
+        for joint in self.joint_data.keys():
+            for pred in self.joint_data[joint]['predictors'].keys():
+                pred_data = self.joint_data[joint]['predictors'][pred]
+                self.treedata.insert(
+                    joint,
+                    f'{joint}-{pred}',
+                    f'pred_{pred}',
+                    [pred_data['from'],pred_data['to'],pred_data['length'],pred_data['offset']]
+                    )
+
+    def __call__(self):
+        return sg.Tree(self.treedata,('From','To','Length','Offset'),key='-joint_tree-')

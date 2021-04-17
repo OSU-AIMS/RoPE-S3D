@@ -46,6 +46,7 @@ class URDFReader():
         for link in root.findall('link'):
             self.meshes.append(link.find('visual').find('geometry').find('mesh').get('filename'))
         self.meshes = [os.path.join('urdf',x.replace('package://',"").replace('STL','stl')) for x in self.meshes]
+        self.mesh_names = [os.path.splitext(os.path.basename(x))[0] for x in self.meshes]
 
         self.joint_limits = []
         for joint in root.findall('joint'):
