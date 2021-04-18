@@ -47,7 +47,7 @@ class MeshLoader():
 
         urdf_reader = URDFReader()
 
-        self.name_list = [x for x in d.keys()]
+        self.name_list = urdf_reader.mesh_names
         self.mesh_list = urdf_reader.meshes[:-1]
         self.pose_list = [d[x]['pose'] for x in d.keys()]
 

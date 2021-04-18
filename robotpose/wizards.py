@@ -22,6 +22,8 @@ from .render import Aligner
 from .skeleton import Skeleton, SkeletonInfo
 from .simulation import SkeletonRenderer
 from .urdf import URDFReader
+from .utils import expandRegion
+from .simulation.render import DEFAULT_COLORS
 
 
 class DatasetWizard(DatasetInfo):
@@ -215,16 +217,15 @@ class SkeletonWizard(Skeleton):
         self.rend = SkeletonRenderer(name, suppress_warnings=True)
         self.base_pose = [1.5,-1.5,.35, 0,np.pi/2,0]
         self._setRotation(0,0)
-        self.mode = 0
 
-        u_reader = URDFReader()
-        lims = u_reader.joint_limits
+        self.u_reader = URDFReader()
+        lims = self.u_reader.joint_limits
         lims *= (180/np.pi) 
         lims = np.round(lims)
 
         self.rend.setJointAngles([0,0,0,0,0,0])
 
-        self.current_mode = 'key'
+        self.mode = 'key'
         self.crop = True
         self.use_cv = False
 
@@ -243,7 +244,8 @@ class SkeletonWizard(Skeleton):
             [sg.Radio("Segmented Joints","render", key="-render_seg-")],
             [sg.Radio("Realistic Metallic","render", key="-render_real-")],
             [sg.Checkbox("Crop To Fit", default=True,key='-crop-'), sg.Text('Pad:'),sg.Input('10',key='-crop_pad-',size=(3,None))],
-            [sg.Checkbox("Display in New Window", default=False, key='-disp_cv-')]
+            [sg.Checkbox("Display in New Window", default=False, key='-disp_cv-')],
+            [sg.Checkbox("Highlight Selected", default=True, key='-highlight-')]
         ]
 
         column1 = [
@@ -295,7 +297,10 @@ class SkeletonWizard(Skeleton):
                     self._updateDisabled(values)
                     self._runEvent(event, values)
                     self._setViewMode(values)
-                    self.show(self.render())
+                    img = self.render()
+                    if values['-highlight-']:
+                        img = self._highlightSelectedMesh(img, values)
+                    self.show(img)
                     prev_values = values
             self.window.bring_to_front()
 
@@ -328,11 +333,11 @@ class SkeletonWizard(Skeleton):
         modes = ['key','seg','real']
         mode_keys = ['-render_key-','-render_seg-','-render_real-']
         mode = [modes[x] for x in range(len(modes)) if values[mode_keys[x]]][0]
-        if self.current_mode == mode:
+        if self.mode == mode:
             return
         else:
             self.rend.setMode(mode)
-            self.current_mode = mode
+            self.mode = mode
 
 
 
@@ -372,6 +377,7 @@ class SkeletonWizard(Skeleton):
         if self.crop:
             color = self._cropImage(color)
         return color
+
     
     def show(self, image):
         if self.use_cv:
@@ -382,6 +388,31 @@ class SkeletonWizard(Skeleton):
             imgbytes = cv2.imencode('.png', image)[1].tobytes()
             self.window['-preview_img-'].update(data=imgbytes)
 
+
+    def _highlightSelectedMesh(self, image, values):
+        modes = ['key','seg']
+        idx = 1
+        detect_from = None
+        for val in values['-mesh_tree-']:
+            while True:
+                try:
+                    colors = self.rend.getColorDict()
+                    if val in self.keypoints:
+                        image = self._circleColor(image, colors[val], detect_from=detect_from)
+                    elif val in self.u_reader.mesh_names[:-1]:
+                        image = self._outlineColorContour(image, colors[val], detect_from=detect_from)
+                    break
+                except (KeyError,TypeError):
+                    idx += 1
+                    if idx > 1:
+                        idx = 0
+                    self.rend.setMode(modes[idx])
+                    detect_from, depth = self.rend.render()
+                    if self.crop:
+                        detect_from = self._cropImage(detect_from)
+
+        self.rend.setMode(self.mode)
+        return image
 
 
     def _cropImage(self, image):
@@ -405,6 +436,32 @@ class SkeletonWizard(Skeleton):
         return image[min_row:max_row,min_col:max_col]
 
 
+    def _colorVisible(self, image, color):
+        return len(np.where(np.all(image == color, axis=-1))[0]) > 0
+
+    def _outlineColorContour(self, image, color, offset=5, outline_color=(30,255,250), thickness=2, detect_from = None):
+        if detect_from is None:
+            detect_from = image
+        mask = np.zeros(image.shape[0:2], dtype=np.uint8)
+        mask[np.where(np.all(detect_from == color, axis=-1))] = 255
+        mask = expandRegion(mask, offset)
+        contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        image = np.array(image)
+        cv2.drawContours(image, contours, -1, outline_color, thickness)
+        return image
+
+    def _circleColor(self, image, color, radius=5, outline_color=(30,255,250), thickness=2, detect_from = None):
+        if detect_from is None:
+            detect_from = image
+        coords = np.where(np.all(detect_from == color, axis=-1))
+        avg_y = int(np.mean(coords[0]))
+        avg_x = int(np.mean(coords[1]))
+        image = np.array(image)
+        cv2.circle(image, (avg_x,avg_y), radius, outline_color, thickness)
+        return image
+
+
+
 
 
 class MeshTree(Skeleton):
@@ -424,13 +481,21 @@ class MeshTree(Skeleton):
         for keypoint in self.keypoints:
             dat = self.keypoint_data[keypoint]
             pose = list(np.round(np.array(dat['pose']),2))
+            parent = dat['parent_link']
+            if parent not in self.urdf_reader.mesh_names:
+                parent = ''
             self.treedata.insert(
-                dat['parent_link'],
+                parent,
                 keypoint,
                 keypoint,
                 pose
                 )
             
+    def refresh(self):
+        self.treedata = sg.TreeData()
+        self._addMeshes()
+        self._addKeypointsToTree()
+        return self.treedata
 
     def __call__(self):
         return sg.Tree(self.treedata,('X','Y','Z','R','P','Y'), def_col_width=3, auto_size_columns=False, num_rows=8, key='-mesh_tree-')
@@ -459,6 +524,11 @@ class JointTree(Skeleton):
                     f'pred_{pred}',
                     [pred_data['from'],pred_data['to'],pred_data['length'],pred_data['offset']]
                     )
+
+    def refresh(self):
+        self.treedata = sg.TreeData()
+        self._addJoints()
+        self._addJointPredictors()
 
     def __call__(self):
         return sg.Tree(self.treedata,('From','To','Length','Offset'),key='-joint_tree-')
