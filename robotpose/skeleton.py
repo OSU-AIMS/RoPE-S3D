@@ -77,15 +77,19 @@ class Skeleton():
 
         self.keypoints = [x for x in self.data['keypoints'].keys()]
         self.keypoint_data = self.data['keypoints']
-        try:
-            self.joint_data = self.data['joints']
-        except KeyError:
-            print("Skeleton Joint Config Missing")
+        self.joint_data = self.data['joints']
+
 
     def _writeJSON(self):
         assert hasattr(self, 'data'), "Data must exist to write"
-        with open(self.json_path,'w') as f:
-            f.write(CompactJSONEncoder(indent=4).encode(self.data))
+        while True:
+            try:
+                with open(self.json_path,'w') as f:
+                    f.write(CompactJSONEncoder(indent=4).encode(self.data))
+                break
+            except PermissionError:
+                pass
+        self.update()
 
     def _hasJointConfig(self):
         return 'joints' in self.data.keys()
@@ -111,7 +115,7 @@ class Skeleton():
             f.write(full.replace(replace,f"{keypoint},{parent},\n"))
 
     def _changeParent_json(self, keypoint, parent):
-        self.data['keypoints']['keypoint']['parent_keypoint'] = parent
+        self.data['keypoints'][keypoint]['parent_link'] = parent
         self._writeJSON()
         
     def _removeKeypoint_csv(self, keypoint):
@@ -138,21 +142,55 @@ class Skeleton():
 
         self._writeJSON()
 
-        
+    def _renameKeypoint_csv(self, past_name, new_name):
+        assert past_name in self.keypoints, "Keypoint must be in skeleton to rename"
+        with open(self.csv_path, 'r') as f:
+            full = f.read()
+        with open(self.csv_path, 'w') as f:
+            f.write(full.replace(past_name,new_name))
+
+    def _renameKeypoint_json(self, past_name, new_name):
+        self.data['keypoints'][new_name] = self.data['keypoints'][past_name]
+        del self.data['keypoints'][past_name]
+
+        for joint in ['S','L','U','R','B','T']:
+            joint_data = self.data['joints'][joint]
+            for pred in self.data['joints'][joint]['predictors']:
+                if joint_data['predictors'][pred]['from'] == past_name:
+                    self.data['joints'][joint]['predictors'][pred]['from'] = new_name
+                if joint_data['predictors'][pred]['to'] == past_name:
+                    self.data['joints'][joint]['predictors'][pred]['from'] = new_name
+
+        self._writeJSON()
+
+
     def _addKeypoint(self, keypoint):
         self.update()
         self._addKeypoint_csv(keypoint)
         self._addKeypoint_json(keypoint)
 
-    def _changeParent(self, keypoint, parent):
+    def _changeKeypointParentLink(self, keypoint, parent):
         self.update()
-        self._changeParent_csv(keypoint, parent)
         self._changeParent_json(keypoint, parent)
+
+    def _changeKeypointParentPoint(self, keypoint, parent):
+        self._changeParent_csv(keypoint, parent)
 
     def _removeKeypoint(self, keypoint):
         self.update()
         self._removeKeypoint_csv(keypoint)
         self._removeKeypoint_json(keypoint)
+
+    def _renameKeypoint(self, old_name, new_name):
+        assert old_name in self.keypoints, "Old name must be in keypoints"
+        assert new_name not in self.keypoints, "Cannot change to already-occupied name"
+        self.update()
+        self._renameKeypoint_csv(old_name, new_name)
+        self._renameKeypoint_json(old_name, new_name)
+
+    def _changeKeypointPose(self, keypoint, pose):
+        self.data['keypoints'][keypoint]['pose'] = pose
+        self._writeJSON()
 
 
     def _makeJSON(self):

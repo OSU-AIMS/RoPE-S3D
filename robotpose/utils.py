@@ -238,26 +238,26 @@ def reject_outliers_iqr(data, iqr_mult = 1.5):
 
 class Timer():
     def __init__(self):
-        self.split_names = []
-        self.split_times = []
-        self.split_times.append(time.time())
+        self.data = {}
+        self.start()
+    
+    def start(self):
+        self.start_time = time.time()
 
     def split(self,split_name):
-        self.split_times.append(time.time())
-        self.split_names.append(split_name)
-
-    def aslist(self):
-        out = []
-        for idx in range(1,len(self.split_times)):
-            out.append(self.split_times[idx] - self.split_times[idx-1])
-
-        return out
+        try:
+            self.data[split_name] += time.time() - self.start_time
+        except KeyError:
+            self.data[split_name] = time.time() - self.start_time
+        self.start()
 
     def __repr__(self):
         out = "Times:"
-        for idx in range(1,len(self.split_times)):
-            out += f"\n\t{self.split_names[idx-1]}: {self.split_times[idx] - self.split_times[idx-1]:.3f}"
-
+        tot = 0
+        for item in self.data:
+            tot += self.data[item]
+        for item in self.data:
+            out += f"\n\t{item}: {self.data[item]:.3f}s {(self.data[item] * 100/tot):.2f}%"
         return out
 
 

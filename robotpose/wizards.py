@@ -7,12 +7,10 @@
 #
 # Author: Adam Exley
 
-from logging import disable
 import os
-from PySimpleGUI.PySimpleGUI import TreeData
 import cv2
 import numpy as np
-from numpy.core.numeric import True_
+
 
 from deepposekit import Annotator
 import PySimpleGUI as sg
@@ -22,8 +20,8 @@ from .render import Aligner
 from .skeleton import Skeleton, SkeletonInfo
 from .simulation import SkeletonRenderer
 from .urdf import URDFReader
-from .utils import expandRegion
-from .simulation.render import DEFAULT_COLORS
+from .utils import expandRegion, Timer
+
 
 
 class DatasetWizard(DatasetInfo):
@@ -208,15 +206,17 @@ class DatasetWizard(DatasetInfo):
 
 
 
+ANGLES = ['-pi','-pi/2','0','pi/2','pi']
+ANGLE_DICT = {'-pi':-np.pi,'-pi/2':-np.pi/2,'0':0,'pi/2':np.pi/2,'pi':np.pi}
 
 class SkeletonWizard(Skeleton):
 
     def __init__(self, name):
         super().__init__(name)
+        self.update()
 
         self.rend = SkeletonRenderer(name, suppress_warnings=True)
         self.base_pose = [1.5,-1.5,.35, 0,np.pi/2,0]
-        self._setRotation(0,0)
 
         self.u_reader = URDFReader()
         lims = self.u_reader.joint_limits
@@ -228,6 +228,8 @@ class SkeletonWizard(Skeleton):
         self.mode = 'key'
         self.crop = True
         self.use_cv = False
+        self.last_joint_selected = ''
+        self.last_keypoint_selected = ''
 
         self.jointTree = JointTree(name)
         self.meshTree = MeshTree(name)
@@ -243,7 +245,7 @@ class SkeletonWizard(Skeleton):
             [sg.Radio("Keypoint","render", default=True, key="-render_key-")],
             [sg.Radio("Segmented Joints","render", key="-render_seg-")],
             [sg.Radio("Realistic Metallic","render", key="-render_real-")],
-            [sg.Checkbox("Crop To Fit", default=True,key='-crop-'), sg.Text('Pad:'),sg.Input('10',key='-crop_pad-',size=(3,None))],
+            [sg.Checkbox("Crop To Fit", default=True,key='-crop-')],
             [sg.Checkbox("Display in New Window", default=False, key='-disp_cv-')],
             [sg.Checkbox("Highlight Selected", default=True, key='-highlight-')]
         ]
@@ -268,58 +270,132 @@ class SkeletonWizard(Skeleton):
             )]
             ]
 
+        edit_keypoint = [
+            [sg.Text('Name:'),sg.InputCombo(self.keypoints,key='-keypoint_name-')],
+            [sg.Text('Parent Mesh:'),sg.InputCombo(self.u_reader.mesh_names[:-1],key='-keypoint_parent-')],
+            [sg.T('X:'),sg.Input('',size=(5,None),key='-keypoint_x-'),sg.T('Y:'),sg.Input('',size=(5,None),key='-keypoint_y-'),sg.T('Z:'),sg.Input('',size=(5,None),key='-keypoint_z-')],
+            [sg.T('Roll:'),sg.Spin(ANGLES,size=(5,None),key='-keypoint_roll-'),sg.T('Pitch:'),sg.Spin(ANGLES,size=(5,None),key='-keypoint_pitch-'),sg.T('Yaw:'),sg.Spin(ANGLES,size=(5,None),key='-keypoint_yaw-')],
+            [sg.Button('New',key='-new_keypoint-'),sg.Button('Rename',key='-rename_keypoint-'),sg.Button('Remove',key='-remove_keypoint-')]
+        ]
+
+        edit_predictor =[
+            [sg.Text('Joint:'),sg.InputCombo([j for j in self.joint_data.keys()],key='-joint_name-'),sg.Text('Predictor:'),sg.InputCombo([],key='-predictor_name-',size=(10,None))],
+            [sg.Text('From:'),sg.InputCombo(self.keypoints,key='-predictor_from-'),sg.Text('To:'),sg.InputCombo(self.keypoints,key='-predictor_to-')],
+            [sg.Text('Length:'),sg.Input('',size=(5,None),key='-predictor_length-'),sg.Button('Estimate',key='-est_pred_length-',disabled=True)],
+            [sg.Text('Angle Offset:'),sg.Input('',key='-predictor_offset-',size=(5,None))]
+        ]
+
         column2 = [
             [sg.Frame("Mesh Tree",[[self.meshTree()]])],
-            [sg.Frame("Joint Tree",[[self.jointTree()]])]
+            [sg.Frame("Edit Keypoint",edit_keypoint)],
+            [sg.Frame("Joint Tree",[[self.jointTree()]])],
+            [sg.Frame("Edit Predictor",edit_predictor)],
         ]
 
         view_column = [
-            [sg.Frame('Preview',[[sg.Image(key='-preview_img-')]])]
+            [sg.Frame('Preview',[[sg.Image(key='-preview_img-',pad=(2,2))]], pad=(1,1))]
         ]
 
         self.layout = [          
-            [sg.Text(f"Keypoint Skeleton: {name}")],
-            [sg.Column(column1),sg.Column(column2),sg.Column(view_column,key='-preview_column-')],
-            [sg.Button("Quit",key='-quit-',tooltip='Quit Skeleton Wizard')]
+            [sg.Text(f"Keypoint Skeleton: {name}",font="Any 20")],
+            [sg.Column(column1),sg.Column(column2),sg.Column(view_column,key='-preview_column-',pad=(1,1))],
+            [sg.Button("Quit",key='-quit-',tooltip='Quit Skeleton Wizard')],
             ]
         
 
     
     def run(self):
         self.window = sg.Window('Skeleton Wizard', self.layout)
+        event, values = self.window.read(1)
+        self.window.bring_to_front()
 
         event = ''
         prev_values = {}
         while event not in (sg.WIN_CLOSED,'-quit-'):
-            event, values = self.window.read(1, timeout_key='TIMEOUT')
+            event, values = self.window.read(5, timeout_key='TIMEOUT')
             if event not in (sg.WIN_CLOSED,'-quit-'):
                 if event != 'TIMEOUT' or values != prev_values:
-                    self._updateDisabled(values)
+                    self._updateInputs(values)
+                    self._changeKeypointLocation(values)
                     self._runEvent(event, values)
+                    self._setRotation(values)
+                    self._setJointAngles(values)
                     self._setViewMode(values)
-                    img = self.render()
-                    if values['-highlight-']:
-                        img = self._highlightSelectedMesh(img, values)
-                    self.show(img)
+                    self.show(self.render(values))
                     prev_values = values
-            self.window.bring_to_front()
 
         self.window.close()
 
-    def _updateDisabled(self, values):
-        self.window['-crop_pad-'].update(disabled=(not values['-crop-']))
+
+    def _updateInputs(self, values):
         self.window['-preview_column-'].update(visible=(not values['-disp_cv-']))
+
+        def updateKeypointEditor():
+            a = values['-keypoint_name-'] in self.keypoints
+            for item in ['-keypoint_x-','-keypoint_y-','-keypoint_z-','-keypoint_roll-','-keypoint_pitch-','-keypoint_yaw-','-keypoint_parent-']:
+                self.window[item].update(disabled=not a)
+
+            if a:
+                #Load values
+                if self.last_keypoint_selected != values['-keypoint_name-']:
+                    self.window['-keypoint_parent-'].update(value=self.keypoint_data[values['-keypoint_name-']]['parent_link'])
+                    for item, idx in zip(['-keypoint_x-','-keypoint_y-','-keypoint_z-'],range(3)):
+                        self.window[item].update(value=self.keypoint_data[values['-keypoint_name-']]['pose'][idx])
+                    for item, idx in zip(['-keypoint_roll-','-keypoint_pitch-','-keypoint_yaw-'],range(3,6)):
+                        for ang in ANGLE_DICT:
+                            if abs(ANGLE_DICT[ang] - self.keypoint_data[values['-keypoint_name-']]['pose'][idx]) < .1:
+                                self.window[item].update(value=ang)
+
+                    self.last_keypoint_selected = values['-keypoint_name-']
+
+        def updatePredEditor():
+            a = values['-joint_name-'] in self.joint_data.keys()
+            self.window['-predictor_name-'].update(disabled = not a)
+            if a:
+                if values['-joint_name-'] != self.last_joint_selected:
+                    self.window['-predictor_name-'].update(values=[x for x in self.joint_data[values['-joint_name-']]['predictors'].keys()])
+                    self.last_joint_selected = values['-joint_name-']
+            try:
+                b = (values['-predictor_name-'] in [x for x in self.joint_data[values['-joint_name-']]['predictors'].keys()]) and a
+            except KeyError:
+                b = False
+            for item in ['-predictor_from-','-predictor_to-','-predictor_length-','-predictor_offset-','-est_pred_length-']:
+                self.window[item].update(disabled = not b)
+
+        updatePredEditor()
+        updateKeypointEditor()
+
+
+    def _changeKeypointLocation(self, values):
+        sel_keypoint = values['-keypoint_name-']
+        # Change Parent if different
+        if sel_keypoint in self.keypoints and sel_keypoint == self.last_keypoint_selected:
+            if values['-keypoint_parent-'] != self.data['keypoints'][sel_keypoint]['parent_link']:
+                if values['-keypoint_parent-'] in self.u_reader.mesh_names[:-1]:
+                    self._changeKeypointParentLink(sel_keypoint,values['-keypoint_parent-'])
+                    self._refreshTrees()
+
+            current_pose = self.data['keypoints'][sel_keypoint]['pose']
+            new_pose = current_pose.copy()
+            for name, idx in zip(['-keypoint_x-','-keypoint_y-','-keypoint_z-'], range(3)):
+                try:
+                    val = float(values[name])
+                    new_pose[idx] = val
+                except ValueError:
+                    pass
+
+            for name, idx in zip(['-keypoint_roll-','-keypoint_pitch-','-keypoint_yaw-'], range(3,6)):
+                val = ANGLE_DICT[values[name]]
+                new_pose[idx] = val
+            
+            if current_pose != new_pose:
+                self._changeKeypointPose(sel_keypoint, new_pose)
+                self.window['-mesh_tree-'].update(key=sel_keypoint,value=new_pose)
+            
 
 
     def _runEvent(self, event, values):
-        self._setRotation(values['-horiz_slider-'],values['-vert_slider-'])
-        self._setJointAngles(values)
-
         self.crop = values['-crop-']
-        try:
-            self.pad = int(values['-crop_pad-'])
-        except ValueError:
-            self.pad = 10
 
         self.use_cv = values['-disp_cv-']
 
@@ -342,11 +418,13 @@ class SkeletonWizard(Skeleton):
 
 
     def _resetRotation(self):
-        self._setRotation(0,0)
+        self._setRotation({'-horiz_slider-':0,'-vert_slider-':0})
         for slider in ['-horiz_slider-','-vert_slider-']:
             self.window[slider].update(0)
 
-    def _setRotation(self, rotation_h, rotation_v):
+    def _setRotation(self, values):
+        rotation_h = values['-horiz_slider-']
+        rotation_v = values['-vert_slider-']
         self.rotation_h = (rotation_h/180) * np.pi
         self.rotation_v = (rotation_v/180) * np.pi
 
@@ -371,9 +449,15 @@ class SkeletonWizard(Skeleton):
 
         self.rend.setJointAngles(joint_angles)
     
+    def _refreshTrees(self):
+        self.window['-mesh_tree-'].update(values = self.meshTree.refresh())
+        self.window['-joint_tree-'].update(values = self.jointTree.refresh())
 
-    def render(self):
-        color, depth = self.rend.render()
+    def render(self, values):
+        if values['-highlight-']:
+            color, depth = self.rend.render_highlight(values['-mesh_tree-'],(30,230,240))
+        else:
+            color, depth = self.rend.render()
         if self.crop:
             color = self._cropImage(color)
         return color
@@ -389,40 +473,14 @@ class SkeletonWizard(Skeleton):
             self.window['-preview_img-'].update(data=imgbytes)
 
 
-    def _highlightSelectedMesh(self, image, values):
-        modes = ['key','seg']
-        idx = 1
-        detect_from = None
-        for val in values['-mesh_tree-']:
-            while True:
-                try:
-                    colors = self.rend.getColorDict()
-                    if val in self.keypoints:
-                        image = self._circleColor(image, colors[val], detect_from=detect_from)
-                    elif val in self.u_reader.mesh_names[:-1]:
-                        image = self._outlineColorContour(image, colors[val], detect_from=detect_from)
-                    break
-                except (KeyError,TypeError):
-                    idx += 1
-                    if idx > 1:
-                        idx = 0
-                    self.rend.setMode(modes[idx])
-                    detect_from, depth = self.rend.render()
-                    if self.crop:
-                        detect_from = self._cropImage(detect_from)
-
-        self.rend.setMode(self.mode)
-        return image
-
-
-    def _cropImage(self, image):
+    def _cropImage(self, image, pad = 10):
         # Aim for 700 w by 720 h
         occupied = np.any(image,-1)
         rows, columns = np.where(occupied)
-        min_row = max(0,min(rows)-self.pad)
-        max_row = min(image.shape[0]-1,max(rows)+self.pad)
-        min_col = max(0,min(columns)-self.pad)
-        max_col = min(image.shape[1]-1,max(columns)+self.pad)
+        min_row = max(0,min(rows)-pad)
+        max_row = min(image.shape[0]-1,max(rows)+pad)
+        min_col = max(0,min(columns)-pad)
+        max_col = min(image.shape[1]-1,max(columns)+pad)
         while max_col - min_col < 699:
             if max_col < image.shape[1]:
                 max_col +=1
@@ -474,7 +532,7 @@ class MeshTree(Skeleton):
         self._addKeypointsToTree()
 
     def _addMeshes(self):
-        for mesh in self.urdf_reader.mesh_names:
+        for mesh in self.urdf_reader.mesh_names[:-1]:
             self.treedata.insert('',mesh,mesh,[])
 
     def _addKeypointsToTree(self):
@@ -482,7 +540,7 @@ class MeshTree(Skeleton):
             dat = self.keypoint_data[keypoint]
             pose = list(np.round(np.array(dat['pose']),2))
             parent = dat['parent_link']
-            if parent not in self.urdf_reader.mesh_names:
+            if parent not in self.urdf_reader.mesh_names[:-1]:
                 parent = ''
             self.treedata.insert(
                 parent,
@@ -493,12 +551,13 @@ class MeshTree(Skeleton):
             
     def refresh(self):
         self.treedata = sg.TreeData()
+        self.update()
         self._addMeshes()
         self._addKeypointsToTree()
         return self.treedata
 
     def __call__(self):
-        return sg.Tree(self.treedata,('X','Y','Z','R','P','Y'), def_col_width=3, auto_size_columns=False, num_rows=8, key='-mesh_tree-')
+        return sg.Tree(self.treedata,('X','Y','Z','Ro','Pi','Ya'), def_col_width=3, auto_size_columns=False, num_rows=8, key='-mesh_tree-')
 
 
 
@@ -527,8 +586,9 @@ class JointTree(Skeleton):
 
     def refresh(self):
         self.treedata = sg.TreeData()
+        self.update()
         self._addJoints()
         self._addJointPredictors()
 
     def __call__(self):
-        return sg.Tree(self.treedata,('From','To','Length','Offset'),key='-joint_tree-')
+        return sg.Tree(self.treedata,('From','To','Length','Offset'),key='-joint_tree-',num_rows=6)
