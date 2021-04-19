@@ -217,7 +217,7 @@ class Annotator(GUI):
 
         """
 
-        with h5py.File(self.datapath) as h5file:
+        with h5py.File(self.datapath,'r') as h5file:
 
             self.image = h5file[self.dataset][self.image_idx]
             self._check_grayscale()

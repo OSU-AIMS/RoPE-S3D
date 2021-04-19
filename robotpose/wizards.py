@@ -8,6 +8,7 @@
 # Author: Adam Exley
 
 import os
+from PySimpleGUI.PySimpleGUI import Window
 import cv2
 import numpy as np
 
@@ -20,7 +21,7 @@ from .render import Aligner
 from .skeleton import Skeleton, SkeletonInfo
 from .simulation import SkeletonRenderer
 from .urdf import URDFReader
-from .utils import expandRegion, Timer
+from .utils import expandRegion
 
 
 
@@ -396,13 +397,64 @@ class SkeletonWizard(Skeleton):
 
     def _runEvent(self, event, values):
         self.crop = values['-crop-']
-
         self.use_cv = values['-disp_cv-']
 
         if event == '-view_reset-':
             self._resetRotation()
         if event == '-joint_reset-':
             self._resetJointAngles()
+        if event == '-new_keypoint-':
+            self._newKeypoint()
+        if event == '-rename_keypoint-':
+            self._renameKeypointGUI(values)
+        if event == '-remove_keypoint-':
+            self._removeKeypointGUI(values)
+
+
+
+    def _newKeypoint(self):
+        while True:
+            new_name = sg.popup_get_text('Enter new keypoint name:',title='Keypoint Creation',size=(20,None))
+            if new_name is None:
+                break
+            if new_name in self.keypoints:
+                sg.popup_ok("Keypoint Name Invalid: Already Used")
+            elif sum([str(x) in new_name for x in range(10)]) > 0:
+                sg.popup_ok("Keypoint Name Invalid: Cannot Contain Numbers")
+            else:
+                if new_name is None or new_name == '':
+                    break
+                else:
+                    self._addKeypoint(new_name)
+                    self._refreshTrees()
+                    self.window['-keypoint_name-'].update(values=self.keypoints)
+                    break
+
+    def _renameKeypointGUI(self, values):
+        pass
+
+    def _removeKeypointGUI(self, values):
+        if values['-keypoint_name-'] in self.keypoints:
+            inital = values['-keypoint_name-']
+        else:
+            inital = None
+        layout = [
+            [sg.Text('Keypoint to Remove:'),sg.Spin(self.keypoints,inital,key='-in-',auto_size_text=False,size=(10,None))],
+            [sg.Button('Remove',key='-rm-'), sg.Button('Cancel',key='-cancel-')]
+        ]
+        window = sg.Window('Keypoint Removal', layout)
+        event, values = window.read()
+        if event == '-rm-':
+            keypoint = values['-in-']
+            val = sg.popup_ok_cancel(f"Confirm removal of keypoint {keypoint}",
+            "This will delete the keypoint and all predictors assocaited with it",
+            title="Confirm Removal")
+            if val == 'OK':
+                self._removeKeypoint(keypoint)
+                self._refreshTrees()
+                self.window['-keypoint_name-'].update(values=self.keypoints)
+                sg.popup_auto_close(f"Keypoint {keypoint} removed.", title="Keypoint Removed", auto_close_duration=2)
+        window.close()
 
 
     def _setViewMode(self, values):

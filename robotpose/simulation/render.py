@@ -118,8 +118,11 @@ class BaseRenderer(Skeleton):
 
     
     def _setNodeColor(self, node_name, color):
-        nodes = {node.name:node for node in self.node_color_map.keys()}
-        self.node_color_map[nodes[node_name]] = color
+        try:
+            nodes = {node.name:node for node in self.node_color_map.keys()}
+            self.node_color_map[nodes[node_name]] = color
+        except KeyError:
+            pass
 
     def _updateKeypoints(self, update_mode = True):
         # Remove old

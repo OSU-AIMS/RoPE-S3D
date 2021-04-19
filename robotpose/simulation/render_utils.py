@@ -171,8 +171,7 @@ def posesFromData(ang, pos):
     b_poses[:,3,3] = 1
     b_poses[:,:3,3] = pos[:,4] # XYZ Offset
 
-
-    poses[:,-1] = b_poses
+    poses[:,-1,:] = b_poses
 
     return poses
 

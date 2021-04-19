@@ -99,7 +99,7 @@ class Skeleton():
             f.write(f"{keypoint},,\n")
 
     def _addKeypoint_json(self, keypoint):
-        self.data['keypoints'][keypoint] = {"parent_keypoint": None,"parent_link": "link_name","pose":[0.1,0,0,1.570796,0,0]}
+        self.data['keypoints'][keypoint] = {"parent_keypoint": None,"parent_link": "link_name","pose":[0.1,0,0,1.570796,0,1.570796]}
         self._writeJSON()
 
     def _changeParent_csv(self, keypoint, parent):
@@ -134,7 +134,7 @@ class Skeleton():
         del self.data['keypoints'][keypoint]
 
         # Remove from all predictors
-        for joint in ['S','L','U','R','B','T']:
+        for joint in ['S','L','U','R','B']:
             joint_data = self.data['joints'][joint]
             for pred in self.data['joints'][joint]['predictors']:
                 if joint_data['predictors'][pred]['from'] == keypoint or joint_data['predictors'][pred]['to'] == keypoint:
@@ -146,8 +146,10 @@ class Skeleton():
         assert past_name in self.keypoints, "Keypoint must be in skeleton to rename"
         with open(self.csv_path, 'r') as f:
             full = f.read()
+        full = full.replace(f"\n{past_name},",f"\n{new_name},")
+        full = full.replace(f",{past_name},",f",{new_name},")
         with open(self.csv_path, 'w') as f:
-            f.write(full.replace(past_name,new_name))
+            f.write(full)
 
     def _renameKeypoint_json(self, past_name, new_name):
         self.data['keypoints'][new_name] = self.data['keypoints'][past_name]
