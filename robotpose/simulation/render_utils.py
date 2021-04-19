@@ -134,7 +134,6 @@ def posesFromData(ang, pos):
     """
     #Make arr in x,y,z,roll,pitch,yaw format
     coord = np.zeros((pos.shape[0],6,6))
-
     # Yaw of S-R is just S angle
     for idx in range(1,5):
         coord[:,idx,5] = ang[:,0]
@@ -160,8 +159,8 @@ def posesFromData(ang, pos):
     y = poses[:,4,:3,1] # Y Axis is common with R joint
     z = np.cross(bt, y)
 
-    z = z/np.linalg.norm(z)
-    x = bt/np.linalg.norm(bt)
+    z = z/np.vstack([np.linalg.norm(z, axis=-1)]*3).transpose()
+    x = bt/np.vstack([np.linalg.norm(bt, axis=-1)]*3).transpose()
 
     b_poses = np.zeros((pos.shape[0],4,4))
 
