@@ -1,0 +1,112 @@
+{
+    "markers": {
+        "height": 0.005,
+        "radius": 0.005
+    },
+    "keypoints": {
+        "base": {
+            "parent_keypoint": null,
+            "parent_link": "base_link",
+            "pose": [0,-0.082,-0.16,1.5707963267948966,0,1.5707963267948966]
+        },
+        "L": {
+            "parent_keypoint": null,
+            "parent_link": "link_l",
+            "pose": [0,-0.11,0,1.5707963267948966,0,1.5707963267948966]
+        },
+        "U": {
+            "parent_keypoint": null,
+            "parent_link": "link_u",
+            "pose": [0,-0.11,0,1.5707963267948966,0,1.5707963267948966]
+        },
+        "R": {
+            "parent_keypoint": null,
+            "parent_link": "link_r",
+            "pose": [-0.233,-0.0525,0,1.5707963267948966,0,1.5707963267948966]
+        },
+        "B": {
+            "parent_keypoint": null,
+            "parent_link": "link_b",
+            "pose": [0,-0.055,0,1.5707963267948966,0,1.5707963267948966]
+        }
+    },
+    "joints": {
+        "S": {
+            "type": 2,
+            "max": 2.967,
+            "min": -2.967,
+            "parent":null,
+            "parent_mult":0,
+            "offset":0,
+            "self_mult":1,
+            "predictors": {
+                "A": {
+                    "from": "L",
+                    "to": "U",
+                    "length": 0.4,
+                    "offset":0
+                },
+                "B": {
+                    "from": "R",
+                    "to": "B",
+                    "length": 0.233,
+                    "offset":0
+                }
+            }
+        },
+        "L": {
+            "type": 1,
+            "max": 2.618,
+            "min": -1.1345,
+            "parent":null,
+            "parent_mult":0,
+            "offset":0,
+            "self_mult":-1,
+            "predictors": {
+                "A": {
+                    "from": "L",
+                    "to": "U",
+                    "length": 0.4,
+                    "offset":-1.57
+                }
+            }
+        },
+        "U": {
+            "type": 1,
+            "max": 4.4506,
+            "min": -2.409,
+            "parent":"L",
+            "parent_mult":1,
+            "offset":0,
+            "self_mult":1,
+            "predictors": {
+                "A": {
+                    "from": "R",
+                    "to": "B",
+                    "length": 0.233,
+                    "offset":0
+                }
+            }
+        },
+        "R": {
+            "type": 3,
+            "max": 3.3161,
+            "min": -3.3161,
+            "parent":null,
+            "parent_mult":0,
+            "offset":0,
+            "self_mult":1,
+            "predictors": {}
+        },
+        "B": {
+            "type": 1,
+            "max": 2.356,
+            "min": -2.356,
+            "parent":"R",
+            "parent_mult":1,
+            "offset":0,
+            "self_mult":1,
+            "predictors": {}
+        }
+    }
+}

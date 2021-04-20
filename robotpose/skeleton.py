@@ -224,8 +224,6 @@ class Skeleton():
         self._writeJSON()
 
 
-
-
     def _makeJSON(self):
         
         with open(self.csv_path, 'r', newline='') as csvfile:
