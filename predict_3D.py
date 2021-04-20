@@ -13,7 +13,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from robotpose.utils import *
-from robotpose import paths as p
+from robotpose.paths import Paths as p
 from robotpose import Dataset
 from robotpose.utils import reject_outliers_iqr
 from robotpose.turbo_colormap import color_array
@@ -24,7 +24,7 @@ from robotpose.angle_prediction import Predictor
 setMemoryGrowth()
 
 # Load dataset
-ds = Dataset('set10','B')
+ds = Dataset('set0','A')
 
 # Read in Actual angles from JSONs to compare predicted angles to
 S_angles = ds.angles[:,0]
@@ -43,7 +43,7 @@ predictions = model.predict(reader)
 # Load video capture and make output
 cap = cv2.VideoCapture(ds.seg_vid_path)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out = cv2.VideoWriter(p.VIDEO.replace(".avi","_overlay.avi"),fourcc, 20, (ds.seg_resolution[1]*2,ds.seg_resolution[0]))
+out = cv2.VideoWriter(p().VIDEO.replace(".avi","_overlay.avi"),fourcc, 20, (ds.seg_resolution[1]*2,ds.seg_resolution[0]))
 #out = cv2.VideoWriter(p.VIDEO.replace(".avi","_overlay.avi"),fourcc, 12.5, (ds.seg_resolution[1],ds.seg_resolution[0]))
 
 # Init predicted angle lists
@@ -60,7 +60,7 @@ ret, image = cap.read()
 frame_height = image.shape[0]
 frame_width = image.shape[1]
 
-tim = Predictor('B')
+tim = Predictor('A')
 
 
 i = 0
