@@ -1,19 +1,10 @@
 from robotpose import Dataset
 import numpy as np
 import cv2
-import open3d as o3d
 from robotpose.turbo_colormap import color_array
 from robotpose.projection import fill_hole
 
 import matplotlib.pyplot as plt
-
-def main():
-    cloud = o3d.io.read_point_cloud(r'C:\Users\exley\OneDrive\Documents\GitHub\DeepPoseRobot\data\raw\set5_slu\2021022300005.ply')
-    #cloud = o3d.io.read_point_cloud(r'C:\Users\exley\Downloads\tless_models.tar\tless_models\tless_models\obj_01.xyz')
-    
-    arr = np.asarray(cloud.points)
-    #print(arr)
-    o3d.visualization.draw_geometries([cloud]) # Visualize the point cloud
 
 
 def test():
@@ -24,7 +15,7 @@ def test():
 
     
 
-    ds = Dataset('set10','B')
+    ds = Dataset('set0','B')
     map = np.copy(ds.pointmaps[...,2])
     for idx in range(ds.length):
         colored = color_array(map[idx])
@@ -50,7 +41,6 @@ def test():
 
 
 if __name__ == "__main__":
-    #main()
     test()
 
     

@@ -74,11 +74,17 @@ python annotate_auto.py dataset_name skeleton_name [-no_preview] [-no_seg] [-no_
 
 # Installation
 
-This requires [Tensorflow](https://github.com/tensorflow/tensorflow) for both segmentation and pose estimation. [Tensorflow](https://github.com/tensorflow/tensorflow) should be manually installed, along with CUDA and cuDNN as follows:
+This requires [Tensorflow](https://github.com/tensorflow/tensorflow) for both segmentation and pose estimation. [Tensorflow](https://github.com/tensorflow/tensorflow) should be manually installed, along with CUDA and cuDNN according to the [Tensorflow Installation Instructions](https://www.tensorflow.org/install).
 
-- [Tensorflow Installation Instructions](https://www.tensorflow.org/install)
-- Any Tensorflow version >=2.0.0 should be compatible.
-    - Tensorflow-gpu 2.0.0 is currently the only tested version.
+It is reccommended to **not** install CUDA with Visual Studio integration.
+
+The reccommended versions are:
+
+[CUDA 11.0](https://developer.nvidia.com/cuda-11.0-download-archive)
+
+[cuDNN 8.0.4](https://developer.nvidia.com/rdp/cudnn-archive)
+
+(Tensorflow-gpu 2.0.0 is verified to work with CUDA 10.0 on Windows if the above do not work)
 
 ## Installing with Anaconda on Windows
 

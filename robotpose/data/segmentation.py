@@ -106,7 +106,7 @@ class RobotSegmenter():
                     # Find how many are each side
                     down = np.sum(mask[image.shape[0]-look_up_dist,col-look_side_dist:col+look_side_dist])
                     # Arbitrary calc
-                    to_go = round(look_up_dist * down**2 / (look_side_dist*1.5)**2)
+                    to_go = int(round(look_up_dist * down**2 / (look_side_dist*1.5)**2))
                     # Truncate
                     if to_go > look_up_dist:
                         to_go = look_up_dist
