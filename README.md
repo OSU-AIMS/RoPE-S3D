@@ -97,11 +97,6 @@ Install requirements with pip:
 ```bash
 pip install --upgrade --r requirements.txt
 ```
-Sometimes Pixellib will not work after all installations have been completed. To fix this error, upgrade and downgrade Tensorflow.
-```bash
-pip install --upgrade tensorflow-gpu
-pip install --upgrade tensorflow-gpu==2.0.0
-```
 
 
 # License
