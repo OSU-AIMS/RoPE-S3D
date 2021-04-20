@@ -11,6 +11,7 @@ import json
 import numpy as np
 import os
 import csv
+import string
 
 from .paths import Paths as p
 from .CompactJSONEncoder import CompactJSONEncoder
@@ -201,6 +202,29 @@ class Skeleton():
         self.data['keypoints'][keypoint]['pose'] = pose
         self._writeJSON()
 
+    def _addPredictor(self, joint):
+        names = list(string.ascii_uppercase)
+        names = [x for x in names if x not in [y for y in self.joint_data[joint]['predictors'].keys()]]
+        name = names[0]
+        default_predictor_entry = {"from": "","to": "","length": 0,"offset":0}
+        self.data['joints'][joint]['predictors'][name] = default_predictor_entry
+        self._writeJSON()
+
+    def _removePredictor(self, joint, predictor):
+        del self.data['joints'][joint]['predictors'][predictor]
+        self._writeJSON()
+
+        alphabet = list(string.ascii_uppercase)
+        to_cycle = [x for x in alphabet if alphabet.index(x) > alphabet.index(predictor) and x in self.joint_data[joint]['predictors'].keys()]
+            
+        for key in to_cycle:
+            new = alphabet[alphabet.index(key) - 1]
+            self.data['joints'][joint]['predictors'][new] = self.data['joints'][joint]['predictors'][key]
+            del self.data['joints'][joint]['predictors'][key]
+        self._writeJSON()
+
+
+
 
     def _makeJSON(self):
         
@@ -228,7 +252,7 @@ class Skeleton():
         u_reader = URDFReader()
         lims = u_reader.joint_limits
 
-        default_predictor_entry = {"from": "keypoint","to": "another_keypoint","length": 1.0,"offset":0}
+        default_predictor_entry = {"from": "keypoint","to": "another_keypoint","length": 0,"offset":0}
         default_predictors = {"A":default_predictor_entry,"B":default_predictor_entry}
         joint_angle_data = {}
         joint_angle_data['S'] = {"type":2,"max":lims[0,1],"min":lims[0,0],"parent":None,"parent_mult":0,"offset":0,"self_mult":1,"predictors":default_predictors}

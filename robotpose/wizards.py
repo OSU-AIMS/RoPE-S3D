@@ -273,7 +273,8 @@ class SkeletonWizard(Skeleton):
             ]
 
         edit_keypoint = [
-            [sg.Txt('Name:'),sg.Combo(self.keypoints,key='-keypoint_name-')],
+            [sg.Txt('Name:'),
+                sg.Combo(self.keypoints,key='-keypoint_name-')],
             [sg.Txt('Parent Mesh:'),sg.Combo(self.u_reader.mesh_names[:-1],key='-keypoint_parent_mesh-'),
                 sg.Txt('Parent Keypoint:'),sg.Combo(self.keypoints,key='-keypoint_parent_key-')],
             [sg.T('X:'),sg.Input('',size=(5,None),key='-keypoint_x-'),
@@ -296,7 +297,8 @@ class SkeletonWizard(Skeleton):
             [sg.Txt('Length:'),sg.Input('',size=(5,None),key='-predictor_length-'),
                 sg.Txt('Angle Offset:'),sg.Input('',key='-predictor_offset-',size=(5,None)),
                 sg.Button('Estimate',key='-est_pred_length-',disabled=True)],
-            [sg.Button('New',key='-new_predictor-'),sg.Button('Remove',key='-remove_predictor-')]
+            [sg.Button('New',key='-new_predictor-'),
+                sg.Button('Remove',key='-remove_predictor-')]
         ]
 
         column2 = [
@@ -472,7 +474,42 @@ class SkeletonWizard(Skeleton):
             self._renameKeypointGUI(values)
         if event == '-remove_keypoint-':
             self._removeKeypointGUI(values)
+        if event == '-new_predictor-':
+            self._newPredictor(values)
+        if event == '-remove_predictor-':
+            self._deletePredictor(values)
 
+
+    def _deletePredictor(self, values):
+        layout = [
+            [sg.Txt(f"Remove predictor {values['-predictor_name-']} from joint {values['-joint_name-']}?")],
+            [sg.Button('Remove',key='-remove-'), sg.Button('Cancel',key='-cancel-')]
+        ]
+        window = sg.Window('Remove Predictor', layout)
+        event, v = window.read()
+        if event == '-remove-':
+            self._removePredictor(values['-joint_name-'],values['-predictor_name-'])
+            sg.popup_auto_close("Predictor removed.", auto_close_duration=2)
+            self._refreshTrees()
+        window.close()
+
+
+    def _newPredictor(self, values):
+        if values['-joint_name-'] in ['S','L','U','R','B']:
+            inital = values['-joint_name-']
+        else:
+            inital = None
+        layout = [
+            [sg.Txt('Joint to Add to:'),sg.Spin(['S','L','U','R','B'],inital,key='-in-',auto_size_text=False,size=(5,None))],
+            [sg.Button('Create',key='-create-'), sg.Button('Cancel',key='-cancel-')]
+        ]
+        window = sg.Window("New Predictor",layout)
+        event, values = window.read()
+        if event == '-create-':
+            self._addPredictor(values['-in-'])
+            sg.popup_auto_close(f"Predictor added to joint {values['-in-']}", auto_close_duration=2)
+            self._refreshTrees()
+        window.close()
 
 
     def _newKeypoint(self):
@@ -732,6 +769,7 @@ class JointTree(Skeleton):
         self.update()
         self._addJoints()
         self._addJointPredictors()
+        return self.treedata
 
     def __call__(self):
         return sg.Tree(self.treedata,('From','To','Length','Offset'),key='-joint_tree-',num_rows=6)
