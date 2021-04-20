@@ -20,7 +20,7 @@ import h5py
 from tqdm import tqdm
 
 from .multithread import crop
-from .. import paths as p
+from ..paths import Paths as p
 from .segmentation import RobotSegmenter
 from ..utils import workerCount
 
@@ -73,7 +73,7 @@ class Builder():
     def _set_dest_path(self, data_path, name):
         if name is None:
             name = os.path.basename(os.path.normpath(data_path))
-        self.dest_path = os.path.join(p.DATASETS, name)
+        self.dest_path = os.path.join(p().DATASETS, name)
         self.name = name
         if not os.path.isdir(self.dest_path):
             os.mkdir(self.dest_path)

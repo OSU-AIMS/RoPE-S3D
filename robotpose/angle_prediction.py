@@ -60,7 +60,9 @@ class Predictor(Skeleton):
         pred *= self.joint_data[joint_name]['self_mult']
 
         if self.joint_data[joint_name]['parent']:
-            pred += self.joint_data[joint_name]['parent_mult'] * predictions[self.joint_data[joint_name]['parent']]['val'] + self.joint_data[joint_name]['parent_offset']
+            pred += self.joint_data[joint_name]['parent_mult'] * predictions[self.joint_data[joint_name]['parent']]['val']
+
+        pred += self.joint_data[joint_name]['offset']
 
         while pred < self.joint_data[joint_name]['min']:
             pred += 2 * np.pi

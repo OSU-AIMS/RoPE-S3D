@@ -5,10 +5,11 @@ import json
 import pyrender
 import trimesh
 
-from .. import paths as p
+from ..paths import Paths as p
+from ..urdf import URDFReader
 
 
-MESH_CONFIG = os.path.join(p.DATASETS,'mesh_config.json')
+MESH_CONFIG = os.path.join(p().DATASETS,'mesh_config.json')
 
 DEFAULT_COLORS = [
     [0  , 0  , 85 ],[0  , 0  , 170],[0  , 0  , 255],
@@ -30,31 +31,30 @@ DEFAULT_COLORS = [
 
 class MeshLoader():
 
-    def __init__(self, mesh_dir = p.ROBOT_CAD):
-        self.mesh_dir = mesh_dir
+    def __init__(self):
 
         if not os.path.isfile(MESH_CONFIG):
-            print("\nWARNING: No mesh config present. Making default.")
             info = {}
-            default_pose = [0,0,0,0,0,0]
-            joints = ['BASE','S','L','U','R','BT']
-            for joint in joints:
-                info[joint] = {"file_name":f"{joint}.obj","pose":default_pose}
+            default_pose = [0,0,0,0,0,-np.pi/2]
+            links = ['BASE','S','L','U','R','B','T']
+            for link in links:
+                info[link] = {"pose":default_pose}
             with open(MESH_CONFIG,'w') as f:
                 json.dump(info, f, indent=4)
-            raise ValueError(f"\n\nMesh config file was not present. Please edit {MESH_CONFIG} to be accurate.")
 
         with open(MESH_CONFIG,'r') as f:
             d = json.load(f)
 
-        self.name_list = [x for x in d.keys()]
-        self.mesh_list = [d[x]['file_name'] for x in self.name_list]
-        self.pose_list = [d[x]['pose'] for x in self.name_list]
+        urdf_reader = URDFReader()
+
+        self.name_list = urdf_reader.mesh_names
+        self.mesh_list = urdf_reader.meshes[:-1]
+        self.pose_list = [d[x]['pose'] for x in d.keys()]
 
     def load(self):
         self.meshes = []
         for file, pose in zip(self.mesh_list, self.pose_list):
-            tm = trimesh.load(os.path.join(self.mesh_dir,file))
+            tm = trimesh.load(file)
             self.meshes.append(pyrender.Mesh.from_trimesh(tm,smooth=True, poses=makePose(*pose)))
 
     def getMeshes(self):
@@ -134,7 +134,6 @@ def posesFromData(ang, pos):
     """
     #Make arr in x,y,z,roll,pitch,yaw format
     coord = np.zeros((pos.shape[0],6,6))
-
     # Yaw of S-R is just S angle
     for idx in range(1,5):
         coord[:,idx,5] = ang[:,0]
@@ -160,8 +159,8 @@ def posesFromData(ang, pos):
     y = poses[:,4,:3,1] # Y Axis is common with R joint
     z = np.cross(bt, y)
 
-    z = z/np.linalg.norm(z)
-    x = bt/np.linalg.norm(bt)
+    z = z/np.vstack([np.linalg.norm(z, axis=-1)]*3).transpose()
+    x = bt/np.vstack([np.linalg.norm(bt, axis=-1)]*3).transpose()
 
     b_poses = np.zeros((pos.shape[0],4,4))
 
@@ -171,8 +170,7 @@ def posesFromData(ang, pos):
     b_poses[:,3,3] = 1
     b_poses[:,:3,3] = pos[:,4] # XYZ Offset
 
-
-    poses[:,-1] = b_poses
+    poses[:,-1,:] = b_poses
 
     return poses
 

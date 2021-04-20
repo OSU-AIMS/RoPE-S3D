@@ -1,0 +1,8 @@
+{
+    "DATASETS": "data/",
+    "SKELETONS": "data/skeletons",
+    "MODELS": "models/",
+    "SEG_MODELS": "models/segmentation",
+    "VIDEO": "output/video.avi",
+    "urdf_path": "urdf/MH5-URDF/urdf/MH5-URDF.urdf"
+}

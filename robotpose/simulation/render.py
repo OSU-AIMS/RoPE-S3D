@@ -64,7 +64,9 @@ class BaseRenderer(Skeleton):
             self.scene.add_node(node)
         self._updateKeypoints()
         self.rend = pyrender.OffscreenRenderer(intrin.width, intrin.height)
+        self.node_color_map = {}
         self.setMode(mode)
+        
 
 
     def render(self):
@@ -75,6 +77,18 @@ class BaseRenderer(Skeleton):
             flags=pyrender.constants.RenderFlags.SEG * (self.mode != 'real'),
             seg_node_map=self.node_color_map
             )
+
+    def render_highlight(self,to_highlight, highlight_color):
+        self.update()
+        self._updateKeypoints()
+        for n in to_highlight:
+            self._setNodeColor(n, highlight_color)
+        return self.rend.render(
+            self.scene,
+            flags=pyrender.constants.RenderFlags.SEG * (self.mode != 'real'),
+            seg_node_map=self.node_color_map
+            )
+
 
 
     def setMode(self, mode):
@@ -102,8 +116,15 @@ class BaseRenderer(Skeleton):
         elif self.mode == 'seg_full':
             return {'robot': DEFAULT_COLORS[0]}
 
+    
+    def _setNodeColor(self, node_name, color):
+        try:
+            nodes = {node.name:node for node in self.node_color_map.keys()}
+            self.node_color_map[nodes[node_name]] = color
+        except KeyError:
+            pass
 
-    def _updateKeypoints(self):
+    def _updateKeypoints(self, update_mode = True):
         # Remove old
         if hasattr(self, 'key_nodes'):
             if len(self.key_nodes) > 0:
@@ -121,17 +142,18 @@ class BaseRenderer(Skeleton):
 
         try:
             for name in self.keypoints:
-                parent = self.keypoint_data[name]['parent_joint']
+                parent = self.keypoint_data[name]['parent_link']
                 pose = makePose(*self.keypoint_data[name]['pose'])
                 n = self.scene.add(marker, name=name, pose=pose, parent_name=parent)
                 self.key_nodes.append(n)
         except ValueError as e:
-            if str(e) == 'No parent node with name joint_name found':
+            if str(e) == 'No parent node with name link_name found':
                 if not self.suppress_warnings:
-                    raise ValueError('No parent node with name joint_name found.'+
+                    raise ValueError('No parent node with name link_name found.'+
                         ' It is likely that the template keypoint .json has not been modified')
 
-        self._updateMode()
+        if update_mode:
+            self._updateMode()
 
 
     def _updateMode(self):

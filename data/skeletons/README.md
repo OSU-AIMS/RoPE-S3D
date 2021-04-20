@@ -36,11 +36,11 @@ This is what a template may look like:
     },
     "keypoints":{
         "keypoint":{
-            "parent_joint": "A Joint Name",
+            "parent_link": "A Joint Name",
             "pose":[1,0,0,1.5707963267948966,0,0]
         },
         "another_keypoint":{
-            "parent_joint": "Another Joint Name",
+            "parent_link": "Another Joint Name",
             "pose":[1,0,0,1.5707963267948966,0,0]
         }
     },
