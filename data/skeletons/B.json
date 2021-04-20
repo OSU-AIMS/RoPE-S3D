@@ -5,22 +5,27 @@
     },
     "keypoints": {
         "base": {
+            "parent_keypoint": null,
             "parent_link": "base_link",
             "pose": [0,-0.082,-0.16,1.5707963267948966,0,1.5707963267948966]
         },
         "L": {
+            "parent_keypoint": null,
             "parent_link": "link_l",
             "pose": [0,-0.11,0,1.5707963267948966,0,1.5707963267948966]
         },
         "U": {
+            "parent_keypoint": null,
             "parent_link": "link_u",
             "pose": [0,-0.11,0,1.5707963267948966,0,1.5707963267948966]
         },
         "R": {
+            "parent_keypoint": null,
             "parent_link": "link_r",
             "pose": [-0.233,-0.0525,0,1.5707963267948966,0,1.5707963267948966]
         },
         "B": {
+            "parent_keypoint": null,
             "parent_link": "link_b",
             "pose": [0,-0.055,0,1.5707963267948966,0,1.5707963267948966]
         }

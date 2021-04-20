@@ -22,6 +22,10 @@ The following are the main steps that must be taken to train a new model:
 
 ## Meshes
 
+Meshes are loaded from a robot's URDF.
+
+The URDF can be changed via the wizard: ```python wizard.py```
+
 The mesh for each joint, as well as that mesh's specific name, is specified in ```mesh_config.json``` in the ```data``` directory.
 
 More details about mesh configuration can be found in that directory's README.
@@ -33,6 +37,8 @@ Skeletons contain the basic information for keypoint rendering, detection, and u
 They consist of a ```.csv``` and ```.json``` file.
 
 A skeleton is created by first creating a CSV per DeepPoseKit's standards, which then is used to produce a JSON template. The JSON then allows you to configure the relative position of each keypoint to each joint, as well as how each keypoint is used to predict joint angles.
+
+To create a skeleton, follow the instructions in the wizard: ```python wizard.py```
 
 ## Datasets
 
@@ -48,12 +54,7 @@ With ```-rebuild``` recreating the dataset from the raw data directly, and with 
 
 ### Alignment
 
-Before running any automatic annotation, first align the dataset with the render using the Aligner found in the dataset wizard:
-
-```bash
-python wizard.py
-```
-(Running without arguments will open a tool in a new window)
+Before running any automatic annotation, first align the dataset with the render using the Aligner found in the wizard: ```python wizard.py```
 
 1. Select Dataset
 2. Click "Align"
@@ -63,7 +64,7 @@ python wizard.py
 Then, use the automatic annotation script:
 
 ```bash
-python annotate_auto.py dataset_name skeleton_name
+python annotate_auto.py dataset_name skeleton_name [-no_preview] [-no_seg] [-no_key]
 ```
 
 ## Training

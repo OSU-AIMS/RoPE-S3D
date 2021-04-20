@@ -1,40 +1,45 @@
 {
-    "markers": { "height": 0.005, "radius": 0.01 },
+    "markers": { "height": 0.005, "radius": 0.005 },
     "keypoints": {
         "base": {
+            "parent_keypoint": null,
             "parent_link": "base_link",
             "pose": [0, -0.082, -0.16, 1.5708, 0, 1.5708]
         },
-        "L": {
-            "parent_link": "link_l",
-            "pose": [0, -0.11, 0, 1.5708, 0, 1.5708]
-        },
         "U": {
+            "parent_keypoint": "LU",
             "parent_link": "link_u",
             "pose": [0, -0.11, 0, 1.5708, 0, 1.5708]
         },
         "R": {
+            "parent_keypoint": "UR",
             "parent_link": "link_r",
             "pose": [-0.233, -0.0525, 0, 1.5708, 0, 1.5708]
         },
         "B": {
+            "parent_keypoint": "RB",
             "parent_link": "link_b",
             "pose": [0, -0.055, 0, 1.5708, 0, 1.5708]
         },
         "LU": {
-            "parent_keypoint": null,
+            "parent_keypoint": "L",
             "parent_link": "link_l",
             "pose": [0, -0.11, 0.2, 1.5708, 0, 1.5708]
         },
         "RB": {
-            "parent_keypoint": null,
+            "parent_keypoint": "R",
             "parent_link": "link_r",
             "pose": [-0.116, -0.055, 0, 1.5708, 0, 1.5708]
         },
         "UR": {
-            "parent_keypoint": null,
+            "parent_keypoint": "U",
             "parent_link": "link_r",
             "pose": [-0.3, -0.0475, 0, 1.5708, 0, 1.5708]
+        },
+        "L": {
+            "parent_keypoint": "base",
+            "parent_link": "link_l",
+            "pose": [0, -0.11, 0, 1.5708, 0, 1.5708]
         }
     },
     "joints": {

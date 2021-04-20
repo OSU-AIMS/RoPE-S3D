@@ -114,7 +114,13 @@ class Skeleton():
         with open(self.csv_path, 'w') as f:
             f.write(full.replace(replace,f"{keypoint},{parent},\n"))
 
-    def _changeParent_json(self, keypoint, parent):
+    def _changeParentPoint_json(self, keypoint, parent):
+        if parent == '':
+            parent = None
+        self.data['keypoints'][keypoint]['parent_keypoint'] = parent
+        self._writeJSON()
+
+    def _changeParentLink_json(self, keypoint, parent):
         self.data['keypoints'][keypoint]['parent_link'] = parent
         self._writeJSON()
         
@@ -155,7 +161,7 @@ class Skeleton():
         self.data['keypoints'][new_name] = self.data['keypoints'][past_name]
         del self.data['keypoints'][past_name]
 
-        for joint in ['S','L','U','R','B','T']:
+        for joint in ['S','L','U','R','B']:
             joint_data = self.data['joints'][joint]
             for pred in self.data['joints'][joint]['predictors']:
                 if joint_data['predictors'][pred]['from'] == past_name:
@@ -173,10 +179,11 @@ class Skeleton():
 
     def _changeKeypointParentLink(self, keypoint, parent):
         self.update()
-        self._changeParent_json(keypoint, parent)
+        self._changeParentLink_json(keypoint, parent)
 
     def _changeKeypointParentPoint(self, keypoint, parent):
         self._changeParent_csv(keypoint, parent)
+        self._changeParentPoint_json(keypoint, parent)
 
     def _removeKeypoint(self, keypoint):
         self.update()

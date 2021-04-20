@@ -36,19 +36,19 @@ class DatasetWizard(DatasetInfo):
         self.valid_urdf = self.urdf_reader.return_path() != None
 
         urdf_menu = [
-            [sg.Text("Current URDF:")],
-            [sg.Text(self.urdf_reader.return_path(),key='-current_urdf-'),
+            [sg.Txt("Current URDF:")],
+            [sg.Txt(self.urdf_reader.return_path(),key='-current_urdf-'),
                 sg.Button("Change",key='-browse_urdf-',tooltip='Select URDF path')]
         ]
 
         dataset_menu = [
-            [sg.Text("Dataset:"),sg.InputCombo(self.compiled_sets(),key='-dataset-', size=(20, 1))],
+            [sg.Txt("Dataset:"),sg.Combo(self.compiled_sets(),key='-dataset-', size=(20, 1))],
             [sg.Button("View Details",key='-details-',tooltip='View dataset details'),
                 sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')]]
 
         keypoint_menu = [
-            [sg.Text("Keypoint Skeleton:"),
-                sg.InputCombo([x for x in self.sk_inf.valid() if x != 'BASE'],key='-skeleton-', size=(10, 1))],
+            [sg.Txt("Keypoint Skeleton:"),
+                sg.Combo([x for x in self.sk_inf.valid() if x != 'BASE'],key='-skeleton-', size=(10, 1))],
             [sg.Button("Edit",key='-edit_skele-',tooltip='Edit Skeleton with Skeleton Wizard')],
             [sg.Button("View Annotations",key='-manual_annotate-', disabled=True)],
             [sg.Button("Create New Skeleton",key='-new_skele-'),sg.Button("Finish Skeleton Creation",key='-finish_skele-',visible=False)]
@@ -146,8 +146,8 @@ class DatasetWizard(DatasetInfo):
         sg.popup_ok(str(ds), title=f"{dataset} Details")
 
     def _finishSkeleton(self):
-        layout = [[sg.Text("Skeleton To Finish:"),
-                sg.InputCombo(self.sk_inf.incomplete(),key='-skeleton-', size=(10, 1))],
+        layout = [[sg.Txt("Skeleton To Finish:"),
+                sg.Combo(self.sk_inf.incomplete(),key='-skeleton-', size=(10, 1))],
                 [sg.Submit(),sg.Cancel()]]
         window = sg.Window("Finish Skeleton",layout)
         event, values = window.read()
@@ -231,12 +231,13 @@ class SkeletonWizard(Skeleton):
         self.use_cv = False
         self.last_joint_selected = ''
         self.last_keypoint_selected = ''
+        self.last_predictor_selected = ''
 
         self.jointTree = JointTree(name)
         self.meshTree = MeshTree(name)
 
         def jointSlider(name, lower, upper):
-            return [sg.Text(f"{name}:"),
+            return [sg.Txt(f"{name}:"),
                 sg.Slider(range=(lower, upper),
                     orientation='h', tick_interval=90, 
                     size=(20, 20), default_value=0, key=f'-{name}-')]
@@ -272,18 +273,30 @@ class SkeletonWizard(Skeleton):
             ]
 
         edit_keypoint = [
-            [sg.Text('Name:'),sg.InputCombo(self.keypoints,key='-keypoint_name-')],
-            [sg.Text('Parent Mesh:'),sg.InputCombo(self.u_reader.mesh_names[:-1],key='-keypoint_parent-')],
-            [sg.T('X:'),sg.Input('',size=(5,None),key='-keypoint_x-'),sg.T('Y:'),sg.Input('',size=(5,None),key='-keypoint_y-'),sg.T('Z:'),sg.Input('',size=(5,None),key='-keypoint_z-')],
-            [sg.T('Roll:'),sg.Spin(ANGLES,size=(5,None),key='-keypoint_roll-'),sg.T('Pitch:'),sg.Spin(ANGLES,size=(5,None),key='-keypoint_pitch-'),sg.T('Yaw:'),sg.Spin(ANGLES,size=(5,None),key='-keypoint_yaw-')],
-            [sg.Button('New',key='-new_keypoint-'),sg.Button('Rename',key='-rename_keypoint-'),sg.Button('Remove',key='-remove_keypoint-')]
+            [sg.Txt('Name:'),sg.Combo(self.keypoints,key='-keypoint_name-')],
+            [sg.Txt('Parent Mesh:'),sg.Combo(self.u_reader.mesh_names[:-1],key='-keypoint_parent_mesh-'),
+                sg.Txt('Parent Keypoint:'),sg.Combo(self.keypoints,key='-keypoint_parent_key-')],
+            [sg.T('X:'),sg.Input('',size=(5,None),key='-keypoint_x-'),
+                sg.T('Y:'),sg.Input('',size=(5,None),key='-keypoint_y-'),
+                sg.T('Z:'),sg.Input('',size=(5,None),key='-keypoint_z-')],
+            [sg.T('Roll:'),sg.Spin(ANGLES,size=(5,None),key='-keypoint_roll-'),
+                sg.T('Pitch:'),sg.Spin(ANGLES,size=(5,None),key='-keypoint_pitch-'),
+                sg.T('Yaw:'),sg.Spin(ANGLES,size=(5,None),key='-keypoint_yaw-')],
+            [sg.Button('New',key='-new_keypoint-'),
+                sg.Button('Rename',key='-rename_keypoint-'),
+                sg.Button('Remove',key='-remove_keypoint-')]
         ]
 
         edit_predictor =[
-            [sg.Text('Joint:'),sg.InputCombo([j for j in self.joint_data.keys()],key='-joint_name-'),sg.Text('Predictor:'),sg.InputCombo([],key='-predictor_name-',size=(10,None))],
-            [sg.Text('From:'),sg.InputCombo(self.keypoints,key='-predictor_from-'),sg.Text('To:'),sg.InputCombo(self.keypoints,key='-predictor_to-')],
-            [sg.Text('Length:'),sg.Input('',size=(5,None),key='-predictor_length-'),sg.Button('Estimate',key='-est_pred_length-',disabled=True)],
-            [sg.Text('Angle Offset:'),sg.Input('',key='-predictor_offset-',size=(5,None))]
+            [sg.Txt('Joint:'),
+                sg.Combo([j for j in self.joint_data.keys()],key='-joint_name-',auto_size_text=False,size=(3,None)),
+                sg.Txt('Predictor:'),sg.Combo([],key='-predictor_name-',auto_size_text=False,size=(3,None))],
+            [sg.Txt('From:'),sg.Combo(self.keypoints,key='-predictor_from-'),
+                sg.Txt('To:'),sg.Combo(self.keypoints,key='-predictor_to-')],
+            [sg.Txt('Length:'),sg.Input('',size=(5,None),key='-predictor_length-'),
+                sg.Txt('Angle Offset:'),sg.Input('',key='-predictor_offset-',size=(5,None)),
+                sg.Button('Estimate',key='-est_pred_length-',disabled=True)],
+            [sg.Button('New',key='-new_predictor-'),sg.Button('Remove',key='-remove_predictor-')]
         ]
 
         column2 = [
@@ -298,7 +311,7 @@ class SkeletonWizard(Skeleton):
         ]
 
         self.layout = [          
-            [sg.Text(f"Keypoint Skeleton: {name}",font="Any 20")],
+            [sg.Txt(f"Keypoint Skeleton: {name}",font="Any 20")],
             [sg.Column(column1),sg.Column(column2),sg.Column(view_column,key='-preview_column-',pad=(1,1))],
             [sg.Button("Quit",key='-quit-',tooltip='Quit Skeleton Wizard')],
             ]
@@ -318,6 +331,7 @@ class SkeletonWizard(Skeleton):
                 if event != 'TIMEOUT' or values != prev_values:
                     self._updateInputs(values)
                     self._changeKeypointLocation(values)
+                    self._changePredictorValues(values)
                     self._runEvent(event, values)
                     self._setRotation(values)
                     self._setJointAngles(values)
@@ -333,13 +347,15 @@ class SkeletonWizard(Skeleton):
 
         def updateKeypointEditor():
             a = values['-keypoint_name-'] in self.keypoints
-            for item in ['-keypoint_x-','-keypoint_y-','-keypoint_z-','-keypoint_roll-','-keypoint_pitch-','-keypoint_yaw-','-keypoint_parent-']:
+            for item in ['-keypoint_x-','-keypoint_y-','-keypoint_z-','-keypoint_roll-','-keypoint_pitch-','-keypoint_yaw-','-keypoint_parent_mesh-','-keypoint_parent_key-']:
                 self.window[item].update(disabled=not a)
 
             if a:
                 #Load values
                 if self.last_keypoint_selected != values['-keypoint_name-']:
-                    self.window['-keypoint_parent-'].update(value=self.keypoint_data[values['-keypoint_name-']]['parent_link'])
+                    self.window['-keypoint_parent_key-'].update(values=[x for x in self.keypoints if x != values['-keypoint_name-']])
+                    self.window['-keypoint_parent_key-'].update(value=self.keypoint_data[values['-keypoint_name-']]['parent_keypoint'])
+                    self.window['-keypoint_parent_mesh-'].update(value=self.keypoint_data[values['-keypoint_name-']]['parent_link'])
                     for item, idx in zip(['-keypoint_x-','-keypoint_y-','-keypoint_z-'],range(3)):
                         self.window[item].update(value=self.keypoint_data[values['-keypoint_name-']]['pose'][idx])
                     for item, idx in zip(['-keypoint_roll-','-keypoint_pitch-','-keypoint_yaw-'],range(3,6)):
@@ -356,12 +372,24 @@ class SkeletonWizard(Skeleton):
                 if values['-joint_name-'] != self.last_joint_selected:
                     self.window['-predictor_name-'].update(values=[x for x in self.joint_data[values['-joint_name-']]['predictors'].keys()])
                     self.last_joint_selected = values['-joint_name-']
+                    self.last_predictor_selected = ''
+
             try:
                 b = (values['-predictor_name-'] in [x for x in self.joint_data[values['-joint_name-']]['predictors'].keys()]) and a
             except KeyError:
                 b = False
-            for item in ['-predictor_from-','-predictor_to-','-predictor_length-','-predictor_offset-','-est_pred_length-']:
+            for item in ['-predictor_from-','-predictor_to-','-predictor_length-','-predictor_offset-','-est_pred_length-','-remove_predictor-']:
                 self.window[item].update(disabled = not b)
+            
+            if a:
+                c = values['-predictor_name-'] in [x for x in self.joint_data[values['-joint_name-']]['predictors'].keys()]
+                if c:
+                    sel_joint = values['-joint_name-']
+                    sel_predictor = values['-predictor_name-']
+                    if self.last_predictor_selected != sel_predictor:
+                        for key, val in zip(['-predictor_from-','-predictor_to-','-predictor_length-','-predictor_offset-'],['from','to','length','offset']):
+                            self.window[key].update(value = self.joint_data[sel_joint]['predictors'][sel_predictor][val])
+                        self.last_predictor_selected = sel_predictor
 
         updatePredEditor()
         updateKeypointEditor()
@@ -371,10 +399,16 @@ class SkeletonWizard(Skeleton):
         sel_keypoint = values['-keypoint_name-']
         # Change Parent if different
         if sel_keypoint in self.keypoints and sel_keypoint == self.last_keypoint_selected:
-            if values['-keypoint_parent-'] != self.data['keypoints'][sel_keypoint]['parent_link']:
-                if values['-keypoint_parent-'] in self.u_reader.mesh_names[:-1]:
-                    self._changeKeypointParentLink(sel_keypoint,values['-keypoint_parent-'])
+            if values['-keypoint_parent_mesh-'] != self.data['keypoints'][sel_keypoint]['parent_link']:
+                if values['-keypoint_parent_mesh-'] in self.u_reader.mesh_names[:-1]:
+                    self._changeKeypointParentLink(sel_keypoint,values['-keypoint_parent_mesh-'])
                     self._refreshTrees()
+
+            if values['-keypoint_parent_key-'] != self.data['keypoints'][sel_keypoint]['parent_keypoint']:
+                acceptable = [x for x in self.keypoints if x != sel_keypoint]
+                acceptable.append('')
+                if values['-keypoint_parent_key-'] in acceptable:
+                    self._changeKeypointParentPoint(sel_keypoint,values['-keypoint_parent_key-'])
 
             current_pose = self.data['keypoints'][sel_keypoint]['pose']
             new_pose = current_pose.copy()
@@ -393,6 +427,35 @@ class SkeletonWizard(Skeleton):
                 self._changeKeypointPose(sel_keypoint, new_pose)
                 self.window['-mesh_tree-'].update(key=sel_keypoint,value=new_pose)
             
+
+    def _changePredictorValues(self, values):
+        sel_joint = values['-joint_name-']
+        sel_predictor = values['-predictor_name-']
+        if sel_joint in self.joint_data.keys():
+            if sel_predictor in self.joint_data[sel_joint]['predictors'].keys():
+                prev_data = self.joint_data[sel_joint]['predictors'][sel_predictor]
+                new_data = {}
+                if values['-predictor_from-'] in self.keypoints:
+                    new_data['from'] = values['-predictor_from-']
+                else:
+                    new_data['from'] = prev_data['from']
+                if values['-predictor_to-'] in self.keypoints:
+                    new_data['to'] = values['-predictor_to-']
+                else:
+                    new_data['to'] = prev_data['to']
+
+                for key_json, key_gui  in zip(['length','offset'],['-predictor_length-','-predictor_offset-']):
+                    try:
+                        new_data[key_json] = float(values[key_gui])
+                    except ValueError:
+                        new_data[key_json] = prev_data[key_json]
+
+                if new_data != prev_data:
+                    self.data['joints'][sel_joint]['predictors'][sel_predictor] = new_data
+                    self._writeJSON()
+                    self.window['-joint_tree-'].update(key=f'{sel_joint}-{sel_predictor}',value=(new_data['from'],new_data['to'],new_data['length'],new_data['offset']))
+
+
 
 
     def _runEvent(self, event, values):
@@ -431,7 +494,35 @@ class SkeletonWizard(Skeleton):
                     break
 
     def _renameKeypointGUI(self, values):
-        pass
+        if values['-keypoint_name-'] in self.keypoints:
+            inital = values['-keypoint_name-']
+        else:
+            inital = None
+        layout = [
+            [sg.Txt('Keypoint to Rename:'),sg.Spin(self.keypoints,inital,key='-in-',auto_size_text=False,size=(10,None))],
+            [sg.Txt('New Name:'),sg.Input(size=(10,None),key='-new-')],
+            [sg.Button('Rename',key='-rename-'), sg.Button('Cancel',key='-cancel-')]
+        ]
+        window = sg.Window('Keypoint Renaming', layout)
+        event = ''
+        while event not in ['-cancel-',sg.WINDOW_CLOSED]:
+            event, values = window.read()
+            if event == '-rename-':
+                if values['-new-'] is None:
+                    break
+                if values['-new-'] in self.keypoints:
+                    sg.popup_ok("Keypoint Name Invalid: Already Used")
+                elif sum([str(x) in values['-new-'] for x in range(10)]) > 0:
+                    sg.popup_ok("Keypoint Name Invalid: Cannot Contain Numbers")
+                else:
+                    if values['-new-'] is None or values['-new-'] == '':
+                        break
+                    else:
+                        self._renameKeypoint(values['-in-'],values['-new-'])
+                        self._refreshTrees()
+                        self.window['-keypoint_name-'].update(values=self.keypoints)
+                        break
+        window.close()
 
     def _removeKeypointGUI(self, values):
         if values['-keypoint_name-'] in self.keypoints:
@@ -439,7 +530,7 @@ class SkeletonWizard(Skeleton):
         else:
             inital = None
         layout = [
-            [sg.Text('Keypoint to Remove:'),sg.Spin(self.keypoints,inital,key='-in-',auto_size_text=False,size=(10,None))],
+            [sg.Txt('Keypoint to Remove:'),sg.Spin(self.keypoints,inital,key='-in-',auto_size_text=False,size=(10,None))],
             [sg.Button('Remove',key='-rm-'), sg.Button('Cancel',key='-cancel-')]
         ]
         window = sg.Window('Keypoint Removal', layout)
