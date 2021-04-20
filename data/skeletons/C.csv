@@ -1,0 +1,13 @@
+name,parent,swap
+base,,
+L,base,
+U,LU,
+R,UR,
+B,RB,
+LU,L,
+RB,R,
+UR,U,
+L_back,,
+L_back_up,L_back,
+L_front,,
+L_front_up,L_front,

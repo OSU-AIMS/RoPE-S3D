@@ -30,7 +30,7 @@ def label(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset', type=str, default="set6", help="The dataset to load to annotate. Can be a partial name.")
+    parser.add_argument('dataset', type=str, default="set10", help="The dataset to load to annotate. Can be a partial name.")
     parser.add_argument('skeleton', type=str, default="B", help="The skeleton to use for annotation.")
     parser.add_argument('-no_preview', action="store_true", help="Disables preview.")
     parser.add_argument('-no_seg', action="store_true", help="Disables segmentation annotation.")

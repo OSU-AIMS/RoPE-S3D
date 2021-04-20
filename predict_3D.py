@@ -17,6 +17,8 @@ from robotpose.paths import Paths as p
 from robotpose import Dataset
 from robotpose.utils import reject_outliers_iqr
 from robotpose.turbo_colormap import color_array
+from tqdm import tqdm
+import json
 
 from robotpose.angle_prediction import Predictor
 
@@ -24,7 +26,7 @@ from robotpose.angle_prediction import Predictor
 setMemoryGrowth()
 
 # Load dataset
-ds = Dataset('set0','A')
+ds = Dataset('set10','B')
 
 # Read in Actual angles from JSONs to compare predicted angles to
 S_angles = ds.angles[:,0]
@@ -32,12 +34,14 @@ L_angles = ds.angles[:,1]
 U_angles = ds.angles[:,2]
 B_angles = ds.angles[:,4]
 
+print("Predicting...")
 # Load model, make predictions
-model = load_model(os.path.join(os.getcwd(),r'models\set10__B__CutMobilenet.h5'))
+model = load_model(os.path.join(os.getcwd(),r'models\set10__B__StackedDensenet.h5'))
 reader = VideoReader(ds.seg_vid_path)
 predictions = model.predict(reader)
+print("Finished Predicting.")
 
-# np.save('set6_output.npy',predToXYZ(predictions, ds.ply))
+# np.save('output/predictions.npy',np.array(predictions))
 # print("Predictions saved")
 
 # Load video capture and make output
@@ -60,43 +64,51 @@ ret, image = cap.read()
 frame_height = image.shape[0]
 frame_width = image.shape[1]
 
-tim = Predictor('A')
+tim = Predictor('B')
+print("Copying pointmaps...")
+pointmaps = np.copy(ds.pointmaps)
+print("Pointmaps Copied.")
+with tqdm(total=ds.length) as pbar:
+    i = 0
+    while ret:
+        over = np.zeros((ds.seg_resolution[0],ds.seg_resolution[1],3),dtype=np.uint8)
+
+        tim.load(predictions[i], pointmaps[i])
+        pred = tim.predict()
+        if i == 1:
+            with open('test','w') as f:
+                json.dump(pred,f, indent=4)
+        # Append to lists
+        S_pred.append(pred['S']['val'])
+        L_pred.append(pred['L']['val'])
+        U_pred.append(pred['U']['val'])
+        S_est.append(pred['S']['percent_est'])
+        L_est.append(pred['L']['percent_est'])
+        U_est.append(pred['U']['percent_est'])
+        #B_pred.append(B_pred_ang)
+
+        # Put depth info on overlay
+        over = color_array(pointmaps[i,...,2])
+        #Visualize lines
+        #viz(image, over, predictions[i])
+        image = tim.visualize(image)
+        over = tim.visualize(over)
 
 
-i = 0
-while ret:
-    over = np.zeros((ds.seg_resolution[0],ds.seg_resolution[1],3),dtype=np.uint8)
+        dual = np.zeros((frame_height,frame_width*2,3),dtype=np.uint8)
+        dual[:,0:frame_width] = image
+        dual[:,frame_width:frame_width*2] = over
 
-    tim.load(predictions[i], ds.pointmaps[i])
-    pred = tim.predict()
+        out.write(dual)
+        cv2.imshow("Angle Predictions",dual)
+        cv2.waitKey(1)
+        i+=1
+        ret, image = cap.read()
+        pbar.update(1)
 
-    # Append to lists
-    S_pred.append(pred['S']['val'])
-    L_pred.append(pred['L']['val'])
-    U_pred.append(pred['U']['val'])
-    S_est.append(pred['S']['percent_est'])
-    L_est.append(pred['L']['percent_est'])
-    U_est.append(pred['U']['percent_est'])
-    #B_pred.append(B_pred_ang)
-
-    # Put depth info on overlay
-    #over = color_array(ds.pointmaps[i,...,2])
-    #Visualize lines
-    viz(image, over, predictions[i])
-
-    dual = np.zeros((frame_height,frame_width*2,3),dtype=np.uint8)
-    dual[:,0:frame_width] = image
-    dual[:,frame_width:frame_width*2] = over
-
-    out.write(dual)
-    cv2.imshow("Angle Predictions",dual)
-    cv2.waitKey(1)
-    i+=1
-    ret, image = cap.read()
-
-cv2.destroyAllWindows()
-cap.release()
-out.release()
+    cv2.destroyAllWindows()
+    cap.release()
+    out.release()
 
 
 """

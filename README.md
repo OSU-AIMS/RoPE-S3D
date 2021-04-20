@@ -69,8 +69,19 @@ python annotate_auto.py dataset_name skeleton_name [-no_preview] [-no_seg] [-no_
 
 ## Training
 
+Training for segmentation and keypoint detetction are done independently.
 
+Keypoint:
+```bash
+python train_keypoint.py dataset_name skeleton_name [--model] [--batch] [--valid]
 
+model in ["CutResnet","CutMobilenet","CutDensenet","StackedDensenet","LEAP","StackedHourglass"]
+```
+
+Segmentation:
+```bash
+python train_seg.py dataset_name skeleton_name [--batch] [--valid]
+```
 
 # Installation
 
@@ -80,11 +91,11 @@ It is reccommended to **not** install CUDA with Visual Studio integration.
 
 The reccommended versions are:
 
-[CUDA 11.0](https://developer.nvidia.com/cuda-11.0-download-archive)
+For *Training*: Tensorflow 2.0.0, [CUDA 10.0](https://developer.nvidia.com/cuda-10.0-download-archive), [cuDNN 8.0.4](https://developer.nvidia.com/rdp/cudnn-archive)
 
-[cuDNN 8.0.4](https://developer.nvidia.com/rdp/cudnn-archive)
+For *Inference*: Tensorflow 2.4.1, [CUDA 11.0](https://developer.nvidia.com/cuda-11.0-download-archive), [cuDNN 8.0.4](https://developer.nvidia.com/rdp/cudnn-archive)
 
-(Tensorflow-gpu 2.0.0 is verified to work with CUDA 10.0 on Windows if the above do not work)
+***NOTE:*** Training DeepPoseKit **does not** work on Tensorflow 2.4.1. It is suggested to use different environments for training and inference.
 
 ## Installing with Anaconda on Windows
 
@@ -97,12 +108,12 @@ Install requirements with pip:
 ```bash
 pip install --upgrade --r requirements.txt
 ```
-Sometimes Pixellib will not work after all installations have been completed. To fix this error, upgrade and downgrade Tensorflow.
+Sometimes Pixellib will not work after all installations have been completed when using Tensorflow 2.0.0. To fix this error, upgrade and downgrade Tensorflow.
+
 ```bash
 pip install --upgrade tensorflow-gpu
 pip install --upgrade tensorflow-gpu==2.0.0
 ```
-
 
 # License
 
