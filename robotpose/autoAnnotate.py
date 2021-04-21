@@ -211,8 +211,10 @@ class AutomaticSegmentationAnnotator():
         cv2.destroyAllWindows()
         inputs = []
 
+        og_img = np.copy(self.ds.og_img)
+
         for frame in tqdm(range(self.ds.length),desc="Packing Segmentation Pool"):
-            inputs.append((self.ds.og_img[frame],color_imgs[frame],os.path.join(self.ds.seg_anno_path,f"{frame:05d}")))
+            inputs.append((og_img[frame],color_imgs[frame],os.path.join(self.ds.seg_anno_path,f"{frame:05d}")))
 
         print("Starting Segmentation Pool...")
         with mp.Pool(workerCount()) as pool:
@@ -223,16 +225,21 @@ class AutomaticSegmentationAnnotator():
 
 class KeypointAnnotator():
 
-    def __init__(self, color_dict, dataset, skeleton):
+    def __init__(self, color_dict, dataset, skeleton, open_ds = True, open_dpds = True):
         self.color_dict = color_dict
-        self.ds = Dataset(dataset, skeleton)
-        self.ds.makeDeepPoseDS()    # Make sure there is already a valid deeppose DS for the DS
+        if open_ds:
+            self.ds = Dataset(dataset, skeleton)
+            self.ds.makeDeepPoseDS()    # Make sure there is already a valid deeppose DS for the DS
+        if open_dpds:
+            self._openDPDS
+
+    def _openDPDS(self):
         self.dpds = h5py.File(self.ds.deepposeds_path, 'r+')
 
     def setDict(self, color_dict):
         self.color_dict = color_dict
 
-    def annotate(self, render, idx):
+    def annotate(self, render, idx, write_to_file = True, roi_1 = None):
         anno = []
         vis = []
         for color, subidx in zip(self.color_dict.values(), range(len(self.color_dict.values()))):
@@ -244,10 +251,17 @@ class KeypointAnnotator():
                 vis.append(False)
         vis = np.array(vis)
         anno = np.array(anno)
-        anno[:,0] -= self.ds.rois[idx,1] # This used to be crop data, so it would be rois[idx, 1]
 
-        self.dpds['annotated'][idx] = vis
-        self.dpds['annotations'][idx] = anno
+        if roi_1 is None:
+            anno[:,0] -= self.ds.rois[idx,1] # This used to be crop data, so it would be rois[idx, 1]
+        else:
+            anno[:,0] -= roi_1
+
+        if write_to_file:
+            self.dpds['annotated'][idx] = vis
+            self.dpds['annotations'][idx] = anno
+        else:
+            return [vis, anno]
 
     def _isVisible(self,image,color):
         return len(np.where(np.all(image == color, axis=-1))[0]) > 0
@@ -297,16 +311,41 @@ class AutomaticKeypointAnnotator(KeypointAnnotator):
             self.rend.setMode('key')
 
         color_dict = self.rend.getColorDict()
-        super().__init__(color_dict,dataset,skeleton)
+        #super().__init__(color_dict,dataset,skeleton,False)
+        self.an = KeypointAnnotator(color_dict, dataset, skeleton, False, False)
+        self.ds = Dataset(dataset, skeleton)
 
     def run(self):
 
-        for frame in tqdm(range(self.ds.length),desc="Annotating Keypoints"):
+        renders = []
+
+        for frame in tqdm(range(self.ds.length),desc="Rendering Keypoints"):
             self.rend.setPosesFromDS(frame)
             color,depth = self.rend.render()
-            self.annotate(color,frame)
+            renders.append(color)
+            #self.annotate(color,frame)
             if self.preview:
                 cv2.imshow("Automatic Keypoint Annotator", color)
                 cv2.waitKey(1)
-
         cv2.destroyAllWindows()
+
+        roi_1 = self.ds.rois[:,1]
+        inputs = []
+        for frame in tqdm(range(self.ds.length),desc="Packing Keypoints"):
+            inputs.append([renders[frame], frame, False, roi_1[frame]])
+
+        print("Starting Pool...")
+        with mp.Pool(workerCount()) as pool:
+            outputs = pool.starmap(self.an.annotate, inputs)
+
+        vis = []
+        anno = []
+        for output in outputs:
+            vis.append(output[0])
+            anno.append(output[1])
+
+        self.dpds = h5py.File(self.ds.deepposeds_path, 'r+')
+        self.dpds['annotated'][:] = np.array(vis)
+        self.dpds['annotations'][:] = np.array(anno)
+        
+        print("Pool Complete")

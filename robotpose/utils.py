@@ -35,7 +35,7 @@ def setMemoryGrowth():
 
 def workerCount():
     cpu_count = mp.cpu_count()
-    return int(min(cpu_count - 2, .75 * cpu_count))
+    return int(min(cpu_count - 2, .85 * cpu_count))
 
 
 def expandRegion(image, size, iterations = 1):
