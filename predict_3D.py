@@ -34,15 +34,17 @@ L_angles = ds.angles[:,1]
 U_angles = ds.angles[:,2]
 B_angles = ds.angles[:,4]
 
-print("Predicting...")
-# Load model, make predictions
-model = load_model(os.path.join(os.getcwd(),r'models\set10__B__StackedDensenet.h5'))
-reader = VideoReader(ds.seg_vid_path)
-predictions = model.predict(reader)
-print("Finished Predicting.")
+# print("Predicting...")
+# # Load model, make predictions
+# model = load_model(os.path.join(os.getcwd(),r'models\set10__B__StackedDensenet.h5'))
+# reader = VideoReader(ds.seg_vid_path)
+# predictions = model.predict(reader)
+# print("Finished Predicting.")
 
-# np.save('output/predictions.npy',np.array(predictions))
-# print("Predictions saved")
+# # np.save('output/predictions.npy',np.array(predictions))
+# # print("Predictions saved")
+
+predictions = np.load('output/predictions_B.npy')
 
 # Load video capture and make output
 cap = cv2.VideoCapture(ds.seg_vid_path)
@@ -75,9 +77,7 @@ with tqdm(total=ds.length) as pbar:
 
         tim.load(predictions[i], pointmaps[i])
         pred = tim.predict()
-        if i == 1:
-            with open('test','w') as f:
-                json.dump(pred,f, indent=4)
+
         # Append to lists
         S_pred.append(pred['S']['val'])
         L_pred.append(pred['L']['val'])
@@ -85,15 +85,12 @@ with tqdm(total=ds.length) as pbar:
         S_est.append(pred['S']['percent_est'])
         L_est.append(pred['L']['percent_est'])
         U_est.append(pred['U']['percent_est'])
-        #B_pred.append(B_pred_ang)
 
         # Put depth info on overlay
         over = color_array(pointmaps[i,...,2])
         #Visualize lines
-        #viz(image, over, predictions[i])
         image = tim.visualize(image)
         over = tim.visualize(over)
-
 
         dual = np.zeros((frame_height,frame_width*2,3),dtype=np.uint8)
         dual[:,0:frame_width] = image
@@ -106,9 +103,9 @@ with tqdm(total=ds.length) as pbar:
         ret, image = cap.read()
         pbar.update(1)
 
-    cv2.destroyAllWindows()
-    cap.release()
-    out.release()
+cv2.destroyAllWindows()
+cap.release()
+out.release()
 
 
 """

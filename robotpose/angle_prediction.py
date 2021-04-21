@@ -7,6 +7,7 @@
 #
 # Author: Adam Exley
 
+from os.path import join
 from .skeleton import Skeleton
 import numpy as np
 from .projection import fill_hole
@@ -37,12 +38,24 @@ class Predictor(Skeleton):
 
 
     def visualize(self, image):
+        
         for key in self.detections:
             if self.keypoint_data[key]['parent_keypoint'] in self.keypoints:
-                image = cv2.line(image, self.detections[key]['px_coords'], self.detections[self.keypoint_data[key]['parent_keypoint']]['px_coords'], color=(255, 0, 0), thickness=3)
+                overlay = np.copy(image)
+                overlay = cv2.line(overlay, self.detections[key]['px_coords'], self.detections[self.keypoint_data[key]['parent_keypoint']]['px_coords'], color=(255, 0, 0), thickness=3)
+                a = self.detections[key]['confidence'] * self.detections[self.keypoint_data[key]['parent_keypoint']]['confidence']
+                image = cv2.addWeighted(overlay,a,image,1-a,0)
             
         for key in self.detections:
-            image = cv2.circle(image, self.detections[key]['px_coords'], radius=int(12-10*self.detections[key]['confidence']), color=(0, 0, 255), thickness=-1)
+            if self.detections[key]['estimated']:
+                color=(0, 0, 255)
+            else:
+                color=(0, 255, 0)
+            overlay = np.copy(image)
+            overlay = cv2.circle(overlay, self.detections[key]['px_coords'], radius=5, color=color, thickness=-1)
+            a = self.detections[key]['confidence']
+            image = cv2.addWeighted(overlay,a,image,1-a,0)
+        
         return image
             
 
