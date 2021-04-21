@@ -240,10 +240,10 @@ class KeypointAnnotator():
                 anno.append(self._getColorMidpoint(render, color))
                 vis.append(True)
             else:
-                anno.append([0,0])
+                anno.append([roi_1,0])
                 vis.append(False)
 
-        anno[:,0] -= roi_1
+        anno[0] -= roi_1
 
         return [vis, anno]
 
