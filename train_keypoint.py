@@ -102,7 +102,7 @@ if __name__ == "__main__":
                         default='StackedDensenet', help="The type of model to train."
                         )
     parser.add_argument('--batch',type=int, choices=[1,2,4,8,12,16], default=2, help="Batch size for training")
-    parser.add_argument('--valid',type=float, default=0.3, help="Validation size for training")
+    parser.add_argument('--valid',type=float, default=0.2, help="Validation size for training")
     args = parser.parse_args()
 
     run(args.set, args.skeleton, args.model, args.batch, args.valid)

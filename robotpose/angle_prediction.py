@@ -60,12 +60,12 @@ class Predictor(Skeleton):
             
 
     def predict(self):
-        predictions = {}
+        self.predictions = {}
         for joint in self.predictable_joints:
-            pred, est = self._predictAngle(joint,predictions)
-            predictions[joint] = {"val": pred,"percent_est":est}
+            pred, est = self._predictAngle(joint,self.predictions)
+            self.predictions[joint] = {"val": pred,"percent_est":est}
             
-        return predictions
+        return self.predictions
 
 
     def _predictAngle(self,joint_name, predictions):
@@ -147,8 +147,41 @@ class Predictor(Skeleton):
 
 
     def _type3predict(self,joint_name):
-        """ R, T Angles """
-        pass
+        """ R Angle """
+        # Find S plane
+        #   Parameterize an S plane based on the value determined for the S angle
+        #   https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
+        parent = self.joint_data[joint_name]['parent']
+        parent_plane_vec = np.array([np.sin(self.predictions[parent]['val']),np.cos(self.predictions[parent]['val']),0])
+
+        pairs, lengs, confidence, offsets, estimate = self._getPredictors(joint_name)
+    
+        vecs = pairs[:,1] - pairs[:,0]
+
+        # Find angle R plane makes with the S plane
+        #   Use the vectors to determine the angle the vector makes with the normal of the plane
+        #   https://www.vedantu.com/maths/angle-between-a-line-and-a-plane
+
+        preds = []
+        for vec in vecs:
+            preds.append(np.arcsin(np.dot(vec, parent_plane_vec)/(np.linalg.norm(vec)*np.linalg.norm(parent_plane_vec))))
+        preds = np.array(preds)
+
+        multipliers = self._type3Multipliers(pairs, lengs, confidence, estimate)
+
+        preds += offsets
+        pred = np.sum(multipliers * preds) / np.sum(multipliers)
+
+        return pred, sum(estimate) / len(estimate)
+
+
+    def _type3Multipliers(self,pairs,lengs,confidence,estimate):
+        detected_lengs = self._distances(pairs)
+        len_multipliers = np.exp(-(np.abs(lengs - detected_lengs)/lengs))
+        confidence_multipliers = 2*lengs *(np.power(np.prod(confidence,-1),1.75) / np.square(np.sum(confidence,-1)))
+        est_multipliers = 1 - .75 * estimate
+        multipliers = len_multipliers * confidence_multipliers * est_multipliers
+        return multipliers
 
 
     def _type2Multipliers(self,pairs,lengs,confidence,estimate,vecs):
@@ -165,7 +198,7 @@ class Predictor(Skeleton):
         detected_lengs = self._distances(pairs)
         len_multipliers = np.exp(-(np.abs(lengs - detected_lengs)/lengs))
         confidence_multipliers = 2*lengs *(np.power(np.prod(confidence,-1),1.75) / np.square(np.sum(confidence,-1)))
-        est_multipliers = 1 - .5 * estimate
+        est_multipliers = 1 - .65 * estimate
         multipliers = len_multipliers * confidence_multipliers * est_multipliers
         return multipliers
 

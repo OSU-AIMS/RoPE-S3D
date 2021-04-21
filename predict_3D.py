@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from robotpose.utils import *
 from robotpose.paths import Paths as p
-from robotpose import Dataset
+from robotpose import Dataset, skeleton
 from robotpose.utils import reject_outliers_iqr
 from robotpose.turbo_colormap import color_array
 from tqdm import tqdm
@@ -22,11 +22,12 @@ import json
 
 from robotpose.angle_prediction import Predictor
 
-
 setMemoryGrowth()
 
-# Load dataset
-ds = Dataset('set10','B')
+predict = False
+save = False
+skele = 'E'
+ds = Dataset('set10',skele)
 
 # Read in Actual angles from JSONs to compare predicted angles to
 S_angles = ds.angles[:,0]
@@ -34,17 +35,19 @@ L_angles = ds.angles[:,1]
 U_angles = ds.angles[:,2]
 B_angles = ds.angles[:,4]
 
-# print("Predicting...")
-# # Load model, make predictions
-# model = load_model(os.path.join(os.getcwd(),r'models\set10__B__StackedDensenet.h5'))
-# reader = VideoReader(ds.seg_vid_path)
-# predictions = model.predict(reader)
-# print("Finished Predicting.")
+if predict:
+    print("Predicting...")
+    # Load model, make predictions
+    model = load_model(os.path.join(os.getcwd(),fr'models\set10__{skele}__StackedDensenet.h5'))
+    reader = VideoReader(ds.seg_vid_path)
+    predictions = model.predict(reader)
+    print("Finished Predicting.")
 
-# # np.save('output/predictions.npy',np.array(predictions))
-# # print("Predictions saved")
-
-predictions = np.load('output/predictions_B.npy')
+    if save:
+        np.save(f'output/predictions_{skele}.npy',np.array(predictions))
+        print("Predictions saved")
+else:
+    predictions = np.load(f'output/predictions_{skele}.npy')
 
 # Load video capture and make output
 cap = cv2.VideoCapture(ds.seg_vid_path)
@@ -66,7 +69,7 @@ ret, image = cap.read()
 frame_height = image.shape[0]
 frame_width = image.shape[1]
 
-tim = Predictor('B')
+tim = Predictor(skele)
 print("Copying pointmaps...")
 pointmaps = np.copy(ds.pointmaps)
 print("Pointmaps Copied.")
