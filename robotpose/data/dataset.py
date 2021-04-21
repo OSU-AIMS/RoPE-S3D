@@ -385,7 +385,7 @@ class Dataset():
 
     def setSkeleton(self,skeleton_name):
         self.skele = Skeleton(skeleton_name)
-        self.deepposeds_path = self.deepposeds_path.replace('.h5',f"{self.skele.name}_.h5")
+        self.deepposeds_path = self.deepposeds_path.replace('.h5',f"_{self.skele.name}.h5")
     
     def updateKeypointData(self):
         self.skele.update()

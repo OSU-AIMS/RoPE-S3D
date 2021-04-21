@@ -4,5 +4,6 @@
     "MODELS": "models/",
     "SEG_MODELS": "models/segmentation",
     "VIDEO": "output/video.avi",
-    "urdf_path": "urdf/MH5-URDF/urdf/MH5-URDF.urdf"
+    "urdf_path": "urdf/MH5-URDF/urdf/MH5-URDF.urdf",
+    "LOG": "models/log/log.h5"
 }

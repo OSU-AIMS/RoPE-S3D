@@ -10,6 +10,7 @@
 from .skeleton import Skeleton
 import numpy as np
 from .projection import fill_hole
+import cv2
 
 
 class Predictor(Skeleton):
@@ -32,8 +33,18 @@ class Predictor(Skeleton):
                 coords = fill_hole(pointmap, py, px, 50)
                 estimated = True
 
-            self.detections[name] = {'coords':coords, 'confidence':keypoint_detections[idx][2], 'estimated':estimated}
+            self.detections[name] = {'coords':coords, 'px_coords':(int(px),int(py)), 'confidence':keypoint_detections[idx][2], 'estimated':estimated}
 
+
+    def visualize(self, image):
+        for key in self.detections:
+            if self.keypoint_data[key]['parent_keypoint'] in self.keypoints:
+                image = cv2.line(image, self.detections[key]['px_coords'], self.detections[self.keypoint_data[key]['parent_keypoint']]['px_coords'], color=(255, 0, 0), thickness=3)
+            
+        for key in self.detections:
+            image = cv2.circle(image, self.detections[key]['px_coords'], radius=int(12-10*self.detections[key]['confidence']), color=(0, 0, 255), thickness=-1)
+        return image
+            
 
     def predict(self):
         predictions = {}
@@ -132,7 +143,7 @@ class Predictor(Skeleton):
         len_multipliers = np.exp(-(np.abs(lengs - detected_lengs)/lengs))
         confidence_multipliers = 2*lengs *(np.power(np.prod(confidence,-1),1.75) / np.square(np.sum(confidence,-1)))
         x_distance_multiplier = vecs[:,0] / detected_lengs
-        est_multipliers = 1 - .5 * estimate
+        est_multipliers = 1 - .75 * estimate
         multipliers = len_multipliers * confidence_multipliers * x_distance_multiplier * est_multipliers
         return multipliers
 
