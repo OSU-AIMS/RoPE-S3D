@@ -235,7 +235,7 @@ class KeypointAnnotator():
     def annotate(self, render, roi_1):
         anno = []
         vis = []
-        for color, subidx in zip(self.color_dict.values(), range(len(self.color_dict.values()))):
+        for color in self.color_dict.values():
             if self._isVisible(render, color):
                 anno.append(self._getColorMidpoint(render, color))
                 vis.append(True)
@@ -243,7 +243,8 @@ class KeypointAnnotator():
                 anno.append([roi_1,0])
                 vis.append(False)
 
-        anno[0] -= roi_1
+        anno = np.array(anno)
+        anno[:,0] -= roi_1
 
         return [vis, anno]
 

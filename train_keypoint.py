@@ -84,6 +84,10 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
     callbacks = [logger, early_stop, reduce_lr, model_checkpoint]
     print("Callbacks set")
 
+
+    import webbrowser
+    webbrowser.open('https://www.youtube.com/watch?v=IkdmOVejUlI')
+
     model.fit(
         batch_size=batch_size,
         validation_batch_size=batch_size,

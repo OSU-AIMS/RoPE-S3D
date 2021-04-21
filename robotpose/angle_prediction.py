@@ -25,36 +25,43 @@ class Predictor(Skeleton):
         self.detections = {}
 
         for name, idx in zip(self.keypoints, range(len(self.keypoints))):
+            detected = True
             px = round(keypoint_detections[idx][0])
             py = round(keypoint_detections[idx][1])
-
-            coords = pointmap[py,px]
-            estimated = False
-            if not np.any(coords):
-                coords = fill_hole(pointmap, py, px, 50)
+            if px < 10 and py < 10:
+                detected = False
                 estimated = True
 
-            self.detections[name] = {'coords':coords, 'px_coords':(int(px),int(py)), 'confidence':keypoint_detections[idx][2], 'estimated':estimated}
+            coords = pointmap[py,px]
+            if detected:
+                estimated = False
+                if not np.any(coords):
+                    coords = fill_hole(pointmap, py, px, 50)
+                    estimated = True
+
+            self.detections[name] = {'coords':coords, 'px_coords':(int(px),int(py)), 'confidence':keypoint_detections[idx][2], 'estimated':estimated, 'detected':detected}
 
 
     def visualize(self, image):
         
         for key in self.detections:
-            if self.keypoint_data[key]['parent_keypoint'] in self.keypoints:
-                overlay = np.copy(image)
-                overlay = cv2.line(overlay, self.detections[key]['px_coords'], self.detections[self.keypoint_data[key]['parent_keypoint']]['px_coords'], color=(255, 0, 0), thickness=3)
-                a = self.detections[key]['confidence'] * self.detections[self.keypoint_data[key]['parent_keypoint']]['confidence']
-                image = cv2.addWeighted(overlay,a,image,1-a,0)
+            if self.detections[key]['detected']:
+                if self.keypoint_data[key]['parent_keypoint'] in self.keypoints:
+                    overlay = np.copy(image)
+                    overlay = cv2.line(overlay, self.detections[key]['px_coords'], self.detections[self.keypoint_data[key]['parent_keypoint']]['px_coords'], color=(255, 0, 0), thickness=3)
+                    a = self.detections[key]['confidence'] * self.detections[self.keypoint_data[key]['parent_keypoint']]['confidence']
+                    image = cv2.addWeighted(overlay,a,image,1-a,0)
             
         for key in self.detections:
-            if self.detections[key]['estimated']:
-                color=(0, 0, 255)
-            else:
-                color=(0, 255, 0)
-            overlay = np.copy(image)
-            overlay = cv2.circle(overlay, self.detections[key]['px_coords'], radius=5, color=color, thickness=-1)
-            a = self.detections[key]['confidence']
-            image = cv2.addWeighted(overlay,a,image,1-a,0)
+            if self.detections[key]['detected']:
+                if self.detections[key]['estimated']:
+                    color=(0, 0, 255)
+                else:
+                    color=(0, 255, 0)
+                overlay = np.copy(image)
+                overlay = cv2.circle(overlay, self.detections[key]['px_coords'], radius=5, color=color, thickness=-1)
+                a = self.detections[key]['confidence']
+                image = cv2.addWeighted(overlay,a,image,1-a,0)
         
         return image
             
@@ -99,7 +106,7 @@ class Predictor(Skeleton):
 
     def _type1predict(self,joint_name):
         """ L, U, B Angles"""
-        pairs, lengs, confidence, offsets, estimate = self._getPredictors(joint_name)
+        pairs, lengs, confidence, offsets, estimate, ratio_detected = self._getPredictors(joint_name)
         multipliers = self._type1Multipliers(pairs, lengs, confidence, estimate)
         
         vecs = pairs[:,1] - pairs[:,0]
@@ -133,7 +140,7 @@ class Predictor(Skeleton):
 
     def _type2predict(self,joint_name):
         """ S Angle """
-        pairs, lengs, confidence, offsets, estimate = self._getPredictors(joint_name)
+        pairs, lengs, confidence, offsets, estimate, ratio_detected = self._getPredictors(joint_name)
     
         vecs = pairs[:,1] - pairs[:,0]
         preds = np.arctan(vecs[:,2]/vecs[:,0])
@@ -154,7 +161,7 @@ class Predictor(Skeleton):
         parent = self.joint_data[joint_name]['parent']
         parent_plane_vec = np.array([np.sin(self.predictions[parent]['val']),np.cos(self.predictions[parent]['val']),0])
 
-        pairs, lengs, confidence, offsets, estimate = self._getPredictors(joint_name)
+        pairs, lengs, confidence, offsets, estimate, ratio_detected = self._getPredictors(joint_name)
     
         vecs = pairs[:,1] - pairs[:,0]
 
@@ -211,6 +218,7 @@ class Predictor(Skeleton):
         confidence = []
         offsets = []
         contains_estimate = []
+        detected = []
         for key in joint_info['predictors'].keys():
             points = [
                 self.detections[joint_info['predictors'][key]['from']]['coords'],
@@ -228,13 +236,19 @@ class Predictor(Skeleton):
                 self.detections[joint_info['predictors'][key]['to']]['estimated'] or
                 self.detections[joint_info['predictors'][key]['from']]['estimated']
                 )
+            detected.append(
+                self.detections[joint_info['predictors'][key]['to']]['detected'] and
+                self.detections[joint_info['predictors'][key]['from']]['detected']
+                )
 
-        pairs = np.array(pairs)
-        lengs = np.array(lengs)
-        confidence = np.array(confidence)
-        offsets = np.array(offsets)
-        contains_estimate = np.array(contains_estimate)
-        return pairs, lengs, confidence, offsets, contains_estimate
+        detected = np.array(detected)
+
+        pairs = np.array(pairs)[np.where(detected)]
+        lengs = np.array(lengs)[np.where(detected)]
+        confidence = np.array(confidence)[np.where(detected)]
+        offsets = np.array(offsets)[np.where(detected)]
+        contains_estimate = np.array(contains_estimate)[np.where(detected)]
+        return pairs, lengs, confidence, offsets, contains_estimate, np.sum(detected)/len(detected)
 
 
     def _distances(self, point_arr):
