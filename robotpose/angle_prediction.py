@@ -7,7 +7,6 @@
 #
 # Author: Adam Exley
 
-from os.path import join
 from .skeleton import Skeleton
 import numpy as np
 from .projection import fill_hole
@@ -16,10 +15,13 @@ import cv2
 
 class Predictor(Skeleton):
     
-    def __init__(self, skele_name):
+    def __init__(self, skele_name, save_history = True):
         super().__init__(skele_name)
         assert self._hasJointConfig(),"Joint Configuration must be present for angle prediction."
         self.predictable_joints = [joint for joint in self.joint_data.keys() if len(self.joint_data[joint]['predictors']) > 0]
+        self.save_history = save_history
+        if save_history:
+            self.prediction_history = []
 
     def load(self, keypoint_detections, pointmap):
         self.detections = {}
@@ -36,7 +38,7 @@ class Predictor(Skeleton):
             if detected:
                 estimated = False
                 if not np.any(coords):
-                    coords = fill_hole(pointmap, py, px, 50)
+                    coords = fill_hole(pointmap, py, px, 25)
                     estimated = True
 
             self.detections[name] = {'coords':coords, 'px_coords':(int(px),int(py)), 'confidence':keypoint_detections[idx][2], 'estimated':estimated, 'detected':detected}
@@ -60,6 +62,7 @@ class Predictor(Skeleton):
                     color=(0, 255, 0)
                 overlay = np.copy(image)
                 overlay = cv2.circle(overlay, self.detections[key]['px_coords'], radius=5, color=color, thickness=-1)
+                overlay = cv2.circle(overlay, self.detections[key]['px_coords'], radius=6, color=[x//3 for x in color], thickness= 1)
                 a = self.detections[key]['confidence']
                 image = cv2.addWeighted(overlay,a,image,1-a,0)
         
@@ -72,6 +75,9 @@ class Predictor(Skeleton):
             pred, est = self._predictAngle(joint,self.predictions)
             self.predictions[joint] = {"val": pred,"percent_est":est}
             
+        if self.save_history:
+            self.prediction_history.append(self.predictions)
+
         return self.predictions
 
 
@@ -92,6 +98,7 @@ class Predictor(Skeleton):
 
         if self.joint_data[joint_name]['parent']:
             pred += self.joint_data[joint_name]['parent_mult'] * predictions[self.joint_data[joint_name]['parent']]['val']
+            est = 1 - ((1 - predictions[self.joint_data[joint_name]['parent']]['percent_est'])*(1-est))
 
         pred += self.joint_data[joint_name]['offset']
 
