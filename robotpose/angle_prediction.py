@@ -11,7 +11,7 @@ from .skeleton import Skeleton
 import numpy as np
 from .projection import fill_hole
 import cv2
-
+import string
 
 class Predictor(Skeleton):
     
@@ -22,6 +22,7 @@ class Predictor(Skeleton):
         self.save_history = save_history
         if save_history:
             self.prediction_history = []
+            self.full_prediction_history = {j:{"predictors":[],"values": [],"multipliers": [],"estimated": []} for j in self.predictable_joints}
 
     def load(self, keypoint_detections, pointmap):
         self.detections = {}
@@ -113,7 +114,7 @@ class Predictor(Skeleton):
 
     def _type1predict(self,joint_name):
         """ L, U, B Angles"""
-        pairs, lengs, confidence, offsets, estimate, ratio_detected = self._getPredictors(joint_name)
+        pairs, lengs, confidence, offsets, estimate, detected = self._getPredictors(joint_name)
         multipliers = self._type1Multipliers(pairs, lengs, confidence, estimate)
         
         vecs = pairs[:,1] - pairs[:,0]
@@ -141,13 +142,24 @@ class Predictor(Skeleton):
         #         preds = preds_alt
 
         pred = np.sum(multipliers * preds) / np.sum(multipliers)
+
+        z = np.zeros(len(detected))
+        if self.save_history:
+            z[np.where(detected)] = preds * self.joint_data[joint_name]['self_mult'] + self.joint_data[joint_name]['offset']
+            if self.joint_data[joint_name]['parent']:
+                z[np.where(detected)] += self.joint_data[joint_name]['parent_mult'] * self.predictions[self.joint_data[joint_name]['parent']]['val']
+            self.full_prediction_history[joint_name]["values"].append(z.astype(float))
+            z[np.where(detected)] = multipliers
+            self.full_prediction_history[joint_name]["multipliers"].append(z.astype(float))
+            z[np.where(detected)] = estimate
+            self.full_prediction_history[joint_name]["estimated"].append(z.astype(bool))
     
         return pred, sum(estimate) / len(estimate)
 
 
     def _type2predict(self,joint_name):
         """ S Angle """
-        pairs, lengs, confidence, offsets, estimate, ratio_detected = self._getPredictors(joint_name)
+        pairs, lengs, confidence, offsets, estimate, detected = self._getPredictors(joint_name)
     
         vecs = pairs[:,1] - pairs[:,0]
         preds = np.arctan(vecs[:,2]/vecs[:,0])
@@ -156,6 +168,16 @@ class Predictor(Skeleton):
 
         preds += offsets
         pred = np.sum(multipliers * preds) / np.sum(multipliers)
+
+        z = np.zeros(len(detected))
+        if self.save_history:
+            z[np.where(detected)] = preds
+            self.full_prediction_history[joint_name]["values"].append(z)
+            z[np.where(detected)] = multipliers
+            self.full_prediction_history[joint_name]["multipliers"].append(z)
+            z[np.where(detected)] = estimate
+            self.full_prediction_history[joint_name]["estimated"].append(z.astype(bool))
+
 
         return pred, sum(estimate) / len(estimate)
 
@@ -249,13 +271,12 @@ class Predictor(Skeleton):
                 )
 
         detected = np.array(detected)
-
         pairs = np.array(pairs)[np.where(detected)]
         lengs = np.array(lengs)[np.where(detected)]
         confidence = np.array(confidence)[np.where(detected)]
         offsets = np.array(offsets)[np.where(detected)]
         contains_estimate = np.array(contains_estimate)[np.where(detected)]
-        return pairs, lengs, confidence, offsets, contains_estimate, np.sum(detected)/len(detected)
+        return pairs, lengs, confidence, offsets, contains_estimate, detected
 
 
     def _distances(self, point_arr):

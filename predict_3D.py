@@ -66,10 +66,10 @@ with tqdm(total=ds.length) as pbar:
         pred = tim.predict()
 
         # Put depth info on overlay
-        over = color_array(pointmaps[i,...,2])
+        #over = color_array(pointmaps[i,...,2])
         #Visualize lines
         image = tim.visualize(image)
-        over = tim.visualize(over)
+        #over = tim.visualize(over)
 
         dual = np.zeros((frame_height,frame_width*2,3),dtype=np.uint8)
         dual[:,0:frame_width] = image
@@ -86,8 +86,9 @@ cv2.destroyAllWindows()
 cap.release()
 out.release()
 
+np.save("pred_hist.npy",tim.prediction_history)
+np.save("full_pred_hist.npy",tim.full_prediction_history)
 
-a = Grapher(['S','L','U'],tim.prediction_history,np.copy(ds.angles))
-a.plot(45)
-
-
+a = Grapher(['S','L','U'],tim.prediction_history,np.copy(ds.angles),tim.full_prediction_history)
+a.plot(20)
+a.plotJoint('L',20)

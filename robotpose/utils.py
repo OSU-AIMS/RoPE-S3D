@@ -9,6 +9,7 @@
 
 
 import os
+import string
 
 import numpy as np
 import cv2
@@ -128,20 +129,22 @@ class Timer():
 
 class Grapher():
 
-    def __init__(self, joints, prediction_history, ds_angles = None):
+    def __init__(self, joints, prediction_history, ds_angles = None, joint_predictions = None):
         self.joints = joints
         self._convertToMatrix(prediction_history, joints)
         self.compare = ds_angles is not None
         if ds_angles is not None:
-            plots = 2
             self._cropComparison(ds_angles,joints,prediction_history)
-        else:
-            plots = 1
+        if joint_predictions is not None:
+            self._convertJointToMatricies(joint_predictions,joints)
 
-        self.fig, self.axs = plt.subplots(len(joints),plots)
 
+    
     def plot(self,ylim=None):
         self._plotWithComparison(ylim)
+
+    def plotJoint(self,joint,ylim=None):
+        self._plotSingleJoint(joint,ylim)
 
 
     def _convertToMatrix(self, prediction_history, joints):
@@ -156,6 +159,17 @@ class Grapher():
 
         self.angles = np.degrees(self.angles)
 
+
+    def _convertJointToMatricies(self, joint_predictions, joints):
+        self.joint_data = {}
+        for joint in joints:
+            self.joint_data[joint] = {
+                "values": np.array(joint_predictions[joint]["values"]),
+                "multipliers": np.array(joint_predictions[joint]["multipliers"]),
+                "estimated": np.array(joint_predictions[joint]["estimated"]),
+            }
+
+
     def _cropComparison(self, ds_angles, joints, prediction_history):
         ang = ['S','L','U','R','B','T']
         l = len(prediction_history)
@@ -167,27 +181,30 @@ class Grapher():
 
 
     def _plotWithComparison(self, y_lim = None):
+
+        fig, axs = plt.subplots(len(self.joints),2)
+
                 
         # Plot Raw Angles
         for joint, idx in zip(self.joints,range(len(self.joints))):
-            self.axs[idx,0].set_title(f'Raw {joint} Angle')
-            self.axs[idx,0].plot(self.real_angles[:,idx])
-            self.axs[idx,0].plot(self.angles[:,idx],color='purple')
+            axs[idx,0].set_title(f'Raw {joint} Angle')
+            axs[idx,0].plot(self.real_angles[:,idx])
+            axs[idx,0].plot(self.angles[:,idx],color='purple')
             for val,x in zip(self.percent_estimated[:,idx], range(len(self.percent_estimated[:,idx]))):
-                self.axs[idx,0].axvspan(x-.5, x+.5, color='red', alpha=val, ec=None)
+                axs[idx,0].axvspan(x-.5, x+.5, color='red', alpha=val, ec=None)
 
         err = self.angles - self.real_angles
         zeros_err = np.zeros(err.shape[0])
 
         # Plot errors
         for joint, idx in zip(self.joints,range(len(self.joints))):
-            self.axs[idx,1].set_title(f'Angle {joint} Error')
-            self.axs[idx,1].plot(zeros_err)
-            self.axs[idx,1].plot(err[:,idx],color='purple')
+            axs[idx,1].set_title(f'Angle {joint} Error')
+            axs[idx,1].plot(zeros_err)
+            axs[idx,1].plot(err[:,idx],color='purple')
             if y_lim is not None:
-                self.axs[idx,1].set_ylim([-y_lim,y_lim])
+                axs[idx,1].set_ylim([-y_lim,y_lim])
             for val,x in zip(self.percent_estimated[:,idx], range(len(self.percent_estimated[:,idx]))):
-                self.axs[idx,1].axvspan(x-.5, x+.5, color='red', alpha=val, ec=None)
+                axs[idx,1].axvspan(x-.5, x+.5, color='red', alpha=val, ec=None)
 
 
         avg_err = np.mean(np.abs(err),0)
@@ -219,6 +236,54 @@ class Grapher():
         # print("Stdev (deg):")
         # print(f"\tS: {S_err_std:.2f}\n\tL: {L_err_std:.2f}\n\tU: {U_err_std:.2f}")
 
+        plt.show()
 
+
+
+    def _plotSingleJoint(self, joint, y_lim = None):
+
+        fig, axs = plt.subplots(2)
+                
+        vals = np.array(self.joint_data[joint]["values"])
+        mults = np.array(self.joint_data[joint]["multipliers"])
+        vals *= 180/np.pi
+        vals[vals==0] = np.nan
+        mults[mults==0] = np.nan
+
+        # # Plot Raw Angles
+        # axs[0].set_title(f'Raw {joint} Angle')
+        # axs[0].plot(self.real_angles[:,self.joints.index(joint)], label="Act.")
+        # for idx in range(vals.shape[1]):
+        #     axs[0].plot(vals[:,idx],label=list(string.ascii_uppercase)[idx])
+        # axs[0].legend()
+
+        axs[0].set_title(f'Multipliers')
+        for idx in range(vals.shape[1]):
+            axs[0].plot(mults[:,idx],label=list(string.ascii_uppercase)[idx])
+        axs[0].legend()
+
+        err = vals - np.vstack([self.real_angles[:,self.joints.index(joint)]]*vals.shape[1]).transpose()
+        zeros_err = np.zeros(err.shape[0])
+
+
+        axs[1].set_title(f'Angle {joint} Error')
+        axs[1].plot(zeros_err, label="Act.")
+        # Plot errors
+        for idx in range(err.shape[1]):
+            axs[1].plot(err[:,idx],label=list(string.ascii_uppercase)[idx])
+        if y_lim is not None:
+            axs[1].set_ylim([-y_lim,y_lim])
+        axs[1].legend()
+
+        # avg_err = np.mean(np.abs(err),0)
+        # avg_err_std = np.std(np.abs(err),0)
+
+        # print("\nAvg Error (deg):")
+        # for joint, idx in zip(self.joints,range(len(self.joints))):
+        #     print(f"\t{joint}: {avg_err[idx]:.2f}")
+
+        # print("Stdev (deg):")
+        # for joint, idx in zip(self.joints,range(len(self.joints))):
+        #     print(f"\t{joint}: {avg_err_std[idx]:.2f}")
 
         plt.show()
