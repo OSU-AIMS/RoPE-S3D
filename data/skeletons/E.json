@@ -83,11 +83,12 @@
             "self_mult": 1,
             "predictors": {
                 "A": { "from": "L", "to": "U", "length": 0.4, "offset": 0 },
-                "B": { "from": "R", "to": "B", "length": 0.233, "offset": 0 },
-                "C": { "from": "L", "to": "LU", "length": 0.2, "offset": 0 },
-                "D": { "from": "L_back", "to": "L_back_up", "length": 0.12, "offset": 0 },
+                "B": { "from": "L", "to": "LU", "length": 0.2, "offset": 0 },
+                "C": { "from": "LU", "to": "U", "length": 0.2, "offset": 0 },
+                "D": { "from": "R", "to": "B", "length": 0.233, "offset": 0 },
                 "E": { "from": "R", "to": "RB", "length": 0.117, "offset": 0 },
                 "F": { "from": "RB", "to": "B", "length": 0.116, "offset": 0 }
+
             }
         },
         "L": {

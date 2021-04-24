@@ -171,10 +171,12 @@ class Predictor(Skeleton):
 
         z = np.zeros(len(detected))
         if self.save_history:
-            z[np.where(detected)] = preds
-            self.full_prediction_history[joint_name]["values"].append(z)
+            z[np.where(detected)] = preds * self.joint_data[joint_name]['self_mult'] + self.joint_data[joint_name]['offset']
+            if self.joint_data[joint_name]['parent']:
+                z[np.where(detected)] += self.joint_data[joint_name]['parent_mult'] * self.predictions[self.joint_data[joint_name]['parent']]['val']
+            self.full_prediction_history[joint_name]["values"].append(z.astype(float))
             z[np.where(detected)] = multipliers
-            self.full_prediction_history[joint_name]["multipliers"].append(z)
+            self.full_prediction_history[joint_name]["multipliers"].append(z.astype(float))
             z[np.where(detected)] = estimate
             self.full_prediction_history[joint_name]["estimated"].append(z.astype(bool))
 
@@ -213,7 +215,7 @@ class Predictor(Skeleton):
 
     def _type3Multipliers(self,pairs,lengs,confidence,estimate):
         detected_lengs = self._distances(pairs)
-        len_multipliers = np.exp(-(np.abs(lengs - detected_lengs)/lengs))
+        len_multipliers = self._lengthMultiplier(lengs, detected_lengs)
         confidence_multipliers = 2*lengs *(np.power(np.prod(confidence,-1),1.75) / np.square(np.sum(confidence,-1)))
         est_multipliers = 1 - .75 * estimate
         multipliers = len_multipliers * confidence_multipliers * est_multipliers
@@ -222,21 +224,26 @@ class Predictor(Skeleton):
 
     def _type2Multipliers(self,pairs,lengs,confidence,estimate,vecs):
         detected_lengs = self._distances(pairs)
-        len_multipliers = np.exp(-(np.abs(lengs - detected_lengs)/lengs))
+        len_multipliers = self._lengthMultiplier(lengs, detected_lengs)
         confidence_multipliers = 2*lengs *(np.power(np.prod(confidence,-1),1.75) / np.square(np.sum(confidence,-1)))
         x_distance_multiplier = vecs[:,0] / detected_lengs
-        est_multipliers = 1 - .75 * estimate
+        est_multipliers = 1 - .65 * estimate
         multipliers = len_multipliers * confidence_multipliers * x_distance_multiplier * est_multipliers
         return multipliers
 
 
     def _type1Multipliers(self,pairs,lengs,confidence, estimate):
         detected_lengs = self._distances(pairs)
-        len_multipliers = np.exp(-(np.abs(lengs - detected_lengs)/lengs))
+        len_multipliers = self._lengthMultiplier(lengs, detected_lengs)
         confidence_multipliers = 2*lengs *(np.power(np.prod(confidence,-1),1.75) / np.square(np.sum(confidence,-1)))
-        est_multipliers = 1 - .65 * estimate
+        est_multipliers = 1 - .5 * estimate
         multipliers = len_multipliers * confidence_multipliers * est_multipliers
         return multipliers
+
+    def _lengthMultiplier(self, lengs, detected_lengs):
+        # return np.exp(-(np.abs(lengs - detected_lengs)/lengs))
+        p = .85
+        return np.clip(((-1 / lengs * p**(1/p)) * (np.abs(lengs - detected_lengs))**p + 1),0,np.inf)
 
 
     def _getPredictors(self, joint_name):

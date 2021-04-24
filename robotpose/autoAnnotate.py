@@ -187,7 +187,10 @@ class AutomaticSegmentationAnnotator():
             self.rend.setMode(mode)
 
         color_dict = self.rend.getColorDict()
-        self.anno = SegmentationAnnotator(color_dict = color_dict)
+        pad = 5
+        if mode == 'seg':
+            pad = 0
+        self.anno = SegmentationAnnotator(color_dict = color_dict, pad_size=pad)
 
         self.ds = Dataset(dataset, skeleton)
 
@@ -249,7 +252,7 @@ class KeypointAnnotator():
         return [vis, anno]
 
     def _isVisible(self,image,color):
-        return len(np.where(np.all(image == color, axis=-1))[0]) > 0
+        return len(np.where(np.all(image == color, axis=-1))[0]) > 10
     
     def _getColorMidpoint(self, image, color):
         coords = np.where(np.all(image == color, axis=-1))
