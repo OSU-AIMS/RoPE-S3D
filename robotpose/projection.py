@@ -21,12 +21,18 @@ def makeIntrinsics(preset = '1280_720_color'):
     preset: string of the preset to use
     """
 
-    valid = ['1280_720_color', '1280_720_depth','640_480_color','640_480_depth']
+    valid = ['1280_720_color', '1280_720_depth','640_480_color','640_480_depth','1280_720_color_4','1280_720_color_8','1280_720_color_16']
     if preset not in valid:
         raise ValueError(f"Res must be one of: {valid}")
 
     if preset == '1280_720_color':
         return intrin((1280,720), (638.391,361.493), (905.23, 904.858), rs.distortion.inverse_brown_conrady, [0,0,0,0,0])
+    if preset == '1280_720_color_4':
+        return intrin((320,180), (159.59,90.37325), (226.3075, 226.145), rs.distortion.inverse_brown_conrady, [0,0,0,0,0])
+    if preset == '1280_720_color_8':
+        return intrin((160,90), (79.798875, 45.186625), (113.15375, 113.10725), rs.distortion.inverse_brown_conrady, [0,0,0,0,0])
+    if preset == '1280_720_color_16':
+        return intrin((80,45), (39.8994375, 22.5933125), (56.576875, 56.553625), rs.distortion.inverse_brown_conrady, [0,0,0,0,0])
     elif preset == '1280_720_depth':
         return intrin((1280,720), (639.459,359.856), (635.956, 635.956),rs.distortion.brown_conrady, [0,0,0,0,0])
     elif preset == '640_480_color':
@@ -42,7 +48,7 @@ def intrin(resolution, pp, f, model, coeffs):
     Arguments:
     resolution: Camera resolution (tuple)
     pp: pixels per meter (tuple)(x,y)
-    f: focal plan position (tuple)(x,y)
+    f: focal plane position (tuple)(x,y)
     model: distortion model to use (rs.distortion)
     coeffs: distortion coeffs
     """
