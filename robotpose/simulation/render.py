@@ -195,8 +195,6 @@ class SkeletonRenderer(BaseRenderer):
 
 
 
-
-
 class DatasetRenderer(BaseRenderer):
     
     def __init__(

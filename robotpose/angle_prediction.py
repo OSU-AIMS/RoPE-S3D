@@ -11,7 +11,6 @@ from .skeleton import Skeleton
 import numpy as np
 from .projection import fill_hole
 import cv2
-import string
 
 class Predictor(Skeleton):
     
