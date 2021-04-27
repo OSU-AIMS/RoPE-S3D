@@ -36,6 +36,7 @@ class BaseRenderer(Skeleton):
 
         self.mode = mode
         self.suppress_warnings = suppress_warnings
+        self.limit_parts = False
 
         ml = MeshLoader()
         ml.load()
@@ -156,16 +157,29 @@ class BaseRenderer(Skeleton):
             self._updateMode()
 
 
+    def setMaxParts(self, number_of_parts):
+        self.limit_parts = True
+        self.limit_number = number_of_parts
+
+
     def _updateMode(self):
 
         self.node_color_map = {}
 
         if self.mode == 'seg':
-            for joint, idx in zip(self.joint_nodes, range(len(self.joint_nodes))):
-                self.node_color_map[joint] = DEFAULT_COLORS[idx]
+            if self.limit_parts:
+                for joint, idx in zip(self.joint_nodes[:self.limit_number], range(self.limit_number)):
+                    self.node_color_map[joint] = DEFAULT_COLORS[idx]
+            else:
+                for joint, idx in zip(self.joint_nodes, range(len(self.joint_nodes))):
+                    self.node_color_map[joint] = DEFAULT_COLORS[idx]
         elif self.mode == 'key':
-            for keypt, idx in zip(self.key_nodes, range(len(self.key_nodes))):
-                self.node_color_map[keypt] = DEFAULT_COLORS[idx]
+            if self.limit_parts:
+                for keypt, idx in zip(self.key_nodes[:self.limit_number], range(self.limit_number)):
+                    self.node_color_map[keypt] = DEFAULT_COLORS[idx]
+            else:
+                for keypt, idx in zip(self.key_nodes, range(len(self.key_nodes))):
+                    self.node_color_map[keypt] = DEFAULT_COLORS[idx]
             for joint in self.joint_nodes:
                 self.node_color_map[joint] = DEFAULT_COLORS[-1]
         elif self.mode == 'seg_full':

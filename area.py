@@ -1,5 +1,5 @@
 from robotpose.utils import Grapher, workerCount
-from robotpose.area import AreaMatcher
+from robotpose.area import AreaMatcher, AreaMatcherStaged
 from robotpose import Dataset
 import numpy as np
 from tqdm import tqdm
@@ -8,7 +8,7 @@ from robotpose.simulation import SkeletonRenderer
 
 WIDTH = 800
 
-am = AreaMatcher(ds_factor=8)
+am = AreaMatcherStaged(ds_factor=8)
 ds = Dataset('set10')
 
 start = 0

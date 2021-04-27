@@ -1,3 +1,4 @@
+from robotpose.urdf import URDFReader
 from robotpose.simulation.render import SkeletonRenderer
 from robotpose import Dataset
 import numpy as np
@@ -44,7 +45,7 @@ WIDTH = 800
 renderer = SkeletonRenderer('BASE','seg',CAMERA_POSE,'1280_720_color_8')
 ds = Dataset('set10')
 
-idx = 280
+idx = 108
 
 true = ds.angles[idx]
 
@@ -70,10 +71,11 @@ dp_err = []
 mk_err = []
 s_ang = []
 
-hist_length = 10
+hist_length = 8
 
 history = np.zeros((hist_length, 6))
 err_history = np.zeros(hist_length)
+err_history[err_history == 0] = np.inf
 
 do_angle = np.array([True,True,True,False,False,False])
 angle_learning_rate = np.array([1.2,1.2,.75,.5,.5,2])
@@ -82,48 +84,92 @@ angles = np.array([0,0.2,1.2,0,0,0])
 
 renderer.setJointAngles(angles)
 
-for i in range(50):
-    for idx in np.where(do_angle)[0]:
+u_reader = URDFReader()
 
-        if abs(np.mean(history,0)[idx] - angles[idx]) <= angle_learning_rate[idx]:
-            angle_learning_rate[idx] *= .5
 
-        temp = angles.copy()
-        temp[idx] -= angle_learning_rate[idx]
+# Stages in form:
+# Descent: 
+#   Iterations, joints to render, rate reduction, early stop thresh, edit_angles, inital learning rate
+# Flip: 
+#   joints to render, edit_angles
+sl_stage = ['descent',30,3,0.5,.05,[True,True,False,False,False,False],[1.2,1.2,0.9,0.5,0.5,0.5]]
+u_stage = ['descent',20,6,0.5,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+s_flip_check = ['flip',6,[True,False,False,False,False,False]]
+s_check = ['descent',5,6,0.5,.005,[True,False,False,False,False,False],[.1,None,None,None,None,None]]
+lu_fine_tune = ['descent',5,6,0.5,.001,[True,True,True,False,False,False],[None,.01,.01,None,None,None]]
 
-        # Under
-        renderer.setJointAngles(temp)
-        color, depth = renderer.render()
-        #under_err = depth_err(target_depth,depth) + mask_err(target_img,color)
-        under_err = total_err(target_img, target_depth, color, depth)
+stages = [sl_stage, u_stage, s_flip_check, s_check, lu_fine_tune]
 
-        # Over
-        temp = angles.copy()
-        temp[idx] += angle_learning_rate[idx]
-        renderer.setJointAngles(temp)
-        color, depth = renderer.render()
-        #over_err = depth_err(target_depth,depth) + mask_err(target_img,color)
-        over_err = total_err(target_img, target_depth, color, depth)
+for stage in stages:
 
-        if over_err < under_err:
-            angles[idx] += angle_learning_rate[idx]
-        else:
-            angles[idx] -= angle_learning_rate[idx]
+    if stage[0] == 'descent':
 
-        # Evaluate
-        renderer.setJointAngles(angles)
-        color, depth = renderer.render()
-        cv2.imshow("test",color)
-        cv2.waitKey(100)
-        dp_err.append(depth_err(target_depth,depth))
-        mk_err.append(mask_err(target_img,color))
+        for i in range(6):
+            if stage[6][i] is not None:
+                angle_learning_rate[i] = stage[6][i]
 
-    history[1:] = history[:-1]
-    history[0] = angles
-    err_history[1:] = err_history[:-1]
-    err_history[0] = min(over_err,under_err)
-    if abs(np.mean(err_history) - err_history[0])/err_history[0] < .01:
-        break
+        do_ang = np.array(stage[5])
+        renderer.setMaxParts(stage[2])
+
+        for i in range(stage[1]):
+            for idx in np.where(do_ang)[0]:
+                if abs(np.mean(history,0)[idx] - angles[idx]) <= angle_learning_rate[idx]:
+                    angle_learning_rate[idx] *= stage[3]
+
+                temp = angles.copy()
+                temp[idx] -= angle_learning_rate[idx]
+                renderer.setJointAngles(temp)
+                color, depth = renderer.render()
+                under_err = total_err(target_img, target_depth, color, depth)
+
+                temp = angles.copy()
+                temp[idx] += angle_learning_rate[idx]
+                renderer.setJointAngles(temp)
+                color, depth = renderer.render()
+                over_err = total_err(target_img, target_depth, color, depth)
+
+                if over_err < under_err:
+                    angles[idx] += angle_learning_rate[idx]
+                else:
+                    angles[idx] -= angle_learning_rate[idx]
+
+                # Evaluate
+                renderer.setJointAngles(angles)
+                color, depth = renderer.render()
+                cv2.imshow("Color",color)
+                cv2.imshow("Depth",color_array(target_depth-depth))
+                cv2.waitKey(100)
+                dp_err.append(depth_err(target_depth,depth))
+                mk_err.append(mask_err(target_img,color))
+
+            history[1:] = history[:-1]
+            history[0] = angles
+            err_history[1:] = err_history[:-1]
+            err_history[0] = min(over_err,under_err)
+            if abs(np.mean(err_history) - err_history[0])/err_history[0] < stage[4]:
+                break
+
+    elif stage[0] == 'flip':
+
+        do_ang = np.array(stage[2])
+        renderer.setMaxParts(stage[1])
+
+        for idx in np.where(do_ang)[0]:
+            temp = angles.copy()
+            temp[idx] *= -1
+            renderer.setJointAngles(temp)
+            color, depth = renderer.render()
+            err = total_err(target_img, target_depth, color, depth)
+
+            if err < err_history[0]:
+                angles[idx] *= -1
+            
+            history[1:] = history[:-1]
+            history[0] = angles
+            err_history[1:] = err_history[:-1]
+            err_history[0] = min(err_history[1],err)
+
+
 
 
 print(np.array(angles))

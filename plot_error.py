@@ -22,7 +22,7 @@ def depth_err(target, render):
     target_mask = target != 0
     render_masked = render * target_mask
     diff = target - render_masked
-    diff = np.abs(diff) ** 0.5
+    diff = np.abs(diff) ** .5
     err = np.mean(diff[diff!=0])
     return err
 
@@ -39,7 +39,7 @@ renderer = SkeletonRenderer('BASE','seg',CAMERA_POSE)
 renderer_quarter = SkeletonRenderer('BASE','seg',CAMERA_POSE,'1280_720_color_8')
 ds = Dataset('set10')
 
-idx = 20
+idx = 50
 
 ds_factor = 8
 roi_start = np.copy(ds.rois[idx,1])
@@ -67,7 +67,7 @@ nl = 50
 err = np.zeros((ns, nl))
 
 space_s = np.linspace(-np.pi,np.pi,ns)
-space_l = np.linspace(-.1,.1,nl)
+space_l = np.linspace(-np.pi,np.pi,nl)
 
 sv, lv = np.meshgrid(space_s,space_l)
 
