@@ -38,6 +38,20 @@ def downsample(base, factor):
     return cv2.resize(base, tuple(dims))
 
 
+def show(color, depth, target_depth):
+    size = color.shape[0:2]
+    dim = [x*2 for x in size]
+    dim.reverse()
+    dim = tuple(dim)
+    color = cv2.resize(color, dim)
+    depth = cv2.resize(depth, dim)
+    target_depth = cv2.resize(target_depth, dim)
+    cv2.imshow("Color",color)
+    cv2.imshow("Depth",color_array(target_depth-depth))
+    cv2.waitKey(100)
+
+
+
 CAMERA_POSE = [.042,-1.425,.399, -.01,1.553,-.057]
 WIDTH = 800
 
@@ -45,8 +59,7 @@ WIDTH = 800
 renderer = SkeletonRenderer('BASE','seg',CAMERA_POSE,'1280_720_color_8')
 ds = Dataset('set10')
 
-idx = 195
-
+idx = 302
 true = ds.angles[idx]
 
 print(true)
@@ -58,7 +71,9 @@ target_img[:,roi_start:roi_start+WIDTH] = np.copy(ds.seg_img[idx])
 target_depth = np.zeros((720,1280))
 target_depth[:,roi_start:roi_start+WIDTH] = np.copy(ds.pointmaps[idx,...,2])
 
-cv2.imshow("target",target_img)
+target = cv2.addWeighted(target_img, .5, color_array(target_depth),.5,0)
+
+cv2.imshow("target",target)
 cv2.waitKey(1)
 
 if True:
@@ -92,7 +107,7 @@ u_reader = URDFReader()
 #   Iterations, joints to render, rate reduction, early stop thresh, edit_angles, inital learning rate
 # Flip: 
 #   joints to render, edit_angles
-l_sweep = ['sweep', 15, 3, [False,True,False,False,False,False]]
+l_sweep = ['sweep', 10, 3, [False,True,False,False,False,False]]
 sl_stage = ['descent',30,3,0.5,.1,[True,True,False,False,False,False],[1.2,.3,0.1,0.5,0.5,0.5]]
 u_sweep = ['sweep', 15, 6, [False,False,True,False,False,False]]
 u_stage = ['descent',20,6,0.5,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
@@ -138,9 +153,7 @@ for stage in stages:
                 # Evaluate
                 renderer.setJointAngles(angles)
                 color, depth = renderer.render()
-                cv2.imshow("Color",color)
-                cv2.imshow("Depth",color_array(target_depth-depth))
-                cv2.waitKey(100)
+                show(color, depth, target_depth)
                 dp_err.append(depth_err(target_depth,depth))
                 mk_err.append(mask_err(target_img,color))
 
@@ -190,9 +203,7 @@ for stage in stages:
                         space_err.append(total_err(target_img, target_depth, color, depth))
 
                         # Evaluate
-                        cv2.imshow("Color",color)
-                        cv2.imshow("Depth",color_array(target_depth-depth))
-                        cv2.waitKey(50)
+                        show(color, depth, target_depth)
 
                     angles = space[space_err.index(min(space_err))]
 

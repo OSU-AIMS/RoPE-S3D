@@ -116,6 +116,9 @@ pip install --upgrade tensorflow-gpu
 pip install --upgrade tensorflow-gpu==2.0.0
 ```
 
+***Note:*** Numpy **1.19.5** may be automatically installed with tensorflow. This version of Numpy presents memory issues on some machines when running Multiprocessing, as this repository does.
+Numpy **1.19.2** should work with this repository 
+
 # License
 
 Released under a Apache 2.0 License. See [LICENSE](https://github.com/jgraving/deepposekit/blob/master/LICENSE) for details.

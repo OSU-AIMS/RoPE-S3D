@@ -161,20 +161,18 @@ class Builder():
         self.mask_arr = np.zeros((self.length, self.img_height, self.img_width), dtype=bool)
         self.rois = np.zeros((self.length, 4))
 
-        # Segment images
-        for idx in tqdm(range(self.length),desc="Segmenting Images",colour='red'):
-            self.mask_arr[idx], self.rois[idx] = segmenter.segmentImage(self.orig_img_arr[idx])
-        self.rois = self.rois.astype(int)
-
-        del segmenter
-
-        batch_size = 100
+        batch_size = 75
         print(f"Using Crop Pool of size {batch_size} with {workerCount()} workers.")
-        with tqdm(total=self.length, desc="Cropping Data") as pbar:
+        with tqdm(total=self.length, desc="Segmenting Images") as pbar:
             for start in range(0,self.length, batch_size):
 
                 if start + batch_size >= self.length:
                     batch_size = self.length - start
+
+                # Segment images
+                for idx in range(start,start+batch_size):
+                    self.mask_arr[idx], self.rois[idx] = segmenter.segmentImage(self.orig_img_arr[idx])
+                self.rois = self.rois.astype(int)
 
                 # Make iterable for pool
                 crop_inputs = []

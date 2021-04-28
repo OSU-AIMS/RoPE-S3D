@@ -8,3 +8,4 @@ pyrender==0.1.45
 pyrealsense2
 labelme
 pysimplegui
+numpy==1.19.2
