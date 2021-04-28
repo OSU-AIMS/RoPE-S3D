@@ -45,7 +45,7 @@ WIDTH = 800
 renderer = SkeletonRenderer('BASE','seg',CAMERA_POSE,'1280_720_color_8')
 ds = Dataset('set10')
 
-idx = 108
+idx = 195
 
 true = ds.angles[idx]
 
@@ -71,7 +71,7 @@ dp_err = []
 mk_err = []
 s_ang = []
 
-hist_length = 8
+hist_length = 7
 
 history = np.zeros((hist_length, 6))
 err_history = np.zeros(hist_length)
@@ -92,13 +92,15 @@ u_reader = URDFReader()
 #   Iterations, joints to render, rate reduction, early stop thresh, edit_angles, inital learning rate
 # Flip: 
 #   joints to render, edit_angles
-sl_stage = ['descent',30,3,0.5,.05,[True,True,False,False,False,False],[1.2,1.2,0.9,0.5,0.5,0.5]]
+l_sweep = ['sweep', 15, 3, [False,True,False,False,False,False]]
+sl_stage = ['descent',30,3,0.5,.1,[True,True,False,False,False,False],[1.2,.3,0.1,0.5,0.5,0.5]]
+u_sweep = ['sweep', 15, 6, [False,False,True,False,False,False]]
 u_stage = ['descent',20,6,0.5,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
 s_flip_check = ['flip',6,[True,False,False,False,False,False]]
-s_check = ['descent',5,6,0.5,.005,[True,False,False,False,False,False],[.1,None,None,None,None,None]]
-lu_fine_tune = ['descent',5,6,0.5,.001,[True,True,True,False,False,False],[None,.01,.01,None,None,None]]
+s_check = ['descent',5,6,0.5,.01,[True,False,False,False,False,False],[.1,None,None,None,None,None]]
+lu_fine_tune = ['descent',5,6,0.5,.01,[True,True,True,False,False,False],[None,.01,.01,None,None,None]]
 
-stages = [sl_stage, u_stage, s_flip_check, s_check, lu_fine_tune]
+stages = [l_sweep, sl_stage, u_sweep, u_stage, s_flip_check, s_check, lu_fine_tune]
 
 for stage in stages:
 
@@ -168,6 +170,31 @@ for stage in stages:
             history[0] = angles
             err_history[1:] = err_history[:-1]
             err_history[0] = min(err_history[1],err)
+
+    elif stage[0] == 'sweep':
+                do_ang = np.array(stage[3])
+                renderer.setMaxParts(stage[2])
+                div = stage[1]
+
+                for idx in np.where(do_ang)[0]:
+                    temp_low = angles.copy()
+                    temp_low[idx] = u_reader.joint_limits[idx,0]
+                    temp_high = angles.copy()
+                    temp_high[idx] = u_reader.joint_limits[idx,1]
+
+                    space = np.linspace(temp_low, temp_high, div)
+                    space_err = []
+                    for angs in space:
+                        renderer.setJointAngles(angs)
+                        color, depth = renderer.render()
+                        space_err.append(total_err(target_img, target_depth, color, depth))
+
+                        # Evaluate
+                        cv2.imshow("Color",color)
+                        cv2.imshow("Depth",color_array(target_depth-depth))
+                        cv2.waitKey(50)
+
+                    angles = space[space_err.index(min(space_err))]
 
 
 

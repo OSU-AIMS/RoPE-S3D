@@ -1,3 +1,4 @@
+from robotpose.urdf import URDFReader
 from robotpose.simulation.render import SkeletonRenderer
 import numpy as np
 import cv2
@@ -111,6 +112,7 @@ class AreaMatcherStaged():
         self.angle_learning_rate = np.array([1,1,.75,.5,.5,2])
         self.history_length = 8
 
+        self.u_reader = URDFReader()
         self.renderer = SkeletonRenderer('BASE','seg',camera_pose,f'1280_720_color_{self.ds_factor}')
 
 
@@ -132,20 +134,23 @@ class AreaMatcherStaged():
 
 
         # Stages in form:
+        # Sweep:
+        #   Divisions, joints to render, angles to edit
         # Descent: 
-        #   Iterations, joints to render, rate reduction, early stop thresh, edit_angles, inital learning rate
+        #   Iterations, joints to render, rate reduction, early stop thresh, angles to edit, inital learning rate
         # Flip: 
         #   joints to render, edit_angles
-        sl_stage = ['descent',30,3,0.5,.05,[True,True,False,False,False,False],[1.2,1.2,0.75,0.5,0.5,0.5]]
-        u_stage = ['descent',20,6,0.5,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+        l_sweep = ['sweep', 15, 3, [False,True,False,False,False,False]]
+        sl_stage = ['descent',30,3,0.5,.1,[True,True,False,False,False,False],[1.2,.3,0.1,0.5,0.5,0.5]]
+        u_sweep = ['sweep', 20, 6, [False,False,True,False,False,False]]
+        u_stage = ['descent',20,6,0.5,.1,[True,True,True,False,False,False],[None,None,None,None,None,None]]
         s_flip_check = ['flip',6,[True,False,False,False,False,False]]
-        s_check = ['descent',5,6,0.5,.005,[True,False,False,False,False,False],[.1,None,None,None,None,None]]
-        lu_fine_tune = ['descent',5,6,0.5,.001,[True,True,True,False,False,False],[None,.01,.01,None,None,None]]
+        s_check = ['descent',3,6,0.5,.05,[True,False,False,False,False,False],[.1,None,None,None,None,None]]
+        lu_fine_tune = ['descent',5,6,0.5,.01,[True,True,True,False,False,False],[None,.01,.01,None,None,None]]
 
-        stages = [sl_stage, u_stage, s_flip_check, s_check, lu_fine_tune]
+        stages = [l_sweep, sl_stage, u_sweep, u_stage, s_flip_check, s_check, lu_fine_tune]
 
         for stage in stages:
-
 
             if stage[0] == 'descent':
 
@@ -207,6 +212,27 @@ class AreaMatcherStaged():
                     history[0] = angles
                     err_history[1:] = err_history[:-1]
                     err_history[0] = min(err_history[1],err)
+
+            elif stage[0] == 'sweep':
+                do_ang = np.array(stage[3])
+                self.renderer.setMaxParts(stage[2])
+                div = stage[1]
+
+                for idx in np.where(do_ang)[0]:
+                    temp_low = angles.copy()
+                    temp_low[idx] = self.u_reader.joint_limits[idx,0]
+                    temp_high = angles.copy()
+                    temp_high[idx] = self.u_reader.joint_limits[idx,1]
+
+                    space = np.linspace(temp_low, temp_high, div)
+                    space_err = []
+                    for angs in space:
+                        self.renderer.setJointAngles(angs)
+                        color, depth = self.renderer.render()
+                        space_err.append(self._total_err(target_img, target_depth, color, depth))
+
+                    angles = space[space_err.index(min(space_err))]
+
 
         return angles
 
