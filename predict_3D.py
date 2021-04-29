@@ -19,6 +19,7 @@ from robotpose.utils import reject_outliers_iqr
 from robotpose.turbo_colormap import color_array
 from tqdm import tqdm
 import json
+import os
 
 from robotpose.angle_prediction import Predictor
 
@@ -26,7 +27,7 @@ setMemoryGrowth()
 
 predict = False
 save = False
-skele = 'E'
+skele = 'F'
 ds = Dataset('set10',skele)
 
 if predict:

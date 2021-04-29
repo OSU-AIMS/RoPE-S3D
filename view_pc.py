@@ -15,7 +15,7 @@ def test():
 
     
 
-    ds = Dataset('set0','B')
+    ds = Dataset('set10','B')
     map = np.copy(ds.pointmaps[...,2])
     for idx in range(ds.length):
         colored = color_array(map[idx])

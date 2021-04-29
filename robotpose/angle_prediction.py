@@ -153,6 +153,8 @@ class Predictor(Skeleton):
             z[np.where(detected)] = estimate
             self.full_prediction_history[joint_name]["estimated"].append(z.astype(bool))
     
+        if len(estimate) == 0:
+            return pred, 1
         return pred, sum(estimate) / len(estimate)
 
 

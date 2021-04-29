@@ -76,7 +76,7 @@ class AreaMatcher():
     def _downsample(self, base, factor):
         dims = [x//factor for x in base.shape[0:2]]
         dims.reverse()
-        return cv2.resize(base, tuple(dims))
+        return cv2.resize(base, tuple(dims), interpolation=cv2.INTER_LANCZOS4)
 
     def _mask_err(self, target, render):
         # Returns 0-1 (1 is bad, 0 is good)

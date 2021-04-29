@@ -35,7 +35,7 @@ def total_err(tgt_color, tgt_depth, render_color, render_depth):
 def downsample(base, factor):
     dims = [x//factor for x in base.shape[0:2]]
     dims.reverse()
-    return cv2.resize(base, tuple(dims))
+    return cv2.resize(base, tuple(dims), interpolation=cv2.INTER_LANCZOS4)
 
 
 def show(color, depth, target_depth):
@@ -43,12 +43,14 @@ def show(color, depth, target_depth):
     dim = [x*2 for x in size]
     dim.reverse()
     dim = tuple(dim)
-    color = cv2.resize(color, dim)
-    depth = cv2.resize(depth, dim)
+    color = cv2.resize(color, dim, interpolation=cv2.INTER_NEAREST)
+    depth = cv2.resize(depth, dim, interpolation=cv2.INTER_NEAREST)
     target_depth = cv2.resize(target_depth, dim)
     cv2.imshow("Color",color)
-    cv2.imshow("Depth",color_array(target_depth-depth))
-    cv2.waitKey(100)
+    d = cv2.addWeighted(color_array(target_depth), .5, color_array(depth),.5,0)
+
+    cv2.imshow("Depth",d)
+    cv2.waitKey(1)
 
 
 
@@ -59,7 +61,7 @@ WIDTH = 800
 renderer = SkeletonRenderer('BASE','seg',CAMERA_POSE,'1280_720_color_8')
 ds = Dataset('set10')
 
-idx = 302
+idx = 614
 true = ds.angles[idx]
 
 print(true)
@@ -107,6 +109,7 @@ u_reader = URDFReader()
 #   Iterations, joints to render, rate reduction, early stop thresh, edit_angles, inital learning rate
 # Flip: 
 #   joints to render, edit_angles
+s_sweep = ['sweep', 10, 2, [True,False,False,False,False,False]]
 l_sweep = ['sweep', 10, 3, [False,True,False,False,False,False]]
 sl_stage = ['descent',30,3,0.5,.1,[True,True,False,False,False,False],[1.2,.3,0.1,0.5,0.5,0.5]]
 u_sweep = ['sweep', 15, 6, [False,False,True,False,False,False]]
@@ -115,7 +118,7 @@ s_flip_check = ['flip',6,[True,False,False,False,False,False]]
 s_check = ['descent',5,6,0.5,.01,[True,False,False,False,False,False],[.1,None,None,None,None,None]]
 lu_fine_tune = ['descent',5,6,0.5,.01,[True,True,True,False,False,False],[None,.01,.01,None,None,None]]
 
-stages = [l_sweep, sl_stage, u_sweep, u_stage, s_flip_check, s_check, lu_fine_tune]
+stages = [s_sweep, l_sweep, sl_stage, u_sweep, u_stage, s_flip_check, s_check, lu_fine_tune]
 
 for stage in stages:
 
@@ -214,7 +217,7 @@ print(np.array(angles))
 print((true - angles)*(180/np.pi))
 
 
-dp_err = np.array(dp_err)
+dp_err = 5 * np.array(dp_err)
 mk_err = np.array(mk_err)
 
 plt.plot(dp_err,label='Depth')

@@ -39,7 +39,7 @@ def run(dataset, skeleton, model_type, batch_size, valid_size):
                                         augmenter=None,
                                         sigma=5,
                                         validation_split=valid_size, 
-                                        use_graph=True,
+                                        use_graph=False,
                                         random_seed=1,
                                         graph_scale=1)
         print("Training Generator loaded")
