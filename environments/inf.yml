@@ -1,24 +1,24 @@
-name: deeprobot
+name: deeprobot-inf
 channels:
   - conda-forge
   - defaults
 dependencies:
-  - certifi=2020.12.5=py36ha15d459_1
-  - geos=3.9.1=h39d44d4_0
-  - intel-openmp=2020.3=h57928b3_311
-  - libblas=3.9.0=8_mkl
-  - libcblas=3.9.0=8_mkl
-  - liblapack=3.9.0=8_mkl
-  - mkl=2020.4=hb70f87d_311
-  - pip=20.3.3=py36haa95532_0
-  - python=3.6.4=h0c2934d_3
-  - python_abi=3.6=1_cp36m
-  - setuptools=52.0.0=py36haa95532_0
-  - shapely=1.7.1=py36hd33d9d6_4
-  - vc=14.2=h21ff451_1
-  - vs2015_runtime=14.27.29016=h5e58377_2
-  - wheel=0.36.2=pyhd3eb1b0_0
-  - wincertstore=0.2=py36h7fe50ca_0
+  - certifi=2020.12.5
+  - geos=3.9.1
+  - intel-openmp=2020.3
+  - libblas=3.9.0
+  - libcblas=3.9.0
+  - liblapack=3.9.0
+  - mkl=2020.4
+  - pip=20.3.3
+  - python=3.6.4
+  - python_abi=3.6
+  - setuptools=52.0.0
+  - shapely=1.7.1
+  - vc=14.2
+  - vs2015_runtime=14.27.29016
+  - wheel=0.36.2
+  - wincertstore=0.2
   - pip:
     - absl-py==0.11.0
     - argon2-cffi==20.1.0
@@ -83,7 +83,7 @@ dependencies:
     - nest-asyncio==1.5.1
     - networkx==2.5
     - notebook==6.2.0
-    - numpy==1.19.5
+    - numpy==1.19.2
     - oauthlib==3.1.0
     - open3d==0.12.0
     - opencv-python==4.5.1.48
@@ -154,5 +154,5 @@ dependencies:
     - wrapt==1.12.1
     - xmljson==0.2.1
     - zipp==3.4.0
-prefix: C:\Users\exley\anaconda3\envs\deeprobot
+prefix: C:\Users\exley\anaconda3\envs\deeprobot-inf
 
