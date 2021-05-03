@@ -14,6 +14,7 @@ import multiprocessing as mp
 import numpy as np
 import os
 import time
+from psutil import virtual_memory
 
 import cv2
 import h5py
@@ -161,16 +162,21 @@ class Builder():
         self.mask_arr = np.zeros((self.length, self.img_height, self.img_width), dtype=bool)
         self.rois = np.zeros((self.length, 4))
 
-        batch_size = 75
+        memory_size = virtual_memory().total
+        batch_size = int(np.around((72.1348 * np.log(memory_size) - 1600)/5) * 5)
+        if batch_size < 25:
+            batch_size = 25
+
+        print(f"Detected {int(memory_size/1073741824)+1}GB of RAM")
         print(f"Using Crop Pool of size {batch_size} with {workerCount()} workers.")
-        with tqdm(total=self.length, desc="Segmenting Images") as pbar:
+        with tqdm(total=self.length, desc="Creating Segmented Images",position=0,colour="green") as pbar:
             for start in range(0,self.length, batch_size):
 
                 if start + batch_size >= self.length:
                     batch_size = self.length - start
 
                 # Segment images
-                for idx in range(start,start+batch_size):
+                for idx in tqdm(range(start,start+batch_size),desc="Segmenting Images",position=1,leave=False,colour="red"):
                     self.mask_arr[idx], self.rois[idx] = segmenter.segmentImage(self.orig_img_arr[idx])
                 self.rois = self.rois.astype(int)
 

@@ -109,6 +109,10 @@ Install requirements with pip:
 pip install --upgrade --r requirements.txt
 ```
 
+### Known Issues
+
+#### PixelLib
+
 Sometimes Pixellib will not work after all installations have been completed when using Tensorflow 2.0.0. To fix this error, upgrade and downgrade Tensorflow.
 
 ```bash
@@ -116,8 +120,19 @@ pip install --upgrade tensorflow-gpu
 pip install --upgrade tensorflow-gpu==2.0.0
 ```
 
-***Note:*** Numpy **1.19.5** may be automatically installed with tensorflow. This version of Numpy presents memory issues on some machines when running Multiprocessing, as this repository does.
-Numpy **1.19.2** should work with this repository 
+#### Numpy
+
+Numpy **1.19.5** may be automatically installed with tensorflow. This version of Numpy presents memory issues on some machines when running Multiprocessing, as this repository does.
+
+Numpy **1.19.2** should work with this repository.
+
+#### Keras
+
+Keras sometimes includes ```.decode('utf8')``` in its code. This is unnecessary, and causes issues when loading and saving hd5f files.
+
+Notably, every instance of ```.decode('utf8')``` in ```"lib\site-packages\tensorflow_core\python\keras\saving\hdf5_format.py"``` can be removed.
+
+This will often cause issues when loading a model for segmentation.
 
 # License
 
