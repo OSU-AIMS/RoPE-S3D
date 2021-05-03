@@ -2,7 +2,6 @@ from robotpose.simulation.render import SkeletonRenderer
 from robotpose import Dataset
 import numpy as np
 import cv2
-from robotpose.turbo_colormap import color_array
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
@@ -84,25 +83,12 @@ dp_err = np.array(dp_err)
 mk_err = np.array(mk_err)
 
 
-# plt.plot(space,dp_err,label='Depth')
-# plt.plot(space,mk_err,label='Shadow')
-# plt.plot(space,dp_err + mk_err,label='Total')
-# plt.axvline(x=ds.angles[idx,0], color='red')
-# plt.legend()
-# plt.show()
-
-
 fig = plt.figure()
 ax = plt.axes(projection='3d')
 ax.plot_surface(sv, lv, err, rstride=1, cstride=1,cmap='viridis', edgecolor='none')
 ax.set_xlabel('S')
 ax.set_ylabel('L')
 plt.show()
-
-# cv2.imshow("test", color_array(target_depth-depth))
-# print(np.mean(target_depth))
-# print(np.mean(depth))
-# cv2.waitKey(0)
 
 
 

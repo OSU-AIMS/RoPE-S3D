@@ -20,7 +20,7 @@ def makePresetIntrinsics(preset = '1280_720_color'):
     Arguments:
     preset: string of the preset to use
 
-    Presets 
+    Presets can be downscaled by adding '_x' to the end with x being a downscale factor
     """
 
     def get_details(preset):
@@ -46,7 +46,6 @@ def makePresetIntrinsics(preset = '1280_720_color'):
     coeff = [0,0,0,0,0]
 
     bases = ['1280_720_color', '1280_720_depth','640_480_color','640_480_depth']
-    valid = False
     for base in bases:
         if preset == base:
             res, pp, f = get_details(preset)

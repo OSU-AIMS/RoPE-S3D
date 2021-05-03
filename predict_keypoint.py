@@ -10,15 +10,12 @@
 from deepposekit.models import load_model
 from deepposekit.io import VideoReader
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 from robotpose.utils import *
 from robotpose.paths import Paths as p
 from robotpose import Dataset
-from robotpose.utils import reject_outliers_iqr
 from robotpose.turbo_colormap import color_array
 from tqdm import tqdm
-import json
 import os
 
 from robotpose.angle_prediction import Predictor

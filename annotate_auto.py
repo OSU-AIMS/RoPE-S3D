@@ -13,9 +13,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # or any {'0', '1', '2'}
 import tensorflow as tf
 
-from robotpose.autoAnnotate import AutomaticKeypointAnnotator, AutomaticSegmentationAnnotator
-from robotpose.render import DatasetRenderer
-
+from robotpose import AutomaticKeypointAnnotator, AutomaticSegmentationAnnotator, DatasetRenderer
 
 def label(args):
     rend = DatasetRenderer(args.dataset, args.skeleton)
