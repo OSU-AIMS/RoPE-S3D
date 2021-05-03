@@ -25,7 +25,7 @@ class RobotSegmenter():
         self.master.inferConfig(num_classes= 1, class_names= ["BG", "mh5"])
         self.master.load_model(model_path)
         self.crop_resolution = resolution
-        self.intrinsics = proj.makeIntrinsics(intrinsics)
+        self.intrinsics = proj.makePresetIntrinsics(intrinsics)
 
     def height(self):
         return self.crop_resolution[0]

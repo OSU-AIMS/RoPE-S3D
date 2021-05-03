@@ -17,9 +17,8 @@ from deepposekit import Annotator
 import PySimpleGUI as sg
 
 from .data import DatasetInfo, Dataset
-from .render import Aligner
 from .skeleton import Skeleton, SkeletonInfo
-from .simulation import SkeletonRenderer
+from .simulation import SkeletonRenderer, Aligner
 from .urdf import URDFReader
 from .utils import expandRegion
 

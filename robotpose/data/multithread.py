@@ -15,7 +15,7 @@ from ..utils import expandRegion
 def crop(depthmap, image, mask, roi):
 
     # Convert depthmap to pointmap
-    intrin = proj.makeIntrinsics()
+    intrin = proj.makePresetIntrinsics()
     pointmap = proj.deproj_depthmap_to_pointmap(intrin, depthmap)
     #pointmap = proj.deproj_depthmap_to_pointmap_different(proj.makeIntrinsics('1280_720_depth'),proj.makeIntrinsics(), depthmap)
     #pointmap = proj.deproj_depthmap_to_pointmap(intrin, depthmap[roi[0]:roi[2],roi[1]:roi[3]], x_offset=roi[1], y_offset=roi[0])

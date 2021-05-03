@@ -1,10 +1,8 @@
-from robotpose.utils import Grapher, workerCount
-from robotpose.area import AreaMatcher, AreaMatcherStaged
+from robotpose.utils import Grapher
+from robotpose.experimental.area import AreaMatcher, AreaMatcherStaged
 from robotpose import Dataset
 import numpy as np
 from tqdm import tqdm
-import multiprocessing as mp
-from robotpose.simulation import SkeletonRenderer
 
 WIDTH = 800
 
@@ -47,21 +45,3 @@ for pred in out:
 g = Grapher(['S','L','U'],out_dicts,np.copy(ds.angles))
 g.plot()
 g.plot(20)
-
-
-
-# inp = []
-
-# for idx in tqdm(range(end-start)):
-#     inp.append([target_imgs[idx], target_depths[idx], cam_poses[idx]])
-
-# class Boi():
-#     def __init__(self, inputs):
-#         self.am = AreaMatcher(ds_factor=8)
-
-#         with mp.Pool(workerCount()) as pool:
-#             out = pool.starmap(self.am.run, inputs)
-
-#         print(out)
-
-# Boi(inp)

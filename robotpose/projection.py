@@ -13,32 +13,60 @@ import pyrealsense2 as rs
 
 FLT_EPSILON = 1
 
-def makeIntrinsics(preset = '1280_720_color'):
+def makePresetIntrinsics(preset = '1280_720_color'):
     """
     Make Realsense Intrinsics from presets that are commonly used.
 
     Arguments:
     preset: string of the preset to use
+
+    Presets 
     """
 
-    valid = ['1280_720_color', '1280_720_depth','640_480_color','640_480_depth','1280_720_color_4','1280_720_color_8','1280_720_color_16']
-    if preset not in valid:
-        raise ValueError(f"Res must be one of: {valid}")
+    def get_details(preset):
+        if preset == '1280_720_color':
+            res = (1280,720)
+            pp = (638.391,361.493)
+            f = (905.23, 904.858)
+        elif preset == '1280_720_depth':
+            res = (1280,720)
+            pp = (639.459,359.856)
+            f = (635.956, 635.956)
+        elif preset == '640_480_color':
+            res = (640,480)
+            pp = (320.503,237.288)
+            f = (611.528,611.528)
+        elif preset == '640_480_depth':
+            res = (640,480)
+            pp = (321.635,241.618)
+            f = (385.134,385.134)
+        return res, pp, f
 
-    if preset == '1280_720_color':
-        return intrin((1280,720), (638.391,361.493), (905.23, 904.858), rs.distortion.inverse_brown_conrady, [0,0,0,0,0])
-    if preset == '1280_720_color_4':
-        return intrin((320,180), (159.59,90.37325), (226.3075, 226.145), rs.distortion.inverse_brown_conrady, [0,0,0,0,0])
-    if preset == '1280_720_color_8':
-        return intrin((160,90), (79.798875, 45.186625), (113.15375, 113.10725), rs.distortion.inverse_brown_conrady, [0,0,0,0,0])
-    if preset == '1280_720_color_16':
-        return intrin((80,45), (39.8994375, 22.5933125), (56.576875, 56.553625), rs.distortion.inverse_brown_conrady, [0,0,0,0,0])
-    elif preset == '1280_720_depth':
-        return intrin((1280,720), (639.459,359.856), (635.956, 635.956),rs.distortion.brown_conrady, [0,0,0,0,0])
-    elif preset == '640_480_color':
-        return intrin((640,480), (320.503,237.288), (611.528,611.528),rs.distortion.brown_conrady, [0,0,0,0,0])
-    elif preset == '640_480_depth':
-        return intrin((640,480), (321.635,241.618), (385.134,385.134),rs.distortion.brown_conrady, [0,0,0,0,0])
+    dist = rs.distortion.brown_conrady
+    coeff = [0,0,0,0,0]
+
+    bases = ['1280_720_color', '1280_720_depth','640_480_color','640_480_depth']
+    valid = False
+    for base in bases:
+        if preset == base:
+            res, pp, f = get_details(preset)
+            return intrin(res,pp,f,dist,coeff)
+        elif (base + '_') in preset:
+            ds_factor = int(preset.replace((base + '_'),''))
+            res, pp, f = get_details(base)
+            downscale_res = [x/ds_factor for x in res]
+            res_is_valid = [int(x) == round(x) for x in downscale_res]
+            if sum(res_is_valid) != 2:
+                raise ValueError(f"Downscaling by a factor of {ds_factor} is not valid for this resolution.")
+            else:
+                res = tuple([x//ds_factor for x in res])
+                pp = tuple([x/ds_factor for x in pp])
+                f = tuple([x/ds_factor for x in f])
+                return intrin(res,pp,f,dist,coeff)
+
+    raise ValueError(f"Preset must be one of: {bases}\nDownscaling a preset can be done by appending '_x' to a preset where x is a valid number.")
+
+
 
 
 def intrin(resolution, pp, f, model, coeffs):
