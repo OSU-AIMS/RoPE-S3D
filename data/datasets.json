@@ -2,12 +2,10 @@
     "compiled": {
         "full": {
             "names": [
-                "set10",
-                "set2"
+                "set10"
             ],
             "paths": [
-                "data/set10\\set10.h5",
-                "data/set2\\set2.h5"
+                "data/set10\\set10.h5"
             ]
         },
         "train": {
@@ -25,12 +23,12 @@
     },
     "uncompiled": {
         "names": [
-            "set10",
-            "set2"
+            "set0",
+            "set10"
         ],
         "paths": [
-            "data/raw\\set10.zip",
-            "data/raw\\set2.zip"
+            "data/raw\\set0.zip",
+            "data/raw\\set10.zip"
         ]
     }
 }

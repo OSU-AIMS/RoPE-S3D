@@ -189,7 +189,8 @@ class Grapher():
             axs[idx,0].plot(self.real_angles[:,idx])
             axs[idx,0].plot(self.angles[:,idx],color='purple')
             for val,x in zip(self.percent_estimated[:,idx], range(len(self.percent_estimated[:,idx]))):
-                axs[idx,0].axvspan(x-.5, x+.5, color='red', alpha=val, ec=None)
+                #axs[idx,0].axvspan(x-.5, x+.5, color='red', alpha=val, ec=None)
+                pass
 
         err = self.angles - self.real_angles
         zeros_err = np.zeros(err.shape[0])
@@ -202,7 +203,8 @@ class Grapher():
             if y_lim is not None:
                 axs[idx,1].set_ylim([-y_lim,y_lim])
             for val,x in zip(self.percent_estimated[:,idx], range(len(self.percent_estimated[:,idx]))):
-                axs[idx,1].axvspan(x-.5, x+.5, color='red', alpha=val, ec=None)
+                #axs[idx,1].axvspan(x-.5, x+.5, color='red', alpha=val, ec=None)
+                pass
 
 
         avg_err = np.mean(np.abs(err),0)

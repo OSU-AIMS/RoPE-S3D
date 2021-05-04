@@ -1,8 +1,20 @@
-from robotpose.urdf import URDFReader
-from robotpose.simulation.render import SkeletonRenderer
+# Software License Agreement (Apache 2.0 License)
+#
+# Copyright (c) 2021, The Ohio State University
+# Center for Design and Manufacturing Excellence (CDME)
+# The Artificially Intelligent Manufacturing Systems Lab (AIMS)
+# All rights reserved.
+#
+# Author: Adam Exley
+
 import numpy as np
+
 import cv2
 from pixellib.instance import custom_segmentation
+
+from robotpose.simulation.render import SkeletonRenderer
+from robotpose.urdf import URDFReader
+from ..turbo_colormap import color_array
 
 
 CAMERA_POSE = [.042,-1.425,.399, -.01,1.553,-.057]
@@ -177,12 +189,13 @@ class AreaMatcherStaged():
 
 
 class AreaMatcherStagedZonedError():
-    def __init__(self, camera_pose = CAMERA_POSE, ds_factor = 8):
+    def __init__(self, camera_pose = CAMERA_POSE, ds_factor = 8, preview = False):
         self.camera_pose = camera_pose
         self.ds_factor = ds_factor
         self.do_angle = np.array([True,True,True,False,False,False])
         self.angle_learning_rate = np.array([1,1,.75,.5,.5,2])
-        self.history_length = 8
+        self.history_length = 4
+        self.preview = preview
 
         self.u_reader = URDFReader()
         self.renderer = SkeletonRenderer('BASE','seg',camera_pose,f'1280_720_color_{self.ds_factor}')
@@ -222,15 +235,37 @@ class AreaMatcherStagedZonedError():
         #   Iterations, joints to render, rate reduction, early stop thresh, angles to edit, inital learning rate
         # Flip: 
         #   joints to render, edit_angles
-        l_sweep = ['sweep', 15, 3, [False,True,False,False,False,False]]
-        sl_stage = ['descent',30,3,0.5,.1,[True,True,False,False,False,False],[1.2,.3,0.1,0.5,0.5,0.5]]
+        # l_sweep = ['sweep', 15, 3, [False,True,False,False,False,False]]
+        # sl_stage = ['descent',30,3,0.5,.1,[True,True,False,False,False,False],[1.2,.3,0.1,0.5,0.5,0.5]]
+        # u_sweep = ['sweep', 20, 6, [False,False,True,False,False,False]]
+        # u_stage = ['descent',20,6,0.5,.1,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+        # s_flip_check = ['flip',6,[True,False,False,False,False,False]]
+        # s_check = ['descent',3,6,0.5,.05,[True,False,False,False,False,False],[.1,None,None,None,None,None]]
+        # lu_fine_tune = ['descent',5,6,0.5,.01,[True,True,True,False,False,False],[None,.01,.01,None,None,None]]
+
+        # stages = [l_sweep, sl_stage, u_sweep, u_stage, s_flip_check, s_check, lu_fine_tune]
+
+
+        # s_sweep = ['sweep', 15, 2, [True,False,False,False,False,False]]
+        # l_sweep = ['sweep', 15, 3, [False,True,False,False,False,False]]
+        # sl_rough = ['descent',15,3,0.5,.25,[True,True,False,False,False,False],[0.3,0.2,0.075,0.5,0.5,0.5]]
+        # u_sweep = ['sweep', 15, 6, [False,False,True,False,False,False]]
+        # u_stage = ['descent',20,6,0.5,.1,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+        # s_flip_check = ['flip',6,[True,False,False,False,False,False]]
+        # s_check = ['descent',3,6,0.4,.05,[True,False,False,False,False,False],[.1,None,None,None,None,None]]
+        # lu_fine_tune = ['descent',5,6,0.25,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+
+        # stages = [s_sweep, l_sweep, sl_rough, u_sweep, u_stage, s_flip_check, s_check, lu_fine_tune]
+
+        s_sweep = ['sweep', 20, 2, [True,False,False,False,False,False]]
+        l_sweep = ['sweep', 20, 3, [False,True,False,False,False,False]]
+        sl_rough = ['descent',10,3,0.5,.25,[True,True,False,False,False,False],[0.5,0.2,0.075,0.5,0.5,0.5]]
         u_sweep = ['sweep', 20, 6, [False,False,True,False,False,False]]
         u_stage = ['descent',20,6,0.5,.1,[True,True,True,False,False,False],[None,None,None,None,None,None]]
         s_flip_check = ['flip',6,[True,False,False,False,False,False]]
-        s_check = ['descent',3,6,0.5,.05,[True,False,False,False,False,False],[.1,None,None,None,None,None]]
-        lu_fine_tune = ['descent',5,6,0.5,.01,[True,True,True,False,False,False],[None,.01,.01,None,None,None]]
+        lu_fine_tune = ['descent',5,6,0.5,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
 
-        stages = [l_sweep, sl_stage, u_sweep, u_stage, s_flip_check, s_check, lu_fine_tune]
+        stages = [s_sweep, l_sweep, sl_rough, s_flip_check, u_sweep, u_stage, s_flip_check, lu_fine_tune]
 
         for stage in stages:
 
@@ -268,6 +303,11 @@ class AreaMatcherStagedZonedError():
                         else:
                             angles[idx] -= angle_learning_rate[idx]
 
+                        if self.preview:
+                            self.renderer.setJointAngles(angles)
+                            color, depth = self.renderer.render()
+                            self._show(color, depth, target_depth)
+
                     history[1:] = history[:-1]
                     history[0] = angles
 
@@ -290,7 +330,12 @@ class AreaMatcherStagedZonedError():
 
                     if err < err_history[0]:
                         angles[idx] *= -1
-                    
+
+                    if self.preview:
+                        self.renderer.setJointAngles(angles)
+                        color, depth = self.renderer.render()
+                        self._show(color, depth, target_depth)
+
                     history[1:] = history[:-1]
                     history[0] = angles
                     err_history[1:] = err_history[:-1]
@@ -313,9 +358,10 @@ class AreaMatcherStagedZonedError():
                         self.renderer.setJointAngles(angs)
                         color, depth = self.renderer.render()
                         space_err.append(self._total_err(segmentation_data,stage[2], target_img, target_depth, color, depth))
+                        if self.preview:
+                            self._show(color, depth, target_depth)
 
                     angles = space[space_err.index(min(space_err))]
-
 
         return angles
 
@@ -343,7 +389,7 @@ class AreaMatcherStagedZonedError():
         render_mask = ~(np.all(render == [0, 0, 0], axis=-1))
 
         # Take IOU of arrays
-        overlap = target_mask*render_mask # Logical AND
+        overlap = target_mask * render_mask # Logical AND
         union = target_mask + render_mask # Logical OR
         iou = overlap.sum()/float(union.sum())
         return 1 - iou     
@@ -356,8 +402,8 @@ class AreaMatcherStagedZonedError():
         if np.all([x in seg_data.keys() for x in self.link_names[:num_joints]]):
             joint_masks = seg_data[self.link_names[0]]['mask']
             for idx in range(num_joints):
-                joint_masks = joint_masks | seg_data[self.link_names[idx]]['mask']
-            target_mask = target_mask & joint_masks
+                joint_masks = joint_masks + seg_data[self.link_names[idx]]['mask']
+            target_mask = target_mask * joint_masks
 
         render_masked = render * target_mask
         diff = target - render_masked
@@ -367,4 +413,20 @@ class AreaMatcherStagedZonedError():
         
 
     def _total_err(self, seg_data, num_joints, tgt_color, tgt_depth, render_color, render_depth):
-        return 5*self._depth_err(seg_data, num_joints,tgt_depth,render_depth) + self._mask_err(tgt_color, render_color)
+        return 5*self._depth_err(seg_data,num_joints,tgt_depth,render_depth) + self._mask_err(tgt_color, render_color)
+
+
+    def _show(self, color, depth, target_depth):
+        size = color.shape[0:2]
+        dim = [x*2 for x in size]
+        dim.reverse()
+        dim = tuple(dim)
+        color = cv2.resize(color, dim, interpolation=cv2.INTER_NEAREST)
+        depth = cv2.resize(depth, dim, interpolation=cv2.INTER_NEAREST)
+        target_depth = cv2.resize(target_depth, dim)
+        cv2.imshow("Color",color)
+        d = color_array(target_depth - depth)
+        #d = cv2.addWeighted(color_array(target_depth), .5, color_array(depth),.5,0)
+
+        cv2.imshow("Depth",d)
+        cv2.waitKey(100)

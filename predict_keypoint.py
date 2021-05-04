@@ -24,7 +24,7 @@ setMemoryGrowth()
 
 predict = False
 save = False
-skele = 'F'
+skele = 'E'
 ds = Dataset('set10',skele)
 
 if predict:
@@ -64,7 +64,7 @@ with tqdm(total=ds.length) as pbar:
         pred = tim.predict()
 
         # Put depth info on overlay
-        over = color_array(pointmaps[i,...,2])
+        #over = color_array(pointmaps[i,...,2])
         #Visualize lines
         image = tim.visualize(image)
         over = tim.visualize(over)
