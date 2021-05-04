@@ -17,9 +17,9 @@ import h5py
 from labelme.label_file import LabelFile
 from tqdm import tqdm
 
-from .data import Dataset
-from .simulation.render import DatasetRenderer
-from .utils import workerCount, expandRegion
+from .dataset import Dataset
+from ..simulation.render import DatasetRenderer
+from ..utils import workerCount, expandRegion
 
 
 def makeMask(image):
