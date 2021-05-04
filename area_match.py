@@ -245,8 +245,8 @@ WIDTH = 800
 am = AreaMatcherStagedZonedError(ds_factor=8, preview=True)
 ds = Dataset('set10')
 
-start = 670
-end = 675
+start = 801
+end = 802
 
 print("Copying Data...")
 roi_start = np.copy(ds.rois[start:end,1])

@@ -193,8 +193,8 @@ class AreaMatcherStagedZonedError():
         self.camera_pose = camera_pose
         self.ds_factor = ds_factor
         self.do_angle = np.array([True,True,True,False,False,False])
-        self.angle_learning_rate = np.array([1,1,.75,.5,.5,2])
-        self.history_length = 4
+        self.min_learning_rate = np.array([.005]*6)
+        self.history_length = 5
         self.preview = preview
 
         self.u_reader = URDFReader()
@@ -235,16 +235,6 @@ class AreaMatcherStagedZonedError():
         #   Iterations, joints to render, rate reduction, early stop thresh, angles to edit, inital learning rate
         # Flip: 
         #   joints to render, edit_angles
-        # l_sweep = ['sweep', 15, 3, [False,True,False,False,False,False]]
-        # sl_stage = ['descent',30,3,0.5,.1,[True,True,False,False,False,False],[1.2,.3,0.1,0.5,0.5,0.5]]
-        # u_sweep = ['sweep', 20, 6, [False,False,True,False,False,False]]
-        # u_stage = ['descent',20,6,0.5,.1,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-        # s_flip_check = ['flip',6,[True,False,False,False,False,False]]
-        # s_check = ['descent',3,6,0.5,.05,[True,False,False,False,False,False],[.1,None,None,None,None,None]]
-        # lu_fine_tune = ['descent',5,6,0.5,.01,[True,True,True,False,False,False],[None,.01,.01,None,None,None]]
-
-        # stages = [l_sweep, sl_stage, u_sweep, u_stage, s_flip_check, s_check, lu_fine_tune]
-
 
         # s_sweep = ['sweep', 15, 2, [True,False,False,False,False,False]]
         # l_sweep = ['sweep', 15, 3, [False,True,False,False,False,False]]
@@ -259,13 +249,16 @@ class AreaMatcherStagedZonedError():
 
         s_sweep = ['sweep', 20, 2, [True,False,False,False,False,False]]
         l_sweep = ['sweep', 20, 3, [False,True,False,False,False,False]]
-        sl_rough = ['descent',10,3,0.5,.25,[True,True,False,False,False,False],[0.5,0.2,0.075,0.5,0.5,0.5]]
-        u_sweep = ['sweep', 20, 6, [False,False,True,False,False,False]]
-        u_stage = ['descent',20,6,0.5,.1,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-        s_flip_check = ['flip',6,[True,False,False,False,False,False]]
-        lu_fine_tune = ['descent',5,6,0.5,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+        s_flip_check_3 = ['flip',3,[True,False,False,False,False,False]]
+        sl_rough = ['descent',15,3,0.7,.2,[True,True,False,False,False,False],[0.8,0.5,0.075,0.5,0.5,0.5]]
+        u_sweep = ['sweep', 5, 6, [False,False,True,False,False,False]]
+        slu_stage = ['descent',5,6,0.6,.1,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+        sl_stage = ['descent',5,6,0.5,.1,[True,True,False,False,False,False],[None,None,None,None,None,None]]
+        u_sweep_2 = ['sweep', 20, 6, [False,False,True,False,False,False]]
+        s_flip_check_6 = ['flip',6,[True,False,False,False,False,False]]
+        lu_fine_tune = ['descent',10,6,0.4,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
 
-        stages = [s_sweep, l_sweep, sl_rough, s_flip_check, u_sweep, u_stage, s_flip_check, lu_fine_tune]
+        stages = [s_sweep, l_sweep, s_flip_check_3, sl_rough, s_flip_check_3, u_sweep, slu_stage, sl_stage, u_sweep_2, slu_stage, s_flip_check_6, lu_fine_tune]
 
         for stage in stages:
 
@@ -280,8 +273,11 @@ class AreaMatcherStagedZonedError():
 
                 for i in range(stage[1]):
                     for idx in np.where(do_ang)[0]:
+
                         if abs(np.mean(history,0)[idx] - angles[idx]) <= angle_learning_rate[idx]:
                             angle_learning_rate[idx] *= stage[3]
+
+                        angle_learning_rate = np.max((angle_learning_rate,self.min_learning_rate),0)
 
                         temp = angles.copy()
                         temp[idx] -= angle_learning_rate[idx]
@@ -300,7 +296,7 @@ class AreaMatcherStagedZonedError():
 
                         if over_err < under_err:
                             angles[idx] += angle_learning_rate[idx]
-                        else:
+                        elif over_err > under_err:
                             angles[idx] -= angle_learning_rate[idx]
 
                         if self.preview:
@@ -314,6 +310,10 @@ class AreaMatcherStagedZonedError():
                     err_history[1:] = err_history[:-1]
                     err_history[0] = min(over_err, under_err)
                     if abs(np.mean(err_history) - err_history[0])/err_history[0] < stage[4]:
+                        break
+
+                    # Angle not changing
+                    if (history[:3] == history[0]).all():
                         break
 
             elif stage[0] == 'flip':
@@ -429,4 +429,4 @@ class AreaMatcherStagedZonedError():
         #d = cv2.addWeighted(color_array(target_depth), .5, color_array(depth),.5,0)
 
         cv2.imshow("Depth",d)
-        cv2.waitKey(100)
+        cv2.waitKey(50)
