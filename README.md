@@ -42,7 +42,7 @@ To create a skeleton, follow the instructions in the wizard: ```python wizard.py
 
 ## Datasets
 
-Datasets are expected to contain RGB images in a ```.png``` format with accopanying depthmaps in a ```.npy``` array file, and a ```.json``` information file.
+Datasets are expected to contain RGB images in a ```.png``` format with accompanying depthmaps in a ```.npy``` array file, and a ```.json``` information file.
 
 To build, or recompile a dataset, simply run the wizard with arguments:
 ```bash
