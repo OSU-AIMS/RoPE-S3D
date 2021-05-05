@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 import os
+import sys
 import json
 from .CompactJSONEncoder import CompactJSONEncoder
 import numpy as np
@@ -45,7 +46,11 @@ class URDFReader():
         self.meshes = []
         for link in root.findall('link'):
             self.meshes.append(link.find('visual').find('geometry').find('mesh').get('filename'))
-        self.meshes = [os.path.join('urdf',x.replace('package://',"").replace('STL','stl')) for x in self.meshes]
+        if sys.platform == 'win32':
+            fileend = 'stl'
+        elif sys.platform == 'linux':
+            fileend = 'STL'
+        self.meshes = [os.path.join('urdf',x.replace('package://',"").replace('STL',fileend)) for x in self.meshes]
         self.mesh_names = [os.path.splitext(os.path.basename(x))[0] for x in self.meshes]
 
         self.joint_limits = []
