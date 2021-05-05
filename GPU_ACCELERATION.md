@@ -3,7 +3,7 @@ sudo apt-get update
 ```
 
 ```bash
-sudo apt-get gcc pkg-config zlib1g-dev libexpat1-dev libexrandr-dev
+sudo apt-get gcc pkg-config zlib1g-dev libexpat1-dev libexrandr-dev python3-tk
 ```
 
 ```bash

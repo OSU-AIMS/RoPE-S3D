@@ -54,7 +54,7 @@ class MeshLoader():
     def load(self):
         self.meshes = []
         for file, pose in zip(self.mesh_list, self.pose_list):
-            tm = trimesh.load(file)
+            tm = trimesh.load(os.path.join(os.getcwd(),file))
             self.meshes.append(pyrender.Mesh.from_trimesh(tm,smooth=True, poses=makePose(*pose)))
 
     def getMeshes(self):
