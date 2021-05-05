@@ -31,6 +31,8 @@ og_imgs = np.copy(ds.og_img[start:end])
 seg_img = np.copy(ds.seg_img[start:end])
 dms = np.copy(ds.pointmaps[start:end,...,2])
 cam_poses = np.copy(ds.camera_pose[start:end])
+angles = np.copy(ds.angles[start:end])
+angles[:,:3] += (np.random.rand(*(angles[:,:3].shape)) - .5) * 1
 
 for i,s in zip(range(end-start),roi_start):
     target_imgs[i,:,s:s+WIDTH] = seg_img[i]

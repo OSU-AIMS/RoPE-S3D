@@ -7,6 +7,8 @@
 #
 # Author: Adam Exley
 
+import os
+os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
 
 
 from robotpose.urdf import URDFReader
@@ -245,8 +247,8 @@ WIDTH = 800
 am = AreaMatcherStagedZonedError(ds_factor=8, preview=True)
 ds = Dataset('set10')
 
-start = 801
-end = 802
+start = 299
+end = 305
 
 print("Copying Data...")
 roi_start = np.copy(ds.rois[start:end,1])
