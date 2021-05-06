@@ -9,7 +9,7 @@
 
 
 from robotpose.utils import Grapher
-from robotpose.experimental.area import AreaMatcherStaged, AreaMatcherStagedZonedError
+from robotpose.experimental.area import AreaMatcherStagedZonedError
 from robotpose import Dataset
 import numpy as np
 from tqdm import tqdm

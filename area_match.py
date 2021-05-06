@@ -7,10 +7,6 @@
 #
 # Author: Adam Exley
 
-import os
-os.environ['PYOPENGL_PLATFORM'] = 'osmesa'
-
-
 from robotpose.urdf import URDFReader
 from robotpose.simulation.render import SkeletonRenderer
 from robotpose import Dataset
@@ -20,6 +16,8 @@ from robotpose.turbo_colormap import color_array
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from robotpose.experimental.area import AreaMatcherStagedZonedError
+
+#https://stackoverflow.com/questions/61495735/unable-to-load-numpy-formathandler-accelerator-from-opengl-accelerate
 
 # def mask_err(target, render):
 #     # Returns 0-1 (1 is bad, 0 is good)
@@ -247,8 +245,8 @@ WIDTH = 800
 am = AreaMatcherStagedZonedError(ds_factor=8, preview=True)
 ds = Dataset('set10')
 
-start = 299
-end = 305
+start = 712
+end = 718
 
 print("Copying Data...")
 roi_start = np.copy(ds.rois[start:end,1])
