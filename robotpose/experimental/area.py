@@ -10,7 +10,6 @@
 import numpy as np
 
 import cv2
-from numpy.lib.function_base import angle
 from pixellib.instance import custom_segmentation
 from scipy.interpolate import interp1d
 
@@ -34,12 +33,13 @@ class AreaMatcherStagedZonedError():
         self.u_reader = URDFReader()
         self.renderer = SkeletonRenderer('BASE','seg',camera_pose,f'1280_720_color_{self.ds_factor}')
 
-        self.classes = ["BG","base_link","link_s", "link_l", "link_u","link_r","link_b"]
+        self.classes = ["BG"]
+        self.classes.extend(self.u_reader.mesh_names[:6])
         self.link_names = self.classes[1:]
 
         self.seg = custom_segmentation()
         self.seg.inferConfig(num_classes=6, class_names=self.classes)
-        self.seg.load_model("models/segmentation/multi/A.h5")
+        self.seg.load_model("models/segmentation/multi/B.h5")
 
 
     def run(self, og_image, target_img, target_depth, camera_pose = None, starting_point = None):
@@ -60,7 +60,7 @@ class AreaMatcherStagedZonedError():
 
         # Stages in form:
         # Sweep/Smartsweep:
-        #   Divisions, joints to render, angles to edit
+        #   Divisions, joints to render, offset to render, angles to edit
         # Descent: 
         #   Iterations, joints to render, rate reduction, early stop thresh, angles to edit, inital learning rate
         # Flip: 
@@ -71,18 +71,20 @@ class AreaMatcherStagedZonedError():
         if starting_point is None:
             angles = np.array([0,0.2,1.25,0,0,0], dtype=float)
 
-            s_sweep_1 = ['smartsweep', 20, 2, [True,False,False,False,False,False]]
-            l_sweep_1 = ['smartsweep', 25, 4, [False,True,False,False,False,False]]
+            s_sweep_1 = ['smartsweep', 15, 2, None, [True,False,False,False,False,False]]
+            l_sweep_1 = ['smartsweep', 20, 4, None, [False,True,False,False,False,False]]
             s_flip_check_3 = ['flip',4,[True,True,False,False,False,False]]
-            sl_rough = ['descent',15,4,0.6,.5,[True,True,False,False,False,False],[0.8,0.5,0.075,0.5,0.5,0.5]]
-            u_sweep = ['smartsweep', 20, 6, [False,False,True,False,False,False]]
+            sl_rough = ['descent',15,4,0.7,.5,[True,True,False,False,False,False],[0.75,0.5,0.4,0.5,0.5,0.5]]
+            u_sweep = ['smartsweep', 10, 6, None, [False,False,True,False,False,False]]
             slu_stage_1 = ['descent',15,6,0.5,.2,[True,True,True,False,False,False],[None,None,None,None,None,None]]
             slu_stage_2 = ['descent',15,6,0.5,.1,[True,True,True,False,False,False],[.1,.1,None,None,None,None]]
-            s_flip_check_6 = ['flip',6,[True,False,False,False,False,False]]
+            s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
+            sl_sweep_check = ['smartsweep', 10, 6, .25, [True,True,False,False,False,False]]
+            u_sweep_check = ['smartsweep', 25, 6, None, [False,False,True,False,False,False]]
             lu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-            full_sweep_check = ['smartsweep', 25, 6, [True,True,True,False,False,False]]
+            
 
-            stages = [s_sweep_1, l_sweep_1, s_flip_check_3, sl_rough, s_flip_check_3, u_sweep, slu_stage_1, slu_stage_2, s_flip_check_6, lu_fine_tune, full_sweep_check]
+            stages = [s_sweep_1, l_sweep_1, s_flip_check_3, sl_rough, s_flip_check_3, u_sweep, slu_stage_1, slu_stage_2, s_flip_check_6, sl_sweep_check, u_sweep_check, lu_fine_tune]
         else:
             angles = starting_point
 
@@ -210,7 +212,7 @@ class AreaMatcherStagedZonedError():
 
             elif stage[0] == 'smartsweep':
 
-                do_ang = np.array(stage[3])
+                do_ang = np.array(stage[4])
                 self.renderer.setMaxParts(stage[2])
                 div = stage[1]
 
@@ -220,9 +222,13 @@ class AreaMatcherStagedZonedError():
 
                 for idx in np.where(do_ang)[0]:
                     temp_low = angles.copy()
-                    temp_low[idx] = self.u_reader.joint_limits[idx,0]
                     temp_high = angles.copy()
-                    temp_high[idx] = self.u_reader.joint_limits[idx,1]
+                    if stage[3] is None:
+                        temp_low[idx] = self.u_reader.joint_limits[idx,0]      
+                        temp_high[idx] = self.u_reader.joint_limits[idx,1]
+                    else:
+                        temp_low[idx] = max(temp_low[idx]-stage[3], self.u_reader.joint_limits[idx,0])
+                        temp_high[idx] = min(temp_low[idx]+stage[3], self.u_reader.joint_limits[idx,1])
 
                     space = np.linspace(temp_low, temp_high, div)
                     space_err = []
@@ -235,7 +241,7 @@ class AreaMatcherStagedZonedError():
 
                     ang_space = space[:,idx]
                     err_pred = interp1d(ang_space, np.array(space_err), kind='cubic')
-                    x = np.linspace(self.u_reader.joint_limits[idx,0], self.u_reader.joint_limits[idx,1], div*5)
+                    x = np.linspace(temp_low[idx], temp_high[idx], div*5)
                     predicted_errors = err_pred(x)
                     pred_min_ang = x[predicted_errors.argmin()]
 
@@ -271,11 +277,16 @@ class AreaMatcherStagedZonedError():
         out = {}
         for idx in range(len(data['class_ids'])):
             id = data['class_ids'][idx]
-            out[self.classes[id]] = {
-                'roi':data['rois'][idx],
-                'confidence':data['scores'][idx],
-                'mask':data['masks'][...,idx]
-                }
+            if id not in data['class_ids'][:idx]:
+                out[self.classes[id]] = {
+                    'roi':data['rois'][idx],
+                    'confidence':data['scores'][idx],
+                    'mask':data['masks'][...,idx]
+                    }
+            else:
+                out[self.classes[id]]['mask'] += data['masks'][...,idx]
+                out[self.classes[id]]['confidence'] = max(out[self.classes[id]]['confidence'], data['scores'][idx])
+                #out[self.classes[id]]['rois'] = [np.min([out[self.classes[id]]['rois'][:2],data['rois'][idx][:2]],0)]
         return out
 
     def _mask_err(self, num_joints, render):
@@ -289,9 +300,9 @@ class AreaMatcherStagedZonedError():
                 render_mask = np.all(render == color_dict[link], axis=-1)
 
                 diff = joint_mask != render_mask
-                err += np.sum(diff) / np.sum(joint_mask)
+                err += np.mean(diff)
 
-        return (err / count) / 5
+        return err
 
     
     def _depth_err(self, num_joints, render, render_color):
@@ -309,13 +320,15 @@ class AreaMatcherStagedZonedError():
 
                 diff = target_masked - render_masked
                 diff = np.abs(diff) ** .5
-                err += np.mean(diff[diff!=0]) #+ np.median(diff[diff!=0])
+                if diff[diff!=0].size > 0:
+                    err += np.mean(diff[diff!=0]) / np.size(diff[diff!=0])
+
 
         # Unmatched Error
         diff = self._tgt_depth - render
         diff = np.abs(diff) ** 0.5
-        err += np.mean(diff[diff!=0])
-        
+        err += np.mean(diff[diff!=0]) / np.size(diff[diff!=0])
+
         return err
 
 
@@ -333,9 +346,9 @@ class AreaMatcherStagedZonedError():
 
     def _total_err(self, num_joints, render_color, render_depth):
         d = self._depth_err(num_joints,render_depth,render_color)
-        #m = self._mask_err(num_joints,render_color)
-        #print(f"Depth: {(d*100)/(d+m):.1f}%\tMask: {(m*100)/(d+m):.1f}%")
-        return d #+ m
+        m = self._mask_err(num_joints,render_color)
+        #print(f"Depth: {(d*100)/(d+m):.1f}% ({d:.2f})\tMask: {(m*100)/(d+m):.1f}% ({m:.2f})")
+        return d + m
 
     def _show(self, color, depth, target_depth):
         size = color.shape[0:2]

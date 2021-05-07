@@ -4,6 +4,6 @@
     "MODELS": "models/",
     "SEG_MODELS": "models/segmentation",
     "VIDEO": "output/video.avi",
-    "urdf_path": "urdf/MH5-URDF/urdf/MH5-URDF.urdf",
+    "urdf_path": "urdf/motoman_mh5_support/urdf/mh5l.urdf",
     "LOG": "models/log/log.h5"
 }

@@ -7,6 +7,10 @@
 #
 # Author: Adam Exley
 
+# Skimage gives annoying FutureWarnings from transform\_warps.py:830
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning) 
+
 import argparse
 import os
 import random

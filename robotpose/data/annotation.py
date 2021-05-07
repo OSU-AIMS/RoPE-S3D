@@ -149,7 +149,6 @@ class AutomaticSegmentationAnnotator():
     def __init__(
             self,
             dataset,
-            skeleton,
             mode = 'seg_full',
             renderer = None,
             preview = True
@@ -160,8 +159,6 @@ class AutomaticSegmentationAnnotator():
         Args:
             dataset (str):
                 The dataset to use.
-            skeleton (str):
-                The skeleton to use.
             mode (str):
                 'seg_full','seg'
                 The mode to use.
@@ -179,7 +176,6 @@ class AutomaticSegmentationAnnotator():
         if renderer is None:
             self.rend = DatasetRenderer(
                 dataset,
-                skeleton,
                 mode = mode
                 )
         else:
@@ -192,7 +188,7 @@ class AutomaticSegmentationAnnotator():
             pad = 0
         self.anno = SegmentationAnnotator(color_dict = color_dict, pad_size=pad)
 
-        self.ds = Dataset(dataset, skeleton)
+        self.ds = Dataset(dataset)
 
         if not os.path.isdir(self.ds.seg_anno_path):
             os.mkdir(self.ds.seg_anno_path)

@@ -44,7 +44,7 @@ class URDFReader():
         tree = ET.parse(self.path)
         root = tree.getroot()
         self.meshes = []
-        for link in root.findall('link'):
+        for link in root.findall('link')[:7]:
             self.meshes.append(link.find('visual').find('geometry').find('mesh').get('filename'))
         if sys.platform == 'win32':
             fileend = 'stl'
@@ -54,7 +54,7 @@ class URDFReader():
         self.mesh_names = [os.path.splitext(os.path.basename(x))[0] for x in self.meshes]
 
         self.joint_limits = []
-        for joint in root.findall('joint'):
+        for joint in root.findall('joint')[:6]:
             j = joint.find('limit')
             self.joint_limits.append([float(j.get('lower')),float(j.get('upper'))])
         self.joint_limits = np.array(self.joint_limits)

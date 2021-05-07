@@ -26,7 +26,7 @@ def label(args):
             mode = 'seg'
         else:
             mode = 'seg_full'
-        seg = AutomaticSegmentationAnnotator(args.dataset, args.skeleton, renderer = rend, preview = not args.no_preview, mode=mode)
+        seg = AutomaticSegmentationAnnotator(args.dataset, renderer = rend, preview = not args.no_preview, mode=mode)
         seg.run()
 
 

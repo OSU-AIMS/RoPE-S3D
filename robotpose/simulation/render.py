@@ -216,7 +216,7 @@ class DatasetRenderer(BaseRenderer):
     def __init__(
             self,
             dataset,
-            skeleton,
+            skeleton = 'BASE',
             ds_type = 'full',
             mode = 'seg',
             camera_pose = None,
