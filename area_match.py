@@ -246,7 +246,7 @@ am = AreaMatcherStagedZonedError(ds_factor=8, preview=True)
 ds = Dataset('set10')
 
 start = 900
-end = 402
+end = 910
 
 print("Copying Data...")
 roi_start = np.copy(ds.rois[start:end,1])

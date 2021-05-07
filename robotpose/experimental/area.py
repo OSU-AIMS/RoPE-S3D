@@ -59,28 +59,30 @@ class AreaMatcherStagedZonedError():
 
 
         # Stages in form:
-        # Sweep:
+        # Sweep/Smartsweep:
         #   Divisions, joints to render, angles to edit
         # Descent: 
         #   Iterations, joints to render, rate reduction, early stop thresh, angles to edit, inital learning rate
         # Flip: 
         #   joints to render, edit_angles
+        # Checkmod: 
+        #   joints to render, offset1, multiplier, offset2, edit_angles
 
         if starting_point is None:
             angles = np.array([0,0.2,1.25,0,0,0], dtype=float)
 
-
             s_sweep_1 = ['smartsweep', 20, 2, [True,False,False,False,False,False]]
             l_sweep_1 = ['smartsweep', 25, 4, [False,True,False,False,False,False]]
             s_flip_check_3 = ['flip',4,[True,True,False,False,False,False]]
-            sl_rough = ['descent',15,4,0.6,.2,[True,True,False,False,False,False],[0.8,0.5,0.075,0.5,0.5,0.5]]
+            sl_rough = ['descent',15,4,0.6,.5,[True,True,False,False,False,False],[0.8,0.5,0.075,0.5,0.5,0.5]]
             u_sweep = ['smartsweep', 20, 6, [False,False,True,False,False,False]]
-            slu_stage_1 = ['descent',15,6,0.5,.1,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-            slu_stage_2 = ['descent',15,6,0.5,.05,[True,True,True,False,False,False],[.1,.1,None,None,None,None]]
+            slu_stage_1 = ['descent',15,6,0.5,.2,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+            slu_stage_2 = ['descent',15,6,0.5,.1,[True,True,True,False,False,False],[.1,.1,None,None,None,None]]
             s_flip_check_6 = ['flip',6,[True,False,False,False,False,False]]
-            lu_fine_tune = ['descent',10,6,0.4,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+            lu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+            full_sweep_check = ['smartsweep', 25, 6, [True,True,True,False,False,False]]
 
-            stages = [s_sweep_1, l_sweep_1, s_flip_check_3, sl_rough, s_flip_check_3, u_sweep, slu_stage_1, slu_stage_2, s_flip_check_6, lu_fine_tune]
+            stages = [s_sweep_1, l_sweep_1, s_flip_check_3, sl_rough, s_flip_check_3, u_sweep, slu_stage_1, slu_stage_2, s_flip_check_6, lu_fine_tune, full_sweep_check]
         else:
             angles = starting_point
 
@@ -207,9 +209,14 @@ class AreaMatcherStagedZonedError():
                     angles = space[space_err.index(min(space_err))]
 
             elif stage[0] == 'smartsweep':
+
                 do_ang = np.array(stage[3])
                 self.renderer.setMaxParts(stage[2])
                 div = stage[1]
+
+                self.renderer.setJointAngles(angles)
+                color, depth = self.renderer.render()
+                base_err = self._total_err(stage[2], color, depth)
 
                 for idx in np.where(do_ang)[0]:
                     temp_low = angles.copy()
@@ -231,11 +238,25 @@ class AreaMatcherStagedZonedError():
                     x = np.linspace(self.u_reader.joint_limits[idx,0], self.u_reader.joint_limits[idx,1], div*5)
                     predicted_errors = err_pred(x)
                     pred_min_ang = x[predicted_errors.argmin()]
-                    angles[idx] = pred_min_ang
-                    self.renderer.setJointAngles(angles)
+
+                    angs = angles.copy()
+                    angs[idx] = pred_min_ang
+                    self.renderer.setJointAngles(angs)
                     color, depth = self.renderer.render()
-                    if self._total_err(stage[2], color, depth) > min(space_err): 
+                    pred_min_err = self._total_err(stage[2], color, depth)
+
+                    errs = [base_err, min(space_err), pred_min_err]
+                    min_type = errs.index(min(errs))
+                    
+                    if min_type == 1: 
                         angles = space[space_err.index(min(space_err))]
+                    elif min_type == 2:
+                        angles = angs
+
+                    if self.preview:
+                        self.renderer.setJointAngles(angles)
+                        color, depth = self.renderer.render()
+                        self._show(color, depth, target_depth)
 
         return angles
 
@@ -291,11 +312,6 @@ class AreaMatcherStagedZonedError():
                 err += np.mean(diff[diff!=0]) #+ np.median(diff[diff!=0])
 
         # Unmatched Error
-        # link_mask = self._masked_targets[]
-        # for link in self.link_names[:num_joints]:
-        #     if link in self._masked_targets.keys():
-        #         joint_masks = joint_masks + seg_data[self.link_names[idx]]['mask']
-
         diff = self._tgt_depth - render
         diff = np.abs(diff) ** 0.5
         err += np.mean(diff[diff!=0])
@@ -333,4 +349,4 @@ class AreaMatcherStagedZonedError():
         d = color_array(target_depth - depth)
         
         cv2.imshow("Depth",d)
-        cv2.waitKey(10)
+        cv2.waitKey(1)
