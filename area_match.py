@@ -245,13 +245,13 @@ WIDTH = 800
 am = AreaMatcherStagedZonedError(ds_factor=8, preview=True)
 ds = Dataset('set10')
 
-start = 712
-end = 718
+start = 398
+end = 402
 
 print("Copying Data...")
 roi_start = np.copy(ds.rois[start:end,1])
 target_imgs = np.zeros((end-start,720,1280,3),np.uint8)
-target_depths = np.zeros((end-start,720,1280))
+target_depths = np.zeros((end-start,720,1280), np.float32)
 
 og_imgs = np.copy(ds.og_img[start:end])
 seg_img = np.copy(ds.seg_img[start:end])
