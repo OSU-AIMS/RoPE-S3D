@@ -245,7 +245,7 @@ WIDTH = 800
 am = AreaMatcherStagedZonedError(ds_factor=8, preview=True)
 ds = Dataset('set10')
 
-start = 398
+start = 900
 end = 402
 
 print("Copying Data...")

@@ -66,62 +66,14 @@ class AreaMatcherStagedZonedError():
         # Flip: 
         #   joints to render, edit_angles
 
-        # s_sweep = ['sweep', 15, 2, [True,False,False,False,False,False]]
-        # l_sweep = ['sweep', 15, 3, [False,True,False,False,False,False]]
-        # sl_rough = ['descent',15,3,0.5,.25,[True,True,False,False,False,False],[0.3,0.2,0.075,0.5,0.5,0.5]]
-        # u_sweep = ['sweep', 15, 6, [False,False,True,False,False,False]]
-        # u_stage = ['descent',20,6,0.5,.1,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-        # s_flip_check = ['flip',6,[True,False,False,False,False,False]]
-        # s_check = ['descent',3,6,0.4,.05,[True,False,False,False,False,False],[.1,None,None,None,None,None]]
-        # lu_fine_tune = ['descent',5,6,0.25,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-
-        # stages = [s_sweep, l_sweep, sl_rough, u_sweep, u_stage, s_flip_check, s_check, lu_fine_tune]
-
-        # s_sweep = ['sweep', 20, 2, [True,False,False,False,False,False]]
-        # l_sweep = ['sweep', 20, 3, [False,True,False,False,False,False]]
-        # s_flip_check_3 = ['flip',3,[True,False,False,False,False,False]]
-        # sl_rough = ['descent',15,3,0.7,.2,[True,True,False,False,False,False],[0.8,0.5,0.075,0.5,0.5,0.5]]
-        # u_sweep = ['sweep', 5, 6, [False,False,True,False,False,False]]
-        # slu_stage = ['descent',5,6,0.6,.1,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-        # sl_stage = ['descent',5,6,0.5,.1,[True,True,False,False,False,False],[None,None,None,None,None,None]]
-        # u_sweep_2 = ['sweep', 20, 6, [False,False,True,False,False,False]]
-        # s_flip_check_6 = ['flip',6,[True,False,False,False,False,False]]
-        # lu_fine_tune = ['descent',10,6,0.4,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-
-        # stages = [s_sweep, l_sweep, s_flip_check_3, sl_rough, s_flip_check_3, u_sweep, slu_stage, sl_stage, u_sweep_2, slu_stage, s_flip_check_6, lu_fine_tune]
         if starting_point is None:
             angles = np.array([0,0.2,1.25,0,0,0], dtype=float)
 
-            # s_sweep = ['sweep', 15, 2, [True,False,False,False,False,False]]
-            # l_sweep = ['sweep', 25, 4, [False,True,False,False,False,False]]
-            # s_flip_check_3 = ['flip',4,[True,False,False,False,False,False]]
-            # sl_rough = ['descent',15,4,0.7,.2,[True,True,False,False,False,False],[0.8,0.5,0.075,0.5,0.5,0.5]]
-            # u_sweep = ['sweep', 20, 6, [False,False,True,False,False,False]]
-            # slu_stage_1 = ['descent',15,6,0.5,.1,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-            # slu_stage_2 = ['descent',15,6,0.5,.05,[True,True,True,False,False,False],[.1,.1,None,None,None,None]]
-            # s_flip_check_6 = ['flip',6,[True,False,False,False,False,False]]
-            # lu_fine_tune = ['descent',10,6,0.4,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
 
-            # stages = [s_sweep, l_sweep, s_flip_check_3, sl_rough, s_flip_check_3, u_sweep, slu_stage_1, slu_stage_2, s_flip_check_6, lu_fine_tune]
-
-            # s_sweep_1 = ['sweep', 20, 2, [True,False,False,False,False,False]]
-            # l_sweep_1 = ['sweep', 25, 3, [False,True,False,False,False,False]]
-            # s_flip_check_3 = ['flip',4,[True,True,False,False,False,False]]
-            # sl_rough = ['descent',15,4,0.7,.2,[True,True,False,False,False,False],[0.8,0.5,0.075,0.5,0.5,0.5]]
-            # u_sweep = ['smartsweep', 20, 6, [False,False,True,False,False,False]]
-            # slu_stage_1 = ['descent',15,6,0.5,.1,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-            # slu_stage_2 = ['descent',15,6,0.5,.05,[True,True,True,False,False,False],[.1,.1,None,None,None,None]]
-            # s_flip_check_6 = ['flip',6,[True,False,False,False,False,False]]
-            # lu_fine_tune = ['descent',10,6,0.4,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-
-            # stages = [s_sweep_1, l_sweep_1, s_flip_check_3, sl_rough, s_flip_check_3, u_sweep, slu_stage_1, slu_stage_2, s_flip_check_6, lu_fine_tune]
-
-
-            
-            s_sweep_1 = ['sweep', 20, 2, [True,False,False,False,False,False]]
-            l_sweep_1 = ['sweep', 25, 3, [False,True,False,False,False,False]]
+            s_sweep_1 = ['smartsweep', 20, 2, [True,False,False,False,False,False]]
+            l_sweep_1 = ['smartsweep', 25, 4, [False,True,False,False,False,False]]
             s_flip_check_3 = ['flip',4,[True,True,False,False,False,False]]
-            sl_rough = ['descent',15,4,0.7,.2,[True,True,False,False,False,False],[0.8,0.5,0.075,0.5,0.5,0.5]]
+            sl_rough = ['descent',15,4,0.6,.2,[True,True,False,False,False,False],[0.8,0.5,0.075,0.5,0.5,0.5]]
             u_sweep = ['smartsweep', 20, 6, [False,False,True,False,False,False]]
             slu_stage_1 = ['descent',15,6,0.5,.1,[True,True,True,False,False,False],[None,None,None,None,None,None]]
             slu_stage_2 = ['descent',15,6,0.5,.05,[True,True,True,False,False,False],[.1,.1,None,None,None,None]]
