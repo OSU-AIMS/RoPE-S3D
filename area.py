@@ -9,14 +9,14 @@
 
 
 from robotpose.utils import Grapher
-from robotpose.experimental.area import AreaMatcherStagedZonedError
+from robotpose.experimental.area import ProjectionMatcher, ProjectionMatcherLookup
 from robotpose import Dataset
 import numpy as np
 from tqdm import tqdm
 
 WIDTH = 800
 
-am = AreaMatcherStagedZonedError(ds_factor=8)
+am = ProjectionMatcherLookup(ds_factor=8)
 ds = Dataset('set10')
 
 start = 0

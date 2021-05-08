@@ -419,7 +419,7 @@ class Aligner():
                 self.section_starts.append(idx)
                 p = self.ds.camera_pose[idx,:]
         self.section_starts.append(self.ds.length)
-        self.section_starts
+        return self.section_starts
 
     def _newSection(self, idx):
         self.section_starts.append(idx)
