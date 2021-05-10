@@ -60,7 +60,7 @@ class LookupCreator(SkeletonRenderer):
         color_arr = np.zeros((self.num, *color.shape), dtype=np.uint8)
         depth_arr = np.zeros((self.num, *color.shape[:2]), dtype=float)
 
-        for pose,idx in zip(self.angles, range(len(self.angles))):
+        for pose,idx in tqdm(zip(self.angles, range(len(self.angles))),total=len(self.angles),desc="Rendering Lookup Table"):
             self.setJointAngles(pose)
             color, depth = self.render()
             color_arr[idx] = color
@@ -68,10 +68,14 @@ class LookupCreator(SkeletonRenderer):
             if preview:
                 self._show(color)
 
-        f = h5py.File(file_name, 'w')
-        f.create_dataset('angles',data=self.angles)
-        f.create_dataset('color',data=color_arr, compression="gzip", compression_opts=1)
-        f.create_dataset('depth',data=depth_arr, compression="gzip", compression_opts=1)
+        with tqdm(total=3, desc=f"Writing to {file_name}") as pbar:
+            f = h5py.File(file_name, 'w')
+            f.create_dataset('angles',data=self.angles)
+            pbar.update(1)
+            f.create_dataset('color',data=color_arr, compression="gzip", compression_opts=1)
+            pbar.update(1)
+            f.create_dataset('depth',data=depth_arr, compression="gzip", compression_opts=1)
+            pbar.update(1)
 
 
     def _show(self, color):
@@ -82,9 +86,6 @@ class LookupCreator(SkeletonRenderer):
         color = cv2.resize(color, dim, interpolation=cv2.INTER_NEAREST)
         cv2.imshow("Lookup Table Creation",color)
         cv2.waitKey(1)
-
-
-
 
 
 
@@ -460,9 +461,8 @@ class ProjectionMatcherLookup():
         self.seg.inferConfig(num_classes=6, class_names=self.classes)
         self.seg.load_model("models/segmentation/multi/B.h5")
 
-        with h5py.File('test.h5','r') as f:
+        with h5py.File('test1.h5','r') as f:
             self.lookup_angles = np.copy(f['angles'])
-            self.lookup_color = np.copy(f['color'])
             self.lookup_depth = np.copy(f['depth'])
 
 
@@ -495,23 +495,30 @@ class ProjectionMatcherLookup():
         if starting_point is None:
             angles = np.array([0,0.2,1.25,0,0,0], dtype=float)
 
-            lookup = ['lookup', 4]
-            u_sweep = ['smartsweep', 25, 6, None, [False,False,True,False,False,False]]
-            u_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.4,0.5,0.5,0.5]]
-            s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
-            sl_sweep_check = ['smartsweep', 5, 6, .25, [True,True,False,False,False,False]]
-            lu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+            # lookup = ['lookup', 4]
+            # u_sweep = ['smartsweep', 25, 6, None, [False,False,True,False,False,False]]
+            # u_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.4,0.5,0.5,0.5]]
+            # s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
+            # sl_sweep_check = ['smartsweep', 5, 6, .25, [True,True,False,False,False,False]]
+            # lu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
             
-            stages = [lookup, u_sweep, u_stage, s_flip_check_6, sl_sweep_check, lu_fine_tune]
+            # stages = [lookup, u_sweep, u_stage, s_flip_check_6, sl_sweep_check, lu_fine_tune]
+
+            lookup = ['lookup', 6]
+            #slu_sweep_check = ['smartsweep', 7, 4, .15, [True,True,True,False,False,False]]
+            slu_fine_tune = ['descent',15,6,0.4,.015,[True,True,True,False,False,False],[.05,.05,.05,None,None,None]]
+            s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
+            
+            stages = [lookup, slu_fine_tune, s_flip_check_6]
         else:
             angles = starting_point
 
-            sl_rough = ['descent',15,4,0.7,.2,[True,True,False,False,False,False],[0.8,0.5,0.075,0.5,0.5,0.5]]
-            slu_stage_1 = ['descent',15,6,0.5,.1,[True,True,True,False,False,False],[.1,.1,None,None,None,None]]
-            s_flip_check_6 = ['flip',6,[True,False,False,False,False,False]]
-            lu_fine_tune = ['descent',10,6,0.4,.01,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-
-            stages = [sl_rough, slu_stage_1, s_flip_check_6, lu_fine_tune]
+            area_sweeps = ['smartsweep', 10, 6, .4, [True,True,True,False,False,False]]
+            slu_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.1,0.5,0.5,0.5]]
+            s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
+            lu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+            
+            stages = [area_sweeps, slu_stage, s_flip_check_6, lu_fine_tune]
 
         self.renderer.setJointAngles(angles)
 
@@ -521,13 +528,6 @@ class ProjectionMatcherLookup():
 
             if stage[0] == 'lookup':
 
-                # This is the "perfect" way
-                # lookup_err = np.zeros(len(self.lookup_angles))
-                # for idx in tqdm(range(len(self.lookup_angles))):
-                #     lookup_err[idx] = self._total_err(stage[1], self.lookup_color[idx], self.lookup_depth[idx])
-                # angles = self.lookup_angles[lookup_err.argmin()]
-
-                # This is the faster way
                 diff = self._tgt_depth_stack - self.lookup_depth
                 diff = np.abs(diff) ** 0.5
                 lookup_err = np.mean(diff, (1,2))
