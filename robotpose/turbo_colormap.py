@@ -45,7 +45,7 @@ def normalize_and_interpolate(x, x_min, x_max):
 
 
 
-def color_array(x, mn=None, mx=None, colormap=turbo_colormap_data_np, ignore_zero=True):
+def color_array(x, mn=None, mx=None, percent = 1, colormap=turbo_colormap_data_np, ignore_zero=True):
     
     x = x.astype(np.float64)
     if ignore_zero:
@@ -53,15 +53,13 @@ def color_array(x, mn=None, mx=None, colormap=turbo_colormap_data_np, ignore_zer
     
     if mn is None:
         if ignore_zero:
-            mn = np.min(x[x!=0])
-            mn = np.percentile(x[x!=0],1)
+            mn = np.percentile(x[x!=0],percent)
         else:
             mn = np.min(x)
 
     if mx is None:
         if ignore_zero:
-            mx = np.max(x[x!=0])
-            mx = np.percentile(x,99)
+            mx = np.percentile(x,100-percent)
         else:
             mx = np.max(x)
 

@@ -9,7 +9,7 @@
 
 
 from robotpose.utils import Grapher
-from robotpose.experimental.area import ProjectionMatcher, ProjectionMatcherLookup
+from robotpose.experimental.area import ProjectionMatcherLookup
 from robotpose import Dataset
 import numpy as np
 from tqdm import tqdm
