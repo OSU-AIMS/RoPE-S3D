@@ -12,7 +12,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from robotpose.experimental.area import ProjectionMatcherLookup
-
+from tqdm import tqdm
 
 WIDTH = 800
 
@@ -20,7 +20,7 @@ am = ProjectionMatcherLookup(ds_factor=8, preview=True)
 ds = Dataset('set10')
 
 start = 0
-end = 10
+end = 1000
 
 print("Copying Data...")
 roi_start = np.copy(ds.rois[start:end,1])
@@ -39,7 +39,7 @@ for i,s in zip(range(end-start),roi_start):
 
 out = []
 
-for idx in range(end-start):
+for idx in tqdm(range(end-start)):
     am.run(og_imgs[idx], target_imgs[idx], target_depths[idx], cam_poses[idx])
 
 

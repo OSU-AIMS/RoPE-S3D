@@ -468,17 +468,27 @@ class ProjectionViz():
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
             self.writer = cv2.VideoWriter(video_path, fourcc, 30, resolution)
 
+        self.res = np.flip(np.array(self.resolution))
+        self.resize_to = tuple(np.array(self.resolution) // 2)
+        self.frame = np.zeros((*self.res,3), dtype=np.uint8)
+
+        self.input_side_up_to_date = False
+
     def loadTargetColor(self, target_color: np.ndarray) -> None:
         self.tgt_color = target_color
+        self.input_side_up_to_date = False
 
     def loadTargetDepth(self, target_depth: np.ndarray) -> None:
         self.tgt_depth = target_depth
+        self.input_side_up_to_date = False
 
     def loadSegmentedBody(self, segmented_color: np.ndarray) -> None:
         self.seg_body = segmented_color
+        self.input_side_up_to_date = False
 
     def loadSegmentedLinks(self, segmented_color: np.ndarray) -> None:
         self.seg_links = segmented_color
+        self.input_side_up_to_date = False
 
     def loadRenderedColor(self, render_color: np.ndarray) -> None:
         self.rend_color = render_color
@@ -486,55 +496,53 @@ class ProjectionViz():
     def loadRenderedDepth(self, render_depth: np.ndarray) -> None:
         self.rend_depth = render_depth
 
-    def show(self) -> None:
-        res = np.flip(np.array(self.resolution))
-        resize_to = tuple(np.array(self.resolution) // 2)
-        frame = np.zeros((*res,3), dtype=np.uint8)
-        frame[:res[0]//2, :res[1]//2] = self._orig(resize_to)
-        frame[res[0]//2:, :res[1]//2] = self._seg(resize_to)
-        frame[:res[0]//2, res[1]//2:] = cv2.resize(self.rend_color, resize_to)
-        frame[res[0]//2:, res[1]//2:] = self._depth(resize_to)
+    def _genInput(self):
+        self.frame[:self.res[0]//2, :self.res[1]//2] = self._orig()
+        self.frame[self.res[0]//2:, :self.res[1]//2] = self._seg()
 
         # Add overlay
         color = (255, 255, 255)
         font = cv2.FONT_HERSHEY_SIMPLEX
-        frame = cv2.line(frame, (0,res[0]//2), (res[1],res[0]//2), color, thickness=3)
-        frame = cv2.line(frame, (res[1]//2,0), (res[1]//2,res[0]), color, thickness=3)
-        frame = cv2.putText(frame, "Input Color/Depth", (10,30), font, 1, color, 2, cv2.LINE_AA, False)
-        frame = cv2.putText(frame, "Detected Links", (10,res[0]//2 + 30), font, 1, color, 2, cv2.LINE_AA, False)
-        frame = cv2.putText(frame, "Render", (res[1]//2 + 10, 30), font, 1, color, 2, cv2.LINE_AA, False)
-        frame = cv2.putText(frame, "Render Depth vs. Input Depth", (res[1]//2 + 10,res[0]//2 + 30), font, 1, color, 2, cv2.LINE_AA, False) 
+        self.frame = cv2.putText(self.frame, "Input Color/Depth", (10,30), font, 1, color, 2, cv2.LINE_AA, False)
+        self.frame = cv2.putText(self.frame, "Detected Links", (10,self.res[0]//2 + 30), font, 1, color, 2, cv2.LINE_AA, False)
+        self.input_side_up_to_date = True
 
-        cv2.imshow("Projection Matcher", frame)
-        cv2.waitKey(1)
+
+    def show(self) -> None:
+        if not self.input_side_up_to_date:
+            self._genInput()
+        self.frame[:self.res[0]//2, self.res[1]//2:] = cv2.resize(self.rend_color, self.resize_to)
+        self.frame[self.res[0]//2:, self.res[1]//2:] = self._depth()
+
+        # Add overlay
+        color = (255, 255, 255)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        self.frame = cv2.line(self.frame, (0,self.res[0]//2), (self.res[1],self.res[0]//2), color, thickness=3)
+        self.frame = cv2.line(self.frame, (self.res[1]//2,0), (self.res[1]//2,self.res[0]), color, thickness=3)
+        self.frame = cv2.putText(self.frame, "Render", (self.res[1]//2 + 10, 30), font, 1, color, 2, cv2.LINE_AA, False)
+        self.frame = cv2.putText(self.frame, "Render Depth vs. Input Depth", (self.res[1]//2 + 10,self.res[0]//2 + 30), font, 1, color, 2, cv2.LINE_AA, False) 
+
+        #cv2.imshow("Projection Matcher", frame)
+        #cv2.waitKey(1)
         if self.write_to_file:
-            self.writer.write(frame)
+            self.writer.write(self.frame)
 
-    def _seg(self, resize_to: tuple):
+    def _seg(self):
         BODY_ALPHA = .2
-        body = cv2.resize(self.seg_body, resize_to)
-        links = cv2.resize(self.seg_links, resize_to)
+        body = cv2.resize(self.seg_body, self.resize_to)
+        links = cv2.resize(self.seg_links, self.resize_to)
         return cv2.addWeighted(body, BODY_ALPHA, links, (1-BODY_ALPHA), 0)
 
-    def _orig(self, resize_to: tuple):
+    def _orig(self):
         COLOR_ALPHA = .6
-        color = cv2.resize(self.tgt_color, resize_to)
-        depth = color_array(cv2.resize(self.tgt_depth, resize_to), percent=5)
+        color = cv2.resize(self.tgt_color, self.resize_to)
+        depth = color_array(cv2.resize(self.tgt_depth, self.resize_to), percent=5)
         return cv2.addWeighted(color, COLOR_ALPHA, depth, (1-COLOR_ALPHA), 0)
 
-    def _depth(self, resize_to: tuple):
-        tgt_d = cv2.resize(self.tgt_depth, resize_to, interpolation=cv2.INTER_NEAREST)
-        d = cv2.resize(self.rend_depth, resize_to, interpolation=cv2.INTER_NEAREST)
+    def _depth(self):
+        tgt_d = cv2.resize(self.tgt_depth, self.resize_to, interpolation=cv2.INTER_NEAREST)
+        d = cv2.resize(self.rend_depth, self.resize_to, interpolation=cv2.INTER_NEAREST)
         return color_array(tgt_d - d)
-
-    def _downsample(self, base: np.ndarray, target_res: "tuple[int, int]") -> np.ndarray:
-        given = base.shape
-        factor = given / target_res
-        factor = min(factor)
-
-        dims = [x//factor for x in base.shape[0:2]]
-        dims.reverse()
-        return cv2.resize(base, tuple(dims))
 
     def __del__(self) -> None:
         if self.write_to_file:
