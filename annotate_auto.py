@@ -13,14 +13,10 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # or any {'0', '1', '2'}
 import tensorflow as tf
 
-from robotpose import AutomaticKeypointAnnotator, AutomaticSegmentationAnnotator, DatasetRenderer
+from robotpose import AutomaticSegmentationAnnotator, DatasetRenderer
 
 def label(args):
     rend = DatasetRenderer(args.dataset, args.skeleton)
-    if not args.no_key:
-        key = AutomaticKeypointAnnotator(args.dataset, args.skeleton, renderer = rend, preview = not args.no_preview)
-        key.run()
-        del key
     if not args.no_seg:
         if args.per_joint:
             mode = 'seg'
