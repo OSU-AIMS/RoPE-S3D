@@ -19,8 +19,8 @@ WIDTH = 800
 am = ProjectionMatcherLookup(ds_factor=8, preview=True)
 ds = Dataset('set10')
 
-start = 0
-end = 1000
+start = 213
+end = 220
 
 print("Copying Data...")
 roi_start = np.copy(ds.rois[start:end,1])

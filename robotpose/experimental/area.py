@@ -102,7 +102,7 @@ class ProjectionMatcherLookup():
         self.ds_factor = ds_factor
         self.preview = preview
         if preview:
-            self.viz = ProjectionViz('output/projection_viz.avi')
+            self.viz = ProjectionViz()#'output/projection_viz.avi')
         self.do_angle = do_angle
         self.min_ang_inc = min_angle_inc
         self.history_length = history_length
@@ -148,7 +148,7 @@ class ProjectionMatcherLookup():
 
         # Stages in form:
         # Lookup:
-        # Num_link_to_render
+        #   Num_link_to_render
         # Sweep/Smartsweep:
         #   Divisions, Num_link_to_render, offset to render, angles_to_edit
         # Descent: 
@@ -159,14 +159,23 @@ class ProjectionMatcherLookup():
         if starting_point is None:
             angles = np.array([0]*6, dtype=float)
 
+            # lookup = ['lookup', 4]
+            # u_sweep = ['smartsweep', 25, 6, None, [False,False,True,False,False,False]]
+            # u_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.4,0.5,0.5,0.5]]
+            # s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
+            # sl_sweep_check = ['smartsweep', 4, 6, .25, [True,True,False,False,False,False]]
+            # lu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+            
+            # stages = [lookup, u_sweep, u_stage, s_flip_check_6, sl_sweep_check, lu_fine_tune]
+
             lookup = ['lookup', 4]
             u_sweep = ['smartsweep', 25, 6, None, [False,False,True,False,False,False]]
             u_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.4,0.5,0.5,0.5]]
             s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
-            sl_sweep_check = ['smartsweep', 4, 6, .25, [True,True,False,False,False,False]]
-            lu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+            #sl_sweep_check = ['smartsweep', 4, 6, .25, [True,True,False,False,False,False]]
+            slu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
             
-            stages = [lookup, u_sweep, u_stage, s_flip_check_6, sl_sweep_check, lu_fine_tune]
+            stages = [lookup, u_sweep, u_stage, s_flip_check_6, slu_fine_tune]
         else:
             angles = starting_point
 
@@ -215,7 +224,6 @@ class ProjectionMatcherLookup():
                             color, depth = self.renderer.render()
                             under_err = self._error(stage[2], color, depth)
                             if self.preview:
-                                #self._show(color, depth, target_depth)
                                 self.viz.loadRenderedColor(color)
                                 self.viz.loadRenderedDepth(depth)
                                 self.viz.show()
@@ -230,7 +238,6 @@ class ProjectionMatcherLookup():
                             color, depth = self.renderer.render()
                             over_err = self._error(stage[2], color, depth)
                             if self.preview:
-                                #self._show(color, depth, target_depth)
                                 self.viz.loadRenderedColor(color)
                                 self.viz.loadRenderedDepth(depth)
                                 self.viz.show()
@@ -276,7 +283,6 @@ class ProjectionMatcherLookup():
                             if self.preview:
                                 self.renderer.setJointAngles(angles)
                                 color, depth = self.renderer.render()
-                                #self._show(color, depth, target_depth)
                                 self.viz.loadRenderedColor(color)
                                 self.viz.loadRenderedDepth(depth)
                                 self.viz.show()
@@ -304,7 +310,6 @@ class ProjectionMatcherLookup():
                         color, depth = self.renderer.render()
                         space_err.append(self._error(stage[2], color, depth))
                         if self.preview:
-                            #self._show(color, depth, target_depth)
                             self.viz.loadRenderedColor(color)
                             self.viz.loadRenderedDepth(depth)
                             self.viz.show()
@@ -338,7 +343,6 @@ class ProjectionMatcherLookup():
                         color, depth = self.renderer.render()
                         space_err.append(self._error(stage[2], color, depth))
                         if self.preview:
-                            #self._show(color, depth, target_depth)
                             self.viz.loadRenderedColor(color)
                             self.viz.loadRenderedDepth(depth)
                             self.viz.show()
@@ -372,7 +376,6 @@ class ProjectionMatcherLookup():
                         self.viz.show()
 
         return angles
-
 
 
     def _downsample(self, base: np.ndarray, factor: int) -> np.ndarray:
@@ -409,7 +412,7 @@ class ProjectionMatcherLookup():
                 target_masked = link_mask * tgt_depth
                 self._masked_targets[link] = target_masked
                 self._target_masks[link] = link_mask
-
+                
     def _error(self, num_joints: int, render_color: np.ndarray, render_depth: np.ndarray) -> float:
 
         color_dict = self.renderer.getColorDict()
@@ -428,11 +431,13 @@ class ProjectionMatcherLookup():
                 diff = joint_mask != render_mask
                 err += np.mean(diff)
 
-                # Depth
-                diff = target_masked - render_masked
-                diff = np.abs(diff) ** .5
-                if diff[diff!=0].size > 0:
-                    err += np.mean(diff[diff!=0])
+                # Only do if enough depth data present (>5% of required pixels have depth data)
+                if np.sum(target_masked != 0) > (.05 * np.sum(joint_mask)):
+                    # Depth
+                    diff = target_masked - render_masked
+                    diff = np.abs(diff) ** .5
+                    if diff[diff!=0].size > 0:
+                        err += np.mean(diff[diff!=0])
 
         # Unmatched Error
         diff = self._tgt_depth - render_depth
@@ -440,21 +445,6 @@ class ProjectionMatcherLookup():
         err += np.mean(diff[diff!=0])
 
         return err
-
-
-    def _show(self, color, depth, target_depth):
-        size = color.shape[0:2]
-        dim = [x*2 for x in size]
-        dim.reverse()
-        dim = tuple(dim)
-        color = cv2.resize(color, dim, interpolation=cv2.INTER_NEAREST)
-        depth = cv2.resize(depth, dim, interpolation=cv2.INTER_NEAREST)
-        target_depth = cv2.resize(target_depth, dim)
-        cv2.imshow("Color",color)
-        d = color_array(target_depth - depth)
-        
-        cv2.imshow("Depth",d)
-        cv2.waitKey(1)
 
 
 
@@ -522,8 +512,8 @@ class ProjectionViz():
         self.frame = cv2.putText(self.frame, "Render", (self.res[1]//2 + 10, 30), font, 1, color, 2, cv2.LINE_AA, False)
         self.frame = cv2.putText(self.frame, "Render Depth vs. Input Depth", (self.res[1]//2 + 10,self.res[0]//2 + 30), font, 1, color, 2, cv2.LINE_AA, False) 
 
-        #cv2.imshow("Projection Matcher", frame)
-        #cv2.waitKey(1)
+        cv2.imshow("Projection Matcher", self.frame)
+        cv2.waitKey(1)
         if self.write_to_file:
             self.writer.write(self.frame)
 
