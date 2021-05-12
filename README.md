@@ -1,24 +1,27 @@
-# DeepPoseRobot, an implementation of DeepPoseKit
+# RoPE-S3D
 
-To see rendering examples, open [Render_Examples.md](https://github.com/AdamExley/DeepPoseRobot/blob/main/Render_Examples.md)
+**Ro**botic **P**ose **E**stimation using **S**egmented **3**-**D**imensional images
 
-This is an adaptation of both [DeepPoseKit](https://deepposekit.org) and [PixelLib](https://github.com/ayoolaolafenwa/PixelLib) to predict robot joint angles.
+This tool uses Artifical Intelligence (AI), specifically image segmentation algorithms provided by [PixelLib](https://github.com/ayoolaolafenwa/PixelLib), to predict robot joint angles.
 
-The robot is isolated from the background using PixelLib and then the keypoint locations of the robot are predicted using a DeepPoseKit model.
+This is acomplished by segmenting the robot and each of its joints from am RGBD (3-D) image. *With a known camera pose realtive to the robot*, these segmented sections of the image can be compared to a 3-D rendering of the robot in any possible pose.
 
-Visualization uses the [Turbo Colormap](https://ai.googleblog.com/2019/08/turbo-improved-rainbow-colormap-for.html).
+An error function can be defined, quantitatively comparing these images based on visual and depth-based similarity. For any given input, this characterizes loss as a function of the rendered pose of the robot.
 
-3D Rendering is done via [Pyrender](https://github.com/mmatl/pyrender), which facilitates automatic keypoint and segmentation annotation
+Traversing this loss to find minima therefore enables the depicted robot pose to be estimated.
+
+The afforementioned 3D Rendering is done via [Pyrender](https://github.com/mmatl/pyrender), which
+
+Depth visualization uses the [Turbo Colormap](https://ai.googleblog.com/2019/08/turbo-improved-rainbow-colormap-for.html).
 
 # Usage
 
 The following are the main steps that must be taken to train a new model:
 1. Configure meshes
-2. Create and configure a skeleton
-3. Create a dataset
-4. Align the dataset
-5. Perform automatic annotation
-6. Train the model
+2. Create a dataset
+3. Align the dataset
+4. Perform automatic annotation
+5. Train the model
 
 ## Meshes
 
@@ -30,15 +33,6 @@ The mesh for each joint, as well as that mesh's specific name, is specified in `
 
 More details about mesh configuration can be found in that directory's README.
 
-## Skeletons
-
-Skeletons contain the basic information for keypoint rendering, detection, and usage.
-
-They consist of a ```.csv``` and ```.json``` file.
-
-A skeleton is created by first creating a CSV per DeepPoseKit's standards, which then is used to produce a JSON template. The JSON then allows you to configure the relative position of each keypoint to each joint, as well as how each keypoint is used to predict joint angles.
-
-To create a skeleton, follow the instructions in the wizard: ```python wizard.py```
 
 ## Datasets
 
@@ -64,45 +58,28 @@ Before running any automatic annotation, first align the dataset with the render
 Then, use the automatic annotation script:
 
 ```bash
-python annotate_auto.py dataset_name skeleton_name [-no_preview] [-no_seg] [-no_key]
+python annotate_auto.py dataset_name [-per_joint] [-no_preview]
 ```
 
 ## Training
 
-Training for segmentation and keypoint detetction are done independently.
+Training must be done for both full-body and joint-specific models.
 
-Keypoint:
 ```bash
-python train_keypoint.py dataset_name skeleton_name [--model] [--batch] [--valid]
-
-model in ["CutResnet","CutMobilenet","CutDensenet","StackedDensenet","LEAP","StackedHourglass"]
-```
-
-Segmentation:
-```bash
-python train_seg.py dataset_name skeleton_name [--batch] [--valid]
+python train_seg.py dataset_name [--batch] [--valid]
 ```
 
 # Installation
 
-This requires [Tensorflow](https://github.com/tensorflow/tensorflow) for both segmentation and pose estimation. [Tensorflow](https://github.com/tensorflow/tensorflow) should be manually installed, along with CUDA and cuDNN according to the [Tensorflow Installation Instructions](https://www.tensorflow.org/install).
+This requires [Tensorflow](https://github.com/tensorflow/tensorflow) for both segmentation and pose estimation. [Tensorflow](https://github.com/tensorflow/tensorflow) should be installed, along with CUDA and cuDNN according to the [Tensorflow Installation Instructions](https://www.tensorflow.org/install).
 
 It is reccommended to **not** install CUDA with Visual Studio integration.
 
 The reccommended versions are:
 
-For *Training*: Tensorflow 2.0.0, [CUDA 10.0](https://developer.nvidia.com/cuda-10.0-download-archive), [cuDNN 8.0.4](https://developer.nvidia.com/rdp/cudnn-archive)
-
-For *Inference*: Tensorflow 2.4.1, [CUDA 11.0](https://developer.nvidia.com/cuda-11.0-download-archive), [cuDNN 8.0.4](https://developer.nvidia.com/rdp/cudnn-archive)
-
-***NOTE:*** Training DeepPoseKit **does not** work on Tensorflow 2.4.1. It is suggested to use different environments for training and inference.
+Tensorflow 2.4.1, [CUDA 11.0](https://developer.nvidia.com/cuda-11.0-download-archive), [cuDNN 8.0.4](https://developer.nvidia.com/rdp/cudnn-archive)
 
 ## Installing with Anaconda on Windows
-
-To use DeepPoseKit on Windows, you must first manually install `Shapely`, one of the dependencies for the [imgaug package](https://github.com/aleju/imgaug):
-```bash
-conda install -c conda-forge shapely
-```
 
 Install requirements with pip:
 ```bash
