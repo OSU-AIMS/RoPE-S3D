@@ -58,7 +58,7 @@ Before running any automatic annotation, first align the dataset with the render
 Then, use the automatic annotation script:
 
 ```bash
-python annotate_auto.py dataset_name [-per_joint] [-no_preview]
+python annotate.py dataset_name [-no_body] [-no_link] [-no_preview]
 ```
 
 ## Training

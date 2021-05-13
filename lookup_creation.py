@@ -1,7 +1,6 @@
 from robotpose.data import dataset
-from robotpose.experimental.area import LookupCreator
+from robotpose.prediction.predict import LookupCreator
 from robotpose import Dataset
-
 
 ds = Dataset('set10')
 

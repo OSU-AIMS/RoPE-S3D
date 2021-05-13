@@ -13,7 +13,6 @@ import os
 import tempfile
 
 import cv2
-import h5py
 from labelme.label_file import LabelFile
 from tqdm import tqdm
 
@@ -143,52 +142,38 @@ class AutomaticAnnotator():
     """
     Given an aligned dataset, produce the full-body or per-joint segmentation annotations.
     """
-    def __init__(
-            self,
-            dataset: str,
-            mode: str = 'seg_full',
-            renderer = None,
-            preview: bool = True
-            ):
-        """
-        Create annotator
+    def __init__(self, dataset: str, mode: str = 'body',
+            ds_renderer = None, preview: bool = True):
+        """Create annotator for segmentation.
 
-        Args:
-            dataset (str):
-                The dataset to use.
-            mode (str):
-                'seg_full','seg'
-                The mode to use.
-                seg_full is full-body annotation while seg is per-joint
-            renderer (robotpose.DatasetRenderer):
-                Optional preset renderer to use to avoid reloading meshes.
-            preview (bool):
-                Whether or not to show the render as it is created.
+        Parameters
+        ----------
+        dataset : str
+            Name of dataset to use.
+        mode : str, optional
+            Type of annotation to do; 'body' or 'link'., by default 'body'
+        ds_renderer : robotpose.DatasetRenderer, optional
+            Premade renderer class to use., by default None
+        preview : bool, optional
+            Whether or not to view renders before annotation., by default True
         """
 
         self.preview = preview
-        modes = ['seg_full','seg']
-        assert mode in modes, f"Mode must be one of: {modes}"
+        assert mode in ['body','link'], f"Mode must be one of: {['body','link']}"
 
-        if renderer is None:
-            self.rend = DatasetRenderer(
-                dataset,
-                mode = mode
-                )
+        if ds_renderer is None:
+            self.rend = DatasetRenderer(dataset, mode = {'body':'seg_full','link':'seg'}.get(mode))
         else:
-            self.rend = renderer
-            self.rend.setMode(mode)
+            self.rend = ds_renderer
+            self.rend.setMode({'body':'seg_full','link':'seg'}.get(mode))
 
         color_dict = self.rend.getColorDict()
-        pad = 5
-        if mode == 'seg':
-            pad = 0
-        self.anno = Annotator(color_dict = color_dict, pad_size=pad)
 
+        self.anno = Annotator(color_dict = color_dict, pad_size=3)
         self.ds = Dataset(dataset)
 
-        if not os.path.isdir(self.ds.seg_anno_path):
-            os.mkdir(self.ds.seg_anno_path)
+        self.dest_path = {'body':self.ds.body_anno_path,'link':self.ds.link_anno_path}.get(mode)
+        if not os.path.isdir(self.dest_path): os.mkdir(self.dest_path)
 
 
     def run(self):
@@ -210,7 +195,7 @@ class AutomaticAnnotator():
         print("Image Array Copied.")
 
         for frame in tqdm(range(self.ds.length),desc="Packing Segmentation Pool"):
-            inputs.append((og_img[frame],color_imgs[frame],os.path.join(self.ds.seg_anno_path,f"{frame:05d}")))
+            inputs.append((og_img[frame],color_imgs[frame],os.path.join(self.dest_path,f"{frame:05d}")))
 
         print("Starting Segmentation Pool...")
         with mp.Pool(workerCount()) as pool:

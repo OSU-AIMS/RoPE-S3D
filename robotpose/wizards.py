@@ -27,7 +27,6 @@ class DatasetWizard(DatasetInfo):
         self.get()
 
         self.urdf_reader = URDFReader()
-
         self.valid_urdf = self.urdf_reader.return_path() != None
 
         urdf_menu = [
@@ -113,10 +112,10 @@ class DatasetWizard(DatasetInfo):
         align.run()
         print(f'Alignment Complete')
 
-    def _runKeypointWizard(self, skeleton):
+    def _runMeshWizard(self):
         self.window.disable()
         self.window.disappear()
-        wiz = SkeletonWizard(skeleton)
+        wiz = MeshWizard()
         wiz.run()
         cv2.destroyAllWindows()
         self.window.enable()
@@ -128,7 +127,7 @@ class DatasetWizard(DatasetInfo):
 ANGLES = ['-pi','-pi/2','0','pi/2','pi']
 ANGLE_DICT = {'-pi':-np.pi,'-pi/2':-np.pi/2,'0':0,'pi/2':np.pi/2,'pi':np.pi}
 
-class SkeletonWizard():
+class MeshWizard():
 
     def __init__(self):
 
@@ -155,8 +154,7 @@ class SkeletonWizard():
 
 
         render_modes = [
-            [sg.Radio("Keypoint","render", default=True, key="-render_key-")],
-            [sg.Radio("Segmented Joints","render", key="-render_seg-")],
+            [sg.Radio("Segmented Joints","render",default=True, key="-render_seg-")],
             [sg.Radio("Realistic Metallic","render", key="-render_real-")],
             [sg.Checkbox("Crop To Fit", default=True,key='-crop-')],
             [sg.Checkbox("Display in New Window", default=False, key='-disp_cv-')],
@@ -211,7 +209,7 @@ class SkeletonWizard():
                     self._setRotation(values)
                     self._setJointAngles(values)
                     self._setViewMode(values)
-                    self.show(self.render(values))
+                    self.show(self.render())
                     prev_values = values
 
         self.window.close()
@@ -232,8 +230,8 @@ class SkeletonWizard():
 
 
     def _setViewMode(self, values):
-        modes = ['key','seg','real']
-        mode_keys = ['-render_key-','-render_seg-','-render_real-']
+        modes = ['seg','real']
+        mode_keys = ['-render_seg-','-render_real-']
         mode = [modes[x] for x in range(len(modes)) if values[mode_keys[x]]][0]
         if self.mode == mode:
             return
@@ -275,19 +273,15 @@ class SkeletonWizard():
 
         self.rend.setJointAngles(joint_angles)
 
-    def render(self, values):
-        if values['-highlight-']:
-            color, depth = self.rend.render_highlight(values['-mesh_tree-'],(30,230,240))
-        else:
-            color, depth = self.rend.render()
+    def render(self):
+        color, depth = self.rend.render()
         if self.crop:
             color = self._cropImage(color)
         return color
-
     
     def show(self, image):
         if self.use_cv:
-            cv2.imshow("Keypoint Wizard",image)
+            cv2.imshow("Mesh Wizard",image)
             cv2.waitKey(1)
         else:
             cv2.destroyAllWindows()
@@ -314,27 +308,4 @@ class SkeletonWizard():
                 min_row -=1
         return image[min_row:max_row,min_col:max_col]
 
-    def _colorVisible(self, image, color):
-        return len(np.where(np.all(image == color, axis=-1))[0]) > 0
-
-    def _outlineColorContour(self, image, color, offset=5, outline_color=(30,255,250), thickness=2, detect_from = None):
-        if detect_from is None:
-            detect_from = image
-        mask = np.zeros(image.shape[0:2], dtype=np.uint8)
-        mask[np.where(np.all(detect_from == color, axis=-1))] = 255
-        mask = expandRegion(mask, offset)
-        contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        image = np.array(image)
-        cv2.drawContours(image, contours, -1, outline_color, thickness)
-        return image
-
-    def _circleColor(self, image, color, radius=5, outline_color=(30,255,250), thickness=2, detect_from = None):
-        if detect_from is None:
-            detect_from = image
-        coords = np.where(np.all(detect_from == color, axis=-1))
-        avg_y = int(np.mean(coords[0]))
-        avg_x = int(np.mean(coords[1]))
-        image = np.array(image)
-        cv2.circle(image, (avg_x,avg_y), radius, outline_color, thickness)
-        return image
 

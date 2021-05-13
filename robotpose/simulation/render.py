@@ -75,15 +75,6 @@ class Renderer():
             seg_node_map=self.node_color_map
             )
 
-    def render_highlight(self,to_highlight, highlight_color):
-        for n in to_highlight:
-            self._setNodeColor(n, highlight_color)
-        return self.rend.render(
-            self.scene,
-            flags=pyrender.constants.RenderFlags.SEG * (self.mode != 'real'),
-            seg_node_map=self.node_color_map
-            )
-
     def setMode(self, mode):
         valid_modes = ['seg','seg_full','real']
         assert mode in valid_modes, f"Mode invalid; must be one of: {valid_modes}"

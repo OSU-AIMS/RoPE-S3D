@@ -1,3 +1,12 @@
+# Software License Agreement (Apache 2.0 License)
+#
+# Copyright (c) 2021, The Ohio State University
+# Center for Design and Manufacturing Excellence (CDME)
+# The Artificially Intelligent Manufacturing Systems Lab (AIMS)
+# All rights reserved.
+#
+# Author: Adam Exley
+
 from robotpose.simulation.render import Renderer
 from robotpose import Dataset
 import numpy as np

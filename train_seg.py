@@ -29,12 +29,12 @@ def train(dataset, batch, valid, classes):
     print("Splitting up data...")
     # Split set into validation and train
     for folder in ['train', 'test']:
-        path = os.path.join(ds.seg_anno_path, folder)
+        path = os.path.join(ds.body_anno_path, folder)
         if os.path.isdir(path):
             shutil.rmtree(path)
         os.mkdir(path)
 
-    jsons = [x for x in os.listdir(ds.seg_anno_path) if x.endswith('.json') and 'test' not in x and 'train' not in x]
+    jsons = [x for x in os.listdir(ds.body_anno_path) if x.endswith('.json') and 'test' not in x and 'train' not in x]
     random.shuffle(jsons)
 
     valid_size = int(len(jsons) * valid)
@@ -42,10 +42,10 @@ def train(dataset, batch, valid, classes):
     train_list = jsons[valid_size:]
 
     for lst, folder in zip([valid_list, train_list],['test','train']):
-        path = os.path.join(ds.seg_anno_path, folder)
+        path = os.path.join(ds.body_anno_path, folder)
         for file in lst:
-            shutil.copy2(os.path.join(ds.seg_anno_path, file), os.path.join(path, file))
-            shutil.copy2(os.path.join(ds.seg_anno_path, file.replace('.json','.png')), os.path.join(path, file.replace('.json','.png')))
+            shutil.copy2(os.path.join(ds.body_anno_path, file), os.path.join(path, file))
+            shutil.copy2(os.path.join(ds.body_anno_path, file.replace('.json','.png')), os.path.join(path, file.replace('.json','.png')))
 
     print("Data Split.")
     default_model_path = r'models/segmentation/mask_rcnn_coco.h5'
@@ -65,7 +65,7 @@ def train(dataset, batch, valid, classes):
     if classes > 1:
         pth = os.path.join(os.path.abspath(p().SEG_MODELS)  ,'multi')
     #Train
-    train_maskrcnn.load_dataset(ds.seg_anno_path)
+    train_maskrcnn.load_dataset(ds.body_anno_path)
     train_maskrcnn.train_model(num_epochs = 300, augmentation=True,  path_trained_models = pth)
 
 

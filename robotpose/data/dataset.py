@@ -312,7 +312,8 @@ class Dataset():
         self.camera_pose = file['images/camera_poses']
 
         # Set paths
-        self.seg_anno_path = os.path.join(self.dataset_dir,'seg_anno')
+        self.body_anno_path = os.path.join(self.dataset_dir,'body_annotations')
+        self.link_anno_path = os.path.join(self.dataset_dir,'link_annotations')
         self.og_vid_path = os.path.join(self.dataset_dir,'og_vid.avi')
         self.seg_vid_path = os.path.join(self.dataset_dir,'seg_vid.avi')
 
