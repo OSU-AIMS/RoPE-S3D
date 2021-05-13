@@ -14,46 +14,16 @@ import os
 import tempfile
 import zipfile
 
-from deepposekit.io import initialize_dataset
 import h5py
 
 from ..paths import Paths as p
 from .building import Builder
-from ..skeleton import Skeleton
 
 
 INFO_JSON = os.path.join(p().DATASETS, 'datasets.json')
 CONFIG_JSON = os.path.join(p().DATASETS, 'dataset_config.json')
 
-DATASET_VERSION = 4.0
-"""
-Version 1.0: 3/7/2021
-    Began versioning.
-    Compatible versions should include the same integer base (eg 1.0 and 1.4).
-    Backwards-Incompatiblity should be marked by a new integer base (eg going from 1.4 to 2.0).
-
-Version 1.1: 3/7/2021
-    Changed raw compilation from using folders to using zip files to save storage
-
-Version 1.2: 3/8/2021
-    Added position parsing
-
-Version 1.3: 3/19/2021
-    Added ability to not load images/ply data at all
-    Added support for keypoint location information
-
-Version 2.0: 3/20/2021
-    Added crop data to facilitate keypoint annotation
-
-Version 2.1: 3/24/2021
-    Added multithreading to dataset compilation
-
-Version 3.0: 3/24/2021
-    Switched PLY data over to aligned image arrays
-
-Version 4.0: 3/29/2021
-    Switched to using .h5 format for datasets
-"""
+DATASET_VERSION = 6.0
                 
 
 def get_config():
@@ -256,8 +226,6 @@ class DatasetInfo():
 
 
 
-
-
 class Dataset():
     """
     Class to access, build, and use data.
@@ -266,7 +234,6 @@ class Dataset():
     def __init__(
             self, 
             name,
-            skeleton = None,
             ds_type = 'full',
             recompile = False,
             rebuild = False,
@@ -277,7 +244,6 @@ class Dataset():
 
         Arguments:
         name: A string corresponding to the entire, or the start of, a dataset name.
-        skeleton: A string corresponding to the skeleton to load for the dataset.
         ds_type: The type of dataset to load. Full, train, validate, or test.
         recompile: Using the same raw files, generate intermediate data again.
         rebuild: Recreate entirely usng different allocations of files
@@ -314,10 +280,8 @@ class Dataset():
         if recompile and not building:
             self.recompile()
 
-        # Load dataset
-        self.load(skeleton)
+        self.load()
 
-    
 
     def exportCameraPose(self):
         np.save(os.path.join(self.dataset_dir,'camera_pose.npy'), self.camera_pose)
@@ -333,8 +297,7 @@ class Dataset():
         bob = Builder()
         bob.build_subsets(self.dataset_path, sub_types, idxs)
 
-
-    def load(self, skeleton=None):
+    def load(self):
         file = h5py.File(self.dataset_path,self.permissions)
         self.attrs = dict(file.attrs)
         self.og_resolution = self.attrs['original_resolution']
@@ -349,16 +312,9 @@ class Dataset():
         self.camera_pose = file['images/camera_poses']
 
         # Set paths
-        self.deepposeds_path = os.path.join(self.dataset_dir,'deeppose.h5')
         self.seg_anno_path = os.path.join(self.dataset_dir,'seg_anno')
         self.og_vid_path = os.path.join(self.dataset_dir,'og_vid.avi')
         self.seg_vid_path = os.path.join(self.dataset_dir,'seg_vid.avi')
-
-        # If a skeleton is set, change paths accordingly
-        if skeleton is not None:
-            self.setSkeleton(skeleton)
-
-
 
     def recompile(self):
         bob = Builder()
@@ -382,34 +338,6 @@ class Dataset():
             print("Attempting dataset build...\n\n")
             bob = Builder()
             return bob.build_full(src_dir, DATASET_VERSION, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
-
-    def setSkeleton(self,skeleton_name):
-        self.skele = Skeleton(skeleton_name)
-        self.deepposeds_path = self.deepposeds_path.replace('.h5',f"_{self.skele.name}.h5")
-    
-    def updateKeypointData(self):
-        self.skele.update()
-
-    def makeDeepPoseDS(self, force=False):
-        if force:
-            initialize_dataset(
-                images=np.array(self.seg_img),
-                datapath=self.deepposeds_path,
-                skeleton=self.skele.csv_path,
-                overwrite=True # This overwrites the existing datapath
-            )
-            return
-
-        if not os.path.isfile(self.deepposeds_path):
-            initialize_dataset(
-                images=np.array(self.seg_img),
-                datapath=self.deepposeds_path,
-                skeleton=self.skele.csv_path,
-                overwrite=False # This overwrites the existing datapath
-            )
-        else:
-            print("Using Precompiled Deeppose Dataset")
-
 
     def __len__(self):
         if self.length is None:

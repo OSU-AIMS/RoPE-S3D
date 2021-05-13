@@ -13,7 +13,6 @@ from pixellib.instance import custom_segmentation
 import cv2
 import os
 import numpy as np
-import pyrealsense2 as rs
 from ..paths import Paths as p
 from .. import projection as proj
 

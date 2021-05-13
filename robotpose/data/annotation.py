@@ -27,7 +27,6 @@ def makeMask(image):
     mask[np.where(np.all(image != (0,0,0), axis=-1))] = 255
     return mask
 
-
 def maskImg(image):
     mask = makeMask(image)
     mask_ = np.zeros(image.shape, bool)
@@ -36,12 +35,10 @@ def maskImg(image):
     mask_img = np.ones(image.shape, np.uint8) * 255
     return mask_img
 
-
 def makeContours(image):
     thresh = makeMask(image)
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     return contours
-
 
 def contourImg(image):
     contours = makeContours(image)
@@ -51,7 +48,7 @@ def contourImg(image):
 
 
 
-class SegmentationAnnotator():
+class Annotator():
     """
     Creates labelme-compatible annotation jsons and pngs for renders.
     """
@@ -65,7 +62,7 @@ class SegmentationAnnotator():
         """ Set color dict if not specified in init"""
         self.color_dict = color_dict
 
-    def annotate(self, image, render, path):
+    def annotate(self, image: np.ndarray, render: np.ndarray, path: str):
         """
         Annotates an image given a rendering
 
@@ -142,16 +139,16 @@ class SegmentationAnnotator():
         return contours
 
 
-class AutomaticSegmentationAnnotator():
+class AutomaticAnnotator():
     """
     Given an aligned dataset, produce the full-body or per-joint segmentation annotations.
     """
     def __init__(
             self,
-            dataset,
-            mode = 'seg_full',
+            dataset: str,
+            mode: str = 'seg_full',
             renderer = None,
-            preview = True
+            preview: bool = True
             ):
         """
         Create annotator
@@ -163,7 +160,7 @@ class AutomaticSegmentationAnnotator():
                 'seg_full','seg'
                 The mode to use.
                 seg_full is full-body annotation while seg is per-joint
-            renderer (robotpose.Renderer):
+            renderer (robotpose.DatasetRenderer):
                 Optional preset renderer to use to avoid reloading meshes.
             preview (bool):
                 Whether or not to show the render as it is created.
@@ -186,14 +183,13 @@ class AutomaticSegmentationAnnotator():
         pad = 5
         if mode == 'seg':
             pad = 0
-        self.anno = SegmentationAnnotator(color_dict = color_dict, pad_size=pad)
+        self.anno = Annotator(color_dict = color_dict, pad_size=pad)
 
         self.ds = Dataset(dataset)
 
         if not os.path.isdir(self.ds.seg_anno_path):
             os.mkdir(self.ds.seg_anno_path)
 
-        
 
     def run(self):
 
@@ -219,115 +215,4 @@ class AutomaticSegmentationAnnotator():
         print("Starting Segmentation Pool...")
         with mp.Pool(workerCount()) as pool:
             pool.starmap(self.anno.annotate, inputs)
-        print("Pool Complete")
-
-
-
-class KeypointAnnotator():
-
-    def __init__(self, color_dict):
-        self.color_dict = color_dict
-
-    def setDict(self, color_dict):
-        self.color_dict = color_dict
-
-    def annotate(self, render, roi_1):
-        anno = []
-        vis = []
-        for color in self.color_dict.values():
-            if self._isVisible(render, color):
-                anno.append(self._getColorMidpoint(render, color))
-                vis.append(True)
-            else:
-                anno.append([roi_1,0])
-                vis.append(False)
-
-        anno = np.array(anno)
-        anno[:,0] -= roi_1
-
-        return [vis, anno]
-
-    def _isVisible(self,image,color):
-        return len(np.where(np.all(image == color, axis=-1))[0]) > 10
-    
-    def _getColorMidpoint(self, image, color):
-        coords = np.where(np.all(image == color, axis=-1))
-        avg_y = np.mean(coords[0])
-        avg_x = np.mean(coords[1])
-        return [avg_x, avg_y]
-
-
-
-class AutomaticKeypointAnnotator():
-    
-    def __init__(
-            self,
-            dataset,
-            skeleton,
-            renderer = None,
-            preview = True
-            ):
-        """
-        Create annotator
-
-        Args:
-            dataset (str):
-                The dataset to use.
-            skeleton (str):
-                The skeleton to use.
-            renderer (robotpose.Renderer):
-                Optional preset renderer to use to avoid reloading meshes.
-            preview (bool):
-                Whether or not to show the render as it is created.
-        """
-        
-        self.preview = preview
-
-        if renderer is None:
-            self.rend = DatasetRenderer(
-                dataset,
-                skeleton,
-                mode = 'key'
-                )
-        else:
-            self.rend = renderer
-            self.rend.setMode('key')
-
-        color_dict = self.rend.getColorDict()
-        self.an = KeypointAnnotator(color_dict)
-        self.ds = Dataset(dataset, skeleton)
-
-    def run(self):
-
-        renders = []
-
-        for frame in tqdm(range(self.ds.length),desc="Rendering Keypoints"):
-            self.rend.setPosesFromDS(frame)
-            color,depth = self.rend.render()
-            renders.append(color)
-            if self.preview:
-                cv2.imshow("Automatic Keypoint Annotator", color)
-                cv2.waitKey(1)
-        cv2.destroyAllWindows()
-
-        roi_1 = self.ds.rois[:,1]
-        inputs = []
-        for frame in tqdm(range(self.ds.length),desc="Packing Keypoints"):
-            inputs.append([renders[frame], roi_1[frame]])
-
-        print("Starting Pool...")
-        with mp.Pool(workerCount()) as pool:
-            outputs = pool.starmap(self.an.annotate, inputs)
-
-        vis = []
-        anno = []
-        for output in outputs:
-            vis.append(output[0])
-            anno.append(output[1])
-
-        self.ds.makeDeepPoseDS()
-        self.dpds = h5py.File(self.ds.deepposeds_path, 'r+')
-        self.dpds['annotated'][:] = np.array(vis)
-        self.dpds['annotations'][:] = np.array(anno)
-        
         print("Pool Complete")

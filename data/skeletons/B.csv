@@ -1,9 +1,0 @@
-name,parent,swap
-base,,
-L,base,
-U,LU,
-R,UR,
-B,RB,
-LU,L,
-RB,R,
-UR,U,

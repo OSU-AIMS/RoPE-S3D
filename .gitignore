@@ -4,7 +4,6 @@ data/*/
 data/raw/extracted
 data/datasets.json
 !data/raw/
-!data/skeletons/
 .vscode
 .github
 deprecated_segmentation/mask_rcnn_models/*.h5

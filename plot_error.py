@@ -1,4 +1,4 @@
-from robotpose.simulation.render import SkeletonRenderer
+from robotpose.simulation.render import Renderer
 from robotpose import Dataset
 import numpy as np
 import cv2
@@ -34,8 +34,8 @@ def downsample(base, factor):
 CAMERA_POSE = [.042,-1.425,.399, -.01,1.553,-.057]
 WIDTH = 800
 
-renderer = SkeletonRenderer('BASE','seg',CAMERA_POSE)
-renderer_quarter = SkeletonRenderer('BASE','seg',CAMERA_POSE,'1280_720_color_8')
+renderer = Renderer('BASE','seg',CAMERA_POSE)
+renderer_quarter = Renderer('BASE','seg',CAMERA_POSE,'1280_720_color_8')
 ds = Dataset('set10')
 
 idx = 50

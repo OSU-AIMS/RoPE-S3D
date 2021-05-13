@@ -1,9 +1,7 @@
 {
     "DATASETS": "data/",
-    "SKELETONS": "data/skeletons",
     "MODELS": "models/",
     "SEG_MODELS": "models/segmentation",
     "VIDEO": "output/video.avi",
-    "urdf_path": "urdf/motoman_mh5_support/urdf/mh5l.urdf",
-    "LOG": "models/log/log.h5"
+    "urdf_path": "urdf/motoman_mh5_support/urdf/mh5l.urdf"
 }

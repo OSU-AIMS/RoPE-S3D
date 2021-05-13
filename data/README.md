@@ -8,20 +8,12 @@ Compilation occurs automatically if loading of uncompiled dataset is attempted.
 
 *datasets.json* will automatically update whenever any instance of the ```Dataset``` class is instantiated.
 
-To compile a dataset manually, use the following function:
-```python
-from robotpose.dataset import build
-build(raw_data_path, compiled_data_path)
-```
-
 To use a dataset, use the Dataset class:
 ```python
 from robotpose.dataset import Dataset
 ds1 = Dataset('set2_sl') # Using full dataset name
 ds2 = Dataset('set2')    # Using partial name
 ```
-Loading a dataset that has not been compiled but is in the /data/raw/ directory will auto-compile the data for use.
-
 
 ## Data Structure
 Data should be arranged as follows:
@@ -42,13 +34,6 @@ Data should be arranged as follows:
 |   |   |── seg_vid.avi
 |   |   └── 
 |   |   
-|   |── skeletons                   # Created by user
-|   |   |── A.csv
-|   |   |── B.csv
-|   |   |── A.json
-|   |   |── B.json
-|   |   └── ...
-|   |   
 |   └── ...
 └── ...
 ```
@@ -60,11 +45,11 @@ Data is expected to be placed in a ```.zip``` archive.
 It can be organized in subfolders, however these will be disregarded when compiling data, although their order may impact data order.
 
 Associated files must have the same basename, only differing in extension.
-
+---------------------------------
 The following are expected:
 
 | extension  | data type                         |
-| ---------- | --------------------------------- |
+| ---------- |  |
 | .png       | RGB image                         |
 | .npy       | uint16 depthmap                   |
 | .json      | JSON info dict (see format below) |

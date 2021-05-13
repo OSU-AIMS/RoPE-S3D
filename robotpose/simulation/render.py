@@ -12,28 +12,24 @@ import numpy as np
 import cv2
 import pyrender
 import PySimpleGUI as sg
-import trimesh
 
 from ..projection import makePresetIntrinsics
 from .render_utils import DEFAULT_COLORS, MeshLoader, cameraFromIntrinsics, makePose, posesFromData, setPoses
-from ..skeleton import Skeleton
 from ..data import Dataset
 
 from .fwd_kinematics_mh5l import FwdKinematic_MH5L_AllJoints as fwdKinematics
 
 
-class BaseRenderer(Skeleton):
+class Renderer():
     
     def __init__(
             self,
-            skeleton_name,
-            mode = 'key',
+            mode = 'seg',
             camera_pose = None,
             camera_intrin = '1280_720_color',
             suppress_warnings = False
             ):
 
-        super().__init__(skeleton_name)
         intrin = makePresetIntrinsics(camera_intrin)
 
         self.mode = mode
@@ -65,16 +61,14 @@ class BaseRenderer(Skeleton):
             self.joint_nodes.append(pyrender.Node(name=name,mesh=mesh))
         for node in self.joint_nodes:
             self.scene.add_node(node)
-        self._updateKeypoints()
         self.rend = pyrender.OffscreenRenderer(intrin.width, intrin.height)
         self.node_color_map = {}
         self.setMode(mode)
         
-
+    def setJointAngles(self, angles):
+        setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([fwdKinematics(angles)]))[0])
 
     def render(self):
-        self.update()
-        self._updateKeypoints()
         return self.rend.render(
             self.scene,
             flags=pyrender.constants.RenderFlags.SEG * (self.mode != 'real'),
@@ -82,8 +76,6 @@ class BaseRenderer(Skeleton):
             )
 
     def render_highlight(self,to_highlight, highlight_color):
-        self.update()
-        self._updateKeypoints()
         for n in to_highlight:
             self._setNodeColor(n, highlight_color)
         return self.rend.render(
@@ -92,14 +84,11 @@ class BaseRenderer(Skeleton):
             seg_node_map=self.node_color_map
             )
 
-
-
     def setMode(self, mode):
-        valid_modes = ['seg','key','seg_full','real']
+        valid_modes = ['seg','seg_full','real']
         assert mode in valid_modes, f"Mode invalid; must be one of: {valid_modes}"
         self.mode = mode
         self._updateMode()
-
 
     def setCameraPose(self, pose):
         setPoses(self.scene, [self.camera_node], [makePose(*pose)])
@@ -110,16 +99,9 @@ class BaseRenderer(Skeleton):
             for node, color in zip(self.node_color_map.keys(), self.node_color_map.values()):
                 out[node.name] = color
             return out
-        elif self.mode == 'key':
-            out = {}
-            for node, color in zip(self.node_color_map.keys(), self.node_color_map.values()):
-                if node in self.key_nodes:
-                    out[node.name] = color
-            return out
         elif self.mode == 'seg_full':
             return {'robot': DEFAULT_COLORS[0]}
 
-    
     def _setNodeColor(self, node_name, color):
         try:
             nodes = {node.name:node for node in self.node_color_map.keys()}
@@ -127,42 +109,9 @@ class BaseRenderer(Skeleton):
         except KeyError:
             pass
 
-    def _updateKeypoints(self, update_mode = True):
-        # Remove old
-        if hasattr(self, 'key_nodes'):
-            if len(self.key_nodes) > 0:
-                for node in self.key_nodes:
-                    if self.scene.has_node(node):
-                        self.scene.remove_node(node)
-
-        # Add in new
-        self.key_nodes = []
-        marker = trimesh.creation.cylinder(
-            self.data['markers']['radius'],
-            height=self.data['markers']['height']
-            )
-        marker = pyrender.Mesh.from_trimesh(marker)
-
-        try:
-            for name in self.keypoints:
-                parent = self.keypoint_data[name]['parent_link']
-                pose = makePose(*self.keypoint_data[name]['pose'])
-                n = self.scene.add(marker, name=name, pose=pose, parent_name=parent)
-                self.key_nodes.append(n)
-        except ValueError as e:
-            if str(e) == 'No parent node with name link_name found':
-                if not self.suppress_warnings:
-                    raise ValueError('No parent node with name link_name found.'+
-                        ' It is likely that the template keypoint .json has not been modified')
-
-        if update_mode:
-            self._updateMode()
-
-
     def setMaxParts(self, number_of_parts):
         self.limit_parts = True
         self.limit_number = number_of_parts
-
 
     def _updateMode(self):
 
@@ -175,48 +124,17 @@ class BaseRenderer(Skeleton):
             else:
                 for joint, idx in zip(self.joint_nodes, range(len(self.joint_nodes))):
                     self.node_color_map[joint] = DEFAULT_COLORS[idx]
-        elif self.mode == 'key':
-            if self.limit_parts:
-                for keypt, idx in zip(self.key_nodes[:self.limit_number], range(self.limit_number)):
-                    self.node_color_map[keypt] = DEFAULT_COLORS[idx]
-            else:
-                for keypt, idx in zip(self.key_nodes, range(len(self.key_nodes))):
-                    self.node_color_map[keypt] = DEFAULT_COLORS[idx]
-            for joint in self.joint_nodes:
-                self.node_color_map[joint] = DEFAULT_COLORS[-1]
         elif self.mode == 'seg_full':
             for joint in self.joint_nodes:
                 self.node_color_map[joint] = DEFAULT_COLORS[0]
 
 
 
-
-
-class SkeletonRenderer(BaseRenderer):
-    
-    def __init__(
-            self,
-            skeleton_name,
-            mode = 'key',
-            camera_pose = None,
-            camera_intrin = '1280_720_color',
-            suppress_warnings = False
-            ):
-
-        super().__init__(skeleton_name, mode, camera_pose, camera_intrin, suppress_warnings)
-
-    def setJointAngles(self, angles):
-        setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([fwdKinematics(angles)]))[0])
-
-
-
-
-class DatasetRenderer(BaseRenderer):
+class DatasetRenderer(Renderer):
     
     def __init__(
             self,
             dataset,
-            skeleton = 'BASE',
             ds_type = 'full',
             mode = 'seg',
             camera_pose = None,
@@ -224,21 +142,17 @@ class DatasetRenderer(BaseRenderer):
             robot_name="mh5"
             ):
 
-        super().__init__(skeleton, mode, camera_pose, camera_intrin)
-        self.ds = Dataset(dataset, skeleton, ds_type = ds_type)
-
+        super().__init__(mode, camera_pose, camera_intrin)
+        self.ds = Dataset(dataset, ds_type = ds_type)
 
     def setObjectPoses(self, poses):
         setPoses(self.scene, self.joint_nodes, poses)
-
 
     def setPosesFromDS(self, idx):
         if not hasattr(self,'ds_poses'):
             self.ds_poses = posesFromData(self.ds.angles, self.ds.positions)
         self.setObjectPoses(self.ds_poses[idx])
         setPoses(self.scene, [self.camera_node], [makePose(*self.ds.camera_pose[idx])])
-
-
 
 
 

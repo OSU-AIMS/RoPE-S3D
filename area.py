@@ -7,16 +7,14 @@
 #
 # Author: Adam Exley
 
-
 from robotpose.utils import Grapher
-from robotpose.experimental.area import ProjectionMatcherLookup
-from robotpose import Dataset
+from robotpose import Dataset, Predictor
 import numpy as np
 from tqdm import tqdm
 
 WIDTH = 800
 
-am = ProjectionMatcherLookup(ds_factor=8)
+am = Predictor(ds_factor=8)
 ds = Dataset('set10')
 
 start = 0
@@ -37,7 +35,6 @@ angles[:,:3] += (np.random.rand(*(angles[:,:3].shape)) - .5) * 1
 for i,s in zip(range(end-start),roi_start):
     target_imgs[i,:,s:s+WIDTH] = seg_img[i]
     target_depths[i,:,s:s+WIDTH] = dms[i]
-
 
 out = []
 

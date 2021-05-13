@@ -1,1 +1,1 @@
-from .render import DatasetRenderer, SkeletonRenderer, Aligner
+from .render import DatasetRenderer, Renderer, Aligner
