@@ -41,7 +41,6 @@ def downsample(base, factor):
 
 
 CAMERA_POSE = [.042,-1.425,.399, -.01,1.553,-.057]
-WIDTH = 800
 
 renderer = Renderer('BASE','seg',CAMERA_POSE)
 renderer_quarter = Renderer('BASE','seg',CAMERA_POSE,'1280_720_color_8')
@@ -50,11 +49,8 @@ ds = Dataset('set10')
 idx = 50
 
 ds_factor = 8
-roi_start = np.copy(ds.rois[idx,1])
-target_img = np.zeros((720,1280,3),np.uint8)
-target_img[:,roi_start:roi_start+WIDTH] = np.copy(ds.seg_img[idx])
-target_depth = np.zeros((720,1280))
-target_depth[:,roi_start:roi_start+WIDTH] = np.copy(ds.pointmaps[idx,...,2])
+target_img = np.copy(ds.seg_img[idx])
+target_depth = np.copy(ds.pointmaps[idx,...,2])
 
 
 if True:

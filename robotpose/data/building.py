@@ -170,7 +170,6 @@ class Builder():
         self.segmented_img_arr = np.zeros((self.length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
         self.pointmap = np.zeros((self.length, segmenter.height(), segmenter.width(), 3), dtype=np.float64)
         self.mask_arr = np.zeros((self.length, self.img_height, self.img_width), dtype=bool)
-        self.rois = np.zeros((self.length, 4))
 
         memory_size = virtual_memory().total
         batch_size = int(np.around((72.1348 * np.log(memory_size) - 1600)/5) * 5)
@@ -187,13 +186,12 @@ class Builder():
 
                 # Segment images
                 for idx in tqdm(range(start,start+batch_size),desc="Segmenting Images",position=1,leave=False,colour="red"):
-                    self.mask_arr[idx], self.rois[idx] = segmenter.segmentImage(self.orig_img_arr[idx])
-                self.rois = self.rois.astype(int)
+                    self.mask_arr[idx] = segmenter.segmentImage(self.orig_img_arr[idx])
 
                 # Make iterable for pool
                 crop_inputs = []
                 for idx in range(start,start+batch_size):
-                    crop_inputs.append((self.depthmap_arr[idx], self.orig_img_arr[idx], self.mask_arr[idx], self.rois[idx]))
+                    crop_inputs.append((self.depthmap_arr[idx], self.orig_img_arr[idx], self.mask_arr[idx]))
                 
                 def a():
                     # Run pool to segment PLYs
@@ -225,8 +223,7 @@ class Builder():
                 file.attrs['compile_date'] = str(datetime.datetime.now())
                 file.attrs['compile_time'] = time.time() - self.build_start_time
                 file.attrs['type'] = 'full'
-                file.attrs['original_resolution'] = self.orig_img_arr[0].shape
-                file.attrs['segmented_resolution'] = self.segmented_img_arr[0].shape
+                file.attrs['resolution'] = self.orig_img_arr[0].shape[:-1]
                 file.attrs['depth_intrinsics'] = self.intrin_depth
                 file.attrs['color_intrinsics'] = self.intrin_color
                 file.attrs['depth_scale'] = self.depth_scale
@@ -245,7 +242,6 @@ class Builder():
                 pbar.update(1)
                 img_grp.create_dataset('segmented', data = self.segmented_img_arr, compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                img_grp.create_dataset('rois', data = self.rois, compression="gzip",compression_opts=self.compression_level)
                 img_grp.create_dataset('camera_poses', data = self.camera_poses)
                 pbar.update(1)
                 path_grp = file.create_group('paths')
@@ -261,18 +257,16 @@ class Builder():
 
     def _save_recompile(self, ver):
         dest = os.path.join(self.dest_path, self.name + '.h5')
-        with tqdm(total=3, desc="Writing Dataset") as pbar:
+        with tqdm(total=2, desc="Writing Dataset") as pbar:
             with h5py.File(dest,'a') as file:
                 file.attrs['version'] = ver
                 file.attrs['compile_date'] = str(datetime.datetime.now())
                 file.attrs['compile_time'] = time.time() - self.build_start_time
-                file.attrs['segmented_resolution'] = self.segmented_img_arr[0].shape
                 file['coordinates/pointmaps'][...] = self.pointmap
                 pbar.update(1)
                 file['images/segmented'][...] = self.segmented_img_arr
                 pbar.update(1)
-                file['images/rois'][...] = self.rois
-                pbar.update(1)
+
 
 
     def _read_full(self, path):
@@ -298,7 +292,6 @@ class Builder():
                 pbar.update(1)
                 self.segmented_img_arr = np.array(file['images/segmented'])
                 pbar.update(1)
-                self.rois = np.array(file['images/rois'])
                 self.camera_poses = np.array(file['images/camera_poses'])
                 pbar.update(1)
 
@@ -334,7 +327,6 @@ class Builder():
                 pbar.update(1)
                 img_grp.create_dataset('segmented', data = self.segmented_img_arr[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                img_grp.create_dataset('rois', data = self.rois[idxs], compression="gzip",compression_opts=self.compression_level)
                 img_grp.create_dataset('camera_poses', data = self.camera_poses[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 path_grp = file.create_group('paths')
@@ -354,7 +346,7 @@ class Builder():
         a_attrs = a.attrs
         b_attrs = b.attrs
 
-        for attribute in ['version','original_resolution','segmented_resolution','depth_intrinsics','color_intrinsics','depth_scale']:
+        for attribute in ['version','resolution','depth_intrinsics','color_intrinsics','depth_scale']:
             assert a_attrs[attribute] == b_attrs[attribute], f"{attribute} must be equal to join datasets"
 
         a_len = a.attrs['length']
@@ -370,7 +362,6 @@ class Builder():
         self.pointmap = np.vstack((a['coordinates/pointmaps'],b['coordinates/pointmaps']))
         self.orig_img_arr = np.vstack((a['images/original'],b['images/original']))
         self.segmented_img_arr = np.vstack((a['images/segmented'],b['images/segmented']))
-        self.rois = np.vstack((a['images/rois'],b['images/rois']))
         self.jsons = np.vstack((a['paths/jsons'],b['paths/jsons']))
         self.maps = np.vstack((a['paths/depthmaps'],b['paths/depthmaps']))
         self.imgs = np.vstack((a['paths/images'],b['paths/images']))

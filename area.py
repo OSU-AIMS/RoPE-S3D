@@ -12,8 +12,6 @@ from robotpose import Dataset, Predictor
 import numpy as np
 from tqdm import tqdm
 
-WIDTH = 800
-
 am = Predictor(ds_factor=8)
 ds = Dataset('set10')
 
@@ -21,7 +19,7 @@ start = 0
 end = 1000
 
 print("Copying Data...")
-roi_start = np.copy(ds.rois[start:end,1])
+
 target_imgs = np.zeros((end-start,720,1280,3),np.uint8)
 target_depths = np.zeros((end-start,720,1280))
 
@@ -32,9 +30,9 @@ cam_poses = np.copy(ds.camera_pose[start:end])
 angles = np.copy(ds.angles[start:end])
 angles[:,:3] += (np.random.rand(*(angles[:,:3].shape)) - .5) * 1
 
-for i,s in zip(range(end-start),roi_start):
-    target_imgs[i,:,s:s+WIDTH] = seg_img[i]
-    target_depths[i,:,s:s+WIDTH] = dms[i]
+for i in range(end-start):
+    target_imgs[i,] = seg_img[i]
+    target_depths[i] = dms[i]
 
 out = []
 

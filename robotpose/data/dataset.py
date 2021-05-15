@@ -283,15 +283,13 @@ class Dataset():
     def load(self):
         file = h5py.File(self.dataset_path,self.permissions)
         self.attrs = dict(file.attrs)
-        self.og_resolution = self.attrs['original_resolution']
-        self.seg_resolution = self.attrs['segmented_resolution']
+        self.og_resolution = self.attrs['resolution']
         self.length = self.attrs['length']
         self.angles = file['angles']
         self.positions = file['positions']
         self.pointmaps = file['coordinates/pointmaps']
         self.og_img = file['images/original']
         self.seg_img = file['images/segmented']
-        self.rois = file['images/rois']
         self.camera_pose = file['images/camera_poses']
 
         # Set paths
@@ -341,8 +339,7 @@ class Dataset():
         out += f"Build Date: {self.attrs['build_date']}\n"
         out += f"Compile Date: {self.attrs['compile_date']}\n"
         out += f"Compile Time: {self.attrs['compile_time']}\n\n"
-        out += f"Original Resolution: {self.attrs['original_resolution']}\n"
-        out += f"Segmented Resolution: {self.attrs['segmented_resolution']}\n"
+        out += f"Resolution: {self.attrs['resolution']}\n"
         out += f"Color Intrinsics: {self.attrs['color_intrinsics']}\n"
         out += f"Depth Intrinsics: {self.attrs['depth_intrinsics']}\n"
         out += f"Depth Scale: {self.attrs['depth_scale']}\n"
