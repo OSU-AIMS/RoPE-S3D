@@ -15,7 +15,6 @@ import string
 import random
 from datetime import datetime
 
-from ..data import Dataset
 from ..paths import Paths as p
 from ..CompactJSONEncoder import CompactJSONEncoder
 
@@ -111,6 +110,7 @@ class ModelManager(ModelInfo):
         folder_path = os.path.join(p().MODELS, model_type, name)
         os.mkdir(folder_path)
 
+        from ..data import Dataset
         ds = Dataset(dataset)
         folder = ds.link_anno_path if model_type == 'link' else ds.body_anno_path
         train_length = len(os.listdir(os.path.join(folder,'train'))) // 2

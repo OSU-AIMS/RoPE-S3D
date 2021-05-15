@@ -509,8 +509,8 @@ class ProjectionViz():
         self.frame = cv2.putText(self.frame, "Render", (self.res[1]//2 + 10, 30), font, 1, color, 2, cv2.LINE_AA, False)
         self.frame = cv2.putText(self.frame, "Render Depth vs. Input Depth", (self.res[1]//2 + 10,self.res[0]//2 + 30), font, 1, color, 2, cv2.LINE_AA, False) 
 
-        # cv2.imshow("Projection Matcher", self.frame)
-        # cv2.waitKey(1)
+        cv2.imshow("Projection Matcher", self.frame)
+        cv2.waitKey(1)
         if self.write_to_file:
             self.writer.write(self.frame)
 

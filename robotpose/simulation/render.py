@@ -164,7 +164,7 @@ class Aligner():
         # Load dataset
         self.ds = Dataset(dataset, permissions='a')
 
-        self.renderer = DatasetRenderer(dataset, None, mode='seg_full')
+        self.renderer = DatasetRenderer(dataset, mode='seg_full')
 
         if start_idx is not None:
             self.start_idx = start_idx

@@ -10,7 +10,11 @@
 import argparse
 import os
 import sys
+import logging
 
+# Disable OpenGL and Tensorflow info messages (get annoying with multiprocessing)
+logging.getLogger("OpenGL.arrays.arraydatatype").setLevel(logging.WARNING)
+logging.getLogger("OpenGL.acceleratesupport").setLevel(logging.WARNING)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # or any {'0', '1', '2'}
 import tensorflow as tf
 

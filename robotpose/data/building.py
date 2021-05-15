@@ -25,7 +25,7 @@ from ..paths import Paths as p
 from .segmentation import RobotSegmenter
 from ..utils import workerCount
 from ..training import ModelManager, ModelInfo
-
+from ..projection import deproj_depthmap_to_pointmap, makePresetIntrinsics
 
 def save_video(path, img_arr):
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -48,6 +48,8 @@ class Builder():
 
         if ModelInfo().num_types['body'] > 0:
             self._segment_images_and_maps()
+        else:
+            self._fake_segment_images_and_maps()
 
         self._save_reference_videos()
         self._make_camera_poses()
@@ -59,6 +61,8 @@ class Builder():
 
         if ModelInfo().num_types['body'] > 0:
             self._segment_images_and_maps()
+        else:
+            self._fake_segment_images_and_maps()
 
         self._save_reference_videos()
         return self._save_recompile(dataset_ver)
@@ -156,20 +160,22 @@ class Builder():
             with h5py.File(dest, 'r') as f:
                 self.length = f.attrs['length']
                 self.orig_img_arr = np.array(f['images/original'])
-                self.img_height, self.img_width = self.orig_img_arr.shape[1:3]
                 pbar.update(1)
                 self.depthmap_arr = np.array(f['coordinates/depthmaps'])
                 pbar.update(1)
 
     def _fake_segment_images_and_maps(self):
-        pass
+        self.segmented_img_arr = self.orig_img_arr
+        intrin = makePresetIntrinsics()
+        self.pointmap = np.zeros(self.orig_img_arr.shape, dtype=np.float64)
+        for idx in tqdm(range(self.length),desc="Deprojecting"):
+            self.pointmap[idx] = deproj_depthmap_to_pointmap(intrin, self.depthmap_arr[idx])
 
-    
     def _segment_images_and_maps(self):
         segmenter = RobotSegmenter(os.path.join(p().SEG_MODELS,'D.h5'))
-        self.segmented_img_arr = np.zeros((self.length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
-        self.pointmap = np.zeros((self.length, segmenter.height(), segmenter.width(), 3), dtype=np.float64)
-        self.mask_arr = np.zeros((self.length, self.img_height, self.img_width), dtype=bool)
+        self.segmented_img_arr = np.zeros(self.orig_img_arr.shape, dtype=np.uint8)
+        self.pointmap = np.zeros(self.orig_img_arr.shape, dtype=np.float64)
+        self.mask_arr = np.zeros(self.orig_img_arr.shape[:-1], dtype=bool)
 
         memory_size = virtual_memory().total
         batch_size = int(np.around((72.1348 * np.log(memory_size) - 1600)/5) * 5)

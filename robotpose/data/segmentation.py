@@ -8,12 +8,11 @@
 # Author: Adam Exley
 
 
-import pixellib
-from pixellib.instance import custom_segmentation
 import cv2
-import os
 import numpy as np
-from ..paths import Paths as p
+
+from pixellib.instance import custom_segmentation
+
 from .. import projection as proj
 
 
