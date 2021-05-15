@@ -11,6 +11,7 @@ deprecated_segmentation/mask_rcnn_models/old/*.h5
 deprecated_segmentation/mask_rcnn_coco.h5
 models/segmentation/*.h5
 models/segmentation/*/*.h5
+models/*/*.h5
 output/projection_viz.avi
 
 seg_test/

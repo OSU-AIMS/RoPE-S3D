@@ -38,45 +38,6 @@ def expandRegion(image, size, iterations = 1):
     return cv2.dilate(image, kern, iterations = iterations)
 
 
-
-
-def XYangle(x, y, lims=None):
-    """
-    Returns the angle between the input point and the +x axis 
-    """
-    # Get angle
-    ang = np.arctan(y/x)
-
-    # If in Quad II/III, make the angle obtuse 
-    if x < 0:
-        ang += np.pi
-
-    # Apply any custom limits to the angle
-    if lims is not None:
-        if ang > max(lims):
-            ang -= 2 * np.pi
-        elif ang < min(lims):
-            ang += 2* np.pi
-    
-    return ang
-
-
-def XYZangle(start, end, lims = None):
-    """
-    Rotates vector from start to end into the XY plane and uses XY angle to calculate angle
-    """
-    # Find link vector from start and end points
-    vec = np.subtract(end, start)
-
-    # Rotate the reference XY plane to contain the vector
-    rotated_y = vec[1]
-    rotated_x = np.sqrt(vec[0] ** 2 + vec[2] ** 2) * abs(vec[0]) / vec[0]
-
-    # Find 2D angle to X axis
-    return XYangle(rotated_x, rotated_y, lims)
-
-
-
 def reject_outliers_std(data, m=2):
     return data[abs(data - np.mean(data)) < m * np.std(data)]
 

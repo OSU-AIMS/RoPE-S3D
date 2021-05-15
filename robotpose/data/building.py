@@ -24,6 +24,7 @@ from .multithread import crop
 from ..paths import Paths as p
 from .segmentation import RobotSegmenter
 from ..utils import workerCount
+from ..training import ModelManager, ModelInfo
 
 
 def save_video(path, img_arr):
@@ -44,7 +45,10 @@ class Builder():
         self._get_filepaths_from_data_dir(data_path)
         self._load_json_data()
         self._load_imgs_and_depthmaps()
-        self._segment_images_and_maps()
+
+        if ModelInfo().num_types['body'] > 0:
+            self._segment_images_and_maps()
+
         self._save_reference_videos()
         self._make_camera_poses()
         return self._save_full(dataset_ver)
@@ -52,7 +56,10 @@ class Builder():
     def recompile(self, ds_path, dataset_ver, name = None):
         self._set_dest_path_recompile(ds_path, name)
         self._load_raw_data_from_ds()
-        self._segment_images_and_maps()
+
+        if ModelInfo().num_types['body'] > 0:
+            self._segment_images_and_maps()
+
         self._save_reference_videos()
         return self._save_recompile(dataset_ver)
 
@@ -154,9 +161,12 @@ class Builder():
                 self.depthmap_arr = np.array(f['coordinates/depthmaps'])
                 pbar.update(1)
 
+    def _fake_segment_images_and_maps(self):
+        pass
+
     
     def _segment_images_and_maps(self):
-        segmenter = RobotSegmenter()
+        segmenter = RobotSegmenter(os.path.join(p().SEG_MODELS,'D.h5'))
         self.segmented_img_arr = np.zeros((self.length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
         self.pointmap = np.zeros((self.length, segmenter.height(), segmenter.width(), 3), dtype=np.float64)
         self.mask_arr = np.zeros((self.length, self.img_height, self.img_width), dtype=bool)

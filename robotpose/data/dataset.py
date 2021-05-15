@@ -18,6 +18,7 @@ import h5py
 
 from ..paths import Paths as p
 from .building import Builder
+from ..CompactJSONEncoder import CompactJSONEncoder
 
 
 INFO_JSON = os.path.join(p().DATASETS, 'datasets.json')
@@ -93,13 +94,16 @@ class DatasetInfo():
         self._update()
 
     def get(self):
+        count = 0
         while True:
             try:
                 with open(INFO_JSON, 'r') as f:
                     self.data = json.load(f)
                 break
             except JSONDecodeError:
-                pass
+                count += 1
+            if count > 99999:
+                raise JSONDecodeError
         return self.data
 
     def unique_sets(self):
@@ -154,14 +158,9 @@ class DatasetInfo():
     def _update(self):
         uncompiled_paths = [ f.path for f in os.scandir(os.path.join(p().DATASETS,'raw')) if str(f.path).endswith('.zip') ]
         uncompiled_names = [ os.path.basename(os.path.normpath(x)).replace('.zip','') for x in uncompiled_paths ]
-        compiled_full_paths = []
-        compiled_full_names = []
-        compiled_train_paths = []
-        compiled_train_names = []
-        compiled_validate_paths = []
-        compiled_validate_names = []
-        compiled_test_paths = []
-        compiled_test_names = []
+
+        compiled_full_paths, compiled_full_names, compiled_train_paths, compiled_train_names, \
+        compiled_validate_paths, compiled_validate_names, compiled_test_paths, compiled_test_names = ([] for i in range(8))
 
         for dirpath, subdirs, files in os.walk(p().DATASETS):
             for file in files:
@@ -190,35 +189,19 @@ class DatasetInfo():
                         if 'type' in f.attrs:
                             switch[f.attrs['type']]()
                     
-
         info = {
             'compiled':{
-                'full':{
-                    'names': compiled_full_names,
-                    'paths': compiled_full_paths
-                },
-                'train':{
-                    'names': compiled_train_names,
-                    'paths': compiled_train_paths
-                },
-                'validate':{
-                    'names': compiled_validate_names,
-                    'paths': compiled_validate_paths
-                },
-                'test':{
-                    'names': compiled_test_names,
-                    'paths': compiled_test_paths
-                }
+                'full':{'names': compiled_full_names, 'paths': compiled_full_paths},
+                'train':{'names': compiled_train_names, 'paths': compiled_train_paths},
+                'validate':{'names': compiled_validate_names, 'paths': compiled_validate_paths},
+                'test':{'names': compiled_test_names, 'paths': compiled_test_paths}
             },
-            'uncompiled':{
-                'names': uncompiled_names,
-                'paths': uncompiled_paths
-            }
+            'uncompiled':{'names': uncompiled_names, 'paths': uncompiled_paths}
         }
         while True:
             try:
                 with open(INFO_JSON,'w') as f:
-                    json.dump(info, f, indent=4)
+                    f.write(CompactJSONEncoder(indent=4).encode(info).replace('\\','/'))
                 break
             except PermissionError:
                 pass

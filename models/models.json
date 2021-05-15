@@ -1,0 +1,19 @@
+{
+    "body": {},
+    "link": {},
+    "untyped": [
+        {
+            "type": "",
+            "id": "",
+            "dataset": "",
+            "dataset_size": 0,
+            "train_size": 0,
+            "valid_size": 0,
+            "classes": [],
+            "epochs_trained": 0,
+            "minimum_loss": 0,
+            "date_trained": "",
+            "benchmarks": []
+        }
+    ]
+}

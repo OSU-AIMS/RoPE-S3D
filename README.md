@@ -71,24 +71,40 @@ python train_seg.py dataset_name [--batch] [--valid]
 
 # Installation
 
-This requires [Tensorflow](https://github.com/tensorflow/tensorflow) for both segmentation and pose estimation. [Tensorflow](https://github.com/tensorflow/tensorflow) should be installed, along with CUDA and cuDNN according to the [Tensorflow Installation Instructions](https://www.tensorflow.org/install).
+## Installing System-Wide Dependencies
 
-It is reccommended to **not** install CUDA with Visual Studio integration.
+This requires [Tensorflow](https://github.com/tensorflow/tensorflow) for both segmentation and pose estimation.
 
-The reccommended versions are:
+CUDA and cuDNN should first be installed according to the [Tensorflow Installation Instructions](https://www.tensorflow.org/install).
 
-Tensorflow 2.4.1, [CUDA 11.0](https://developer.nvidia.com/cuda-11.0-download-archive), [cuDNN 8.0.4](https://developer.nvidia.com/rdp/cudnn-archive)
+The recommended versions are:
 
-## Installing with Anaconda on Windows
+[CUDA 11.0](https://developer.nvidia.com/cuda-11.0-download-archive), [cuDNN 8.0.4](https://developer.nvidia.com/rdp/cudnn-archive)
 
-Install requirements with pip:
+It is recommended to **not** install Visual Studio integration with CUDA (do a custom install and deselect VS integration).
+
+## Final Installation
+
+It is suggested to use a virtual environment configured to use **Python 3.6.4**.
+
+It is recommended to simply install requirements with pip:
 ```bash
-pip install --upgrade --r requirements.txt
+pip install --upgrade -r requirements.txt
 ```
 
-### Known Issues
+## Known Issues
+
+### Keras
+
+Keras sometimes includes ```.decode('utf8')``` in its code. This is unnecessary, and causes issues when loading and saving hd5f files.
+
+Notably, every instance of ```.decode('utf8')``` in ```"lib\site-packages\tensorflow_core\python\keras\saving\hdf5_format.py"``` can be removed.
+
+This will often cause issues when loading a model for segmentation.
 
 #### PixelLib
+
+**This is avoided if using ```requirements.txt``` to install**
 
 Sometimes Pixellib will not work after all installations have been completed when using Tensorflow 2.0.0. To fix this error, upgrade and downgrade Tensorflow.
 
@@ -99,17 +115,13 @@ pip install --upgrade tensorflow-gpu==2.0.0
 
 #### Numpy
 
+**This is avoided if using ```requirements.txt``` to install**
+
 Numpy **1.19.5** may be automatically installed with tensorflow. This version of Numpy presents memory issues on some machines when running Multiprocessing, as this repository does.
 
 Numpy **1.19.2** should work with this repository.
 
-#### Keras
 
-Keras sometimes includes ```.decode('utf8')``` in its code. This is unnecessary, and causes issues when loading and saving hd5f files.
-
-Notably, every instance of ```.decode('utf8')``` in ```"lib\site-packages\tensorflow_core\python\keras\saving\hdf5_format.py"``` can be removed.
-
-This will often cause issues when loading a model for segmentation.
 
 # License
 
