@@ -1,8 +1,8 @@
 {
     "compiled": {
         "full": {
-            "names": ["set10"],
-            "paths": ["data/set10/set10.h5"]
+            "names": ["set0", "set10"],
+            "paths": ["data/set0/set0.h5", "data/set10/set10.h5"]
         },
         "train": {
             "names": [],

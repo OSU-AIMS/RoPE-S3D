@@ -50,7 +50,7 @@ idx = 50
 
 ds_factor = 8
 target_img = np.copy(ds.seg_img[idx])
-target_depth = np.copy(ds.pointmaps[idx,...,2])
+target_depth = np.copy(ds.depthmaps[idx])
 
 
 if True:

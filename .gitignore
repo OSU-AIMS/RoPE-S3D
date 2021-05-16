@@ -84,3 +84,4 @@ examples/\.ipynb_checkpoints/
 
 examples/deepposekit-data
 data/datasets.json
+models/mask_rcnn_coco.h5

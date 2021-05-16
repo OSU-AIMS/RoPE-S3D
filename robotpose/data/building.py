@@ -14,18 +14,14 @@ import multiprocessing as mp
 import numpy as np
 import os
 import time
-from psutil import virtual_memory
 
 import cv2
 import h5py
 from tqdm import tqdm
 
-from .multithread import crop
 from ..paths import Paths as p
 from .segmentation import RobotSegmenter
-from ..utils import workerCount
 from ..training import ModelManager, ModelInfo
-from ..projection import deproj_depthmap_to_pointmap, makePresetIntrinsics
 
 def save_video(path, img_arr):
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -59,7 +55,7 @@ class Builder():
         self._set_dest_path_recompile(ds_path, name)
         self._load_raw_data_from_ds()
 
-        if ModelInfo().num_types['body'] > 0:
+        if ModelInfo().num_types['body'] >= 0:
             self._segment_images_and_maps()
         else:
             self._fake_segment_images_and_maps()
@@ -166,50 +162,21 @@ class Builder():
 
     def _fake_segment_images_and_maps(self):
         self.segmented_img_arr = self.orig_img_arr
-        intrin = makePresetIntrinsics()
-        self.pointmap = np.zeros(self.orig_img_arr.shape, dtype=np.float64)
-        for idx in tqdm(range(self.length),desc="Deprojecting"):
-            self.pointmap[idx] = deproj_depthmap_to_pointmap(intrin, self.depthmap_arr[idx])
 
     def _segment_images_and_maps(self):
         segmenter = RobotSegmenter(os.path.join(p().SEG_MODELS,'D.h5'))
         self.segmented_img_arr = np.zeros(self.orig_img_arr.shape, dtype=np.uint8)
-        self.pointmap = np.zeros(self.orig_img_arr.shape, dtype=np.float64)
-        self.mask_arr = np.zeros(self.orig_img_arr.shape[:-1], dtype=bool)
 
-        memory_size = virtual_memory().total
-        batch_size = int(np.around((72.1348 * np.log(memory_size) - 1600)/5) * 5)
-        if batch_size < 25:
-            batch_size = 25
+        padding = 10
+        kern = np.ones((padding,padding))
 
-        print(f"Detected {int(memory_size/1073741824)+1}GB of RAM")
-        print(f"Using Crop Pool of size {batch_size} with {workerCount()} workers.")
-        with tqdm(total=self.length, desc="Creating Segmented Images",position=0,colour="green") as pbar:
-            for start in range(0,self.length, batch_size):
+        # Segment images
+        for idx in tqdm(range(self.length),desc="Segmenting Images"):
+            mask = segmenter.segmentImage(self.orig_img_arr[idx])
+            mask = cv2.dilate(mask.astype(float), kern)
+            mask = np.stack([mask]*3,-1).astype(bool)
+            self.segmented_img_arr[idx] = np.multiply(self.orig_img_arr[idx], mask).astype(np.uint8)
 
-                if start + batch_size >= self.length:
-                    batch_size = self.length - start
-
-                # Segment images
-                for idx in tqdm(range(start,start+batch_size),desc="Segmenting Images",position=1,leave=False,colour="red"):
-                    self.mask_arr[idx] = segmenter.segmentImage(self.orig_img_arr[idx])
-
-                # Make iterable for pool
-                crop_inputs = []
-                for idx in range(start,start+batch_size):
-                    crop_inputs.append((self.depthmap_arr[idx], self.orig_img_arr[idx], self.mask_arr[idx]))
-                
-                def a():
-                    # Run pool to segment PLYs
-                    with mp.Pool(workerCount()) as pool:
-                        crop_outputs = pool.starmap(crop, crop_inputs)
-                    return crop_outputs
-                crop_outputs = a()
-
-                for idx in range(start,start+batch_size):
-                    self.segmented_img_arr[idx] = crop_outputs[idx-start][0]
-                    self.pointmap[idx] = crop_outputs[idx-start][1]
-                pbar.update(batch_size)
 
     def _save_reference_videos(self):
         save_video(os.path.join(self.dest_path,"og_vid.avi"), self.orig_img_arr)
@@ -220,7 +187,7 @@ class Builder():
 
     def _save_full(self, ver):
         dest = os.path.join(self.dest_path, self.name + '.h5')
-        with tqdm(total=10, desc="Writing Dataset") as pbar:
+        with tqdm(total=9, desc="Writing Dataset") as pbar:
             with h5py.File(dest,'a') as file:
                 file.attrs['name'] = self.name
                 file.attrs['version'] = ver
@@ -241,8 +208,6 @@ class Builder():
                 dm = coord_grop.create_dataset('depthmaps', data = self.depthmap_arr, compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 dm.attrs['depth_scale'] = self.depth_scale
-                coord_grop.create_dataset('pointmaps', data = self.pointmap, compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
                 img_grp = file.create_group('images')
                 img_grp.create_dataset('original', data = self.orig_img_arr, compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
@@ -263,20 +228,18 @@ class Builder():
 
     def _save_recompile(self, ver):
         dest = os.path.join(self.dest_path, self.name + '.h5')
-        with tqdm(total=2, desc="Writing Dataset") as pbar:
+        with tqdm(total=1, desc="Writing Dataset") as pbar:
             with h5py.File(dest,'a') as file:
                 file.attrs['version'] = ver
                 file.attrs['compile_date'] = str(datetime.datetime.now())
                 file.attrs['compile_time'] = time.time() - self.build_start_time
-                file['coordinates/pointmaps'][...] = self.pointmap
-                pbar.update(1)
                 file['images/segmented'][...] = self.segmented_img_arr
                 pbar.update(1)
 
 
 
     def _read_full(self, path):
-        with tqdm(total=10, desc="Reading Full Dataset") as pbar:
+        with tqdm(total=9, desc="Reading Full Dataset") as pbar:
             with h5py.File(path,'r') as file:
                 self.attrs = dict(file.attrs)
                 self.name = file.attrs['name']
@@ -290,8 +253,6 @@ class Builder():
                 self.pos_arr = np.array(file['positions'])
                 pbar.update(1)
                 self.depthmap_arr = np.array(file['coordinates/depthmaps'])
-                pbar.update(1)
-                self.pointmap = np.array(file['coordinates/pointmaps'])
                 pbar.update(1)
 
                 self.orig_img_arr = np.array(file['images/original'])
@@ -310,7 +271,7 @@ class Builder():
 
     def _write_subset(self,path,sub_type,idxs):
         """Create a derivative dataset from a full dataset, using a subset of the data."""
-        with tqdm(total=10, desc=f"Writing {sub_type}") as pbar:
+        with tqdm(total=9, desc=f"Writing {sub_type}") as pbar:
             with h5py.File(path,'a') as file:
                 for key in self.attrs.keys():
                     file.attrs[key] = self.attrs[key]
@@ -326,8 +287,6 @@ class Builder():
                 dm = coord_grop.create_dataset('depthmaps', data = self.depthmap_arr[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 dm.attrs['depth_scale'] = self.depth_scale
-                coord_grop.create_dataset('pointmaps', data = self.pointmap[idxs], compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
                 img_grp = file.create_group('images')
                 img_grp.create_dataset('original', data = self.orig_img_arr[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
@@ -365,7 +324,6 @@ class Builder():
         self.ang_arr = np.vstack((a['angles'],b['angles']))
         self.pos_arr = np.vstack((a['positions'],b['positions']))
         self.depthmap_arr = np.vstack((a['coordinates/depthmaps'],b['coordinates/depthmaps']))
-        self.pointmap = np.vstack((a['coordinates/pointmaps'],b['coordinates/pointmaps']))
         self.orig_img_arr = np.vstack((a['images/original'],b['images/original']))
         self.segmented_img_arr = np.vstack((a['images/segmented'],b['images/segmented']))
         self.jsons = np.vstack((a['paths/jsons'],b['paths/jsons']))

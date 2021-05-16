@@ -19,7 +19,7 @@ end = 100
 
 print("Copying Data...")
 target_imgs = np.copy(ds.seg_img[start:end])
-target_depths = np.copy(ds.pointmaps[start:end,...,2])
+target_depths = np.copy(ds.depthmaps[start:end])
 og_imgs = np.copy(ds.og_img[start:end])
 cam_poses = np.copy(ds.camera_pose[start:end])
 

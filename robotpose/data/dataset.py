@@ -287,7 +287,7 @@ class Dataset():
         self.length = self.attrs['length']
         self.angles = file['angles']
         self.positions = file['positions']
-        self.pointmaps = file['coordinates/pointmaps']
+        self.depthmaps = file['coordinates/depthmaps']
         self.og_img = file['images/original']
         self.seg_img = file['images/segmented']
         self.camera_pose = file['images/camera_poses']
