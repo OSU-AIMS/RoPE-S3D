@@ -13,10 +13,10 @@ import numpy as np
 from tqdm import tqdm
 
 am = Predictor(ds_factor=8)
-ds = Dataset('set0')
+ds = Dataset('set10')
 
 start = 0
-end = 100
+end = 1000
 
 print("Copying Data...")
 

@@ -11,11 +11,11 @@ from robotpose import Dataset, Predictor
 import numpy as np
 from tqdm import tqdm
 
-am = Predictor(ds_factor=8, preview=True)
-ds = Dataset('set0')
+am = Predictor(ds_factor=8, preview=True)#, save_to='output/projection_viz.avi')
+ds = Dataset('set10')
 
-start = 0
-end = 100
+start = 674
+end = 680
 
 print("Copying Data...")
 target_imgs = np.copy(ds.seg_img[start:end])

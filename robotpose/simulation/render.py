@@ -103,6 +103,7 @@ class Renderer():
     def setMaxParts(self, number_of_parts):
         self.limit_parts = True
         self.limit_number = number_of_parts
+        self._updateMode()
 
     def _updateMode(self):
 

@@ -7,18 +7,20 @@
 #
 # Author: Adam Exley
 
+from h5py._hl import base
 import numpy as np
 import h5py
 
 import cv2
 from pixellib.instance import custom_segmentation
-from scipy.interpolate import interp1d
+from scipy.interpolate import interp1d, interp2d,RectBivariateSpline
 
 from ..simulation.render import Renderer
 from ..urdf import URDFReader
 from ..turbo_colormap import color_array
 
 from tqdm import tqdm
+
 
 
 DEFAULT_CAMERA_POSE = [.042,-1.425,.399, -.01,1.553,-.057]
@@ -29,7 +31,7 @@ class LookupCreator(Renderer):
     def __init__(self, camera_pose, ds_factor = 8):
 
         self.u_reader = URDFReader()
-        super().__init__('BASE', 'seg', camera_pose=camera_pose, camera_intrin=f'1280_720_color_{ds_factor}')
+        super().__init__('seg', camera_pose=camera_pose, camera_intrin=f'1280_720_color_{ds_factor}')
 
     def load_config(self, joints_to_render, angles_to_do, divisions):
         self.setMaxParts(joints_to_render)
@@ -91,6 +93,7 @@ class Predictor():
         default_camera_pose = DEFAULT_CAMERA_POSE,
         ds_factor = 8,
         preview = False,
+        save_to = None,
         do_angle = np.array([True,True,True,False,False,False]),
         min_angle_inc = np.array([.005]*6),
         history_length = 5
@@ -100,7 +103,7 @@ class Predictor():
         self.ds_factor = ds_factor
         self.preview = preview
         if preview:
-            self.viz = ProjectionViz('output/projection_viz.avi')
+            self.viz = ProjectionViz(save_to)
         self.do_angle = do_angle
         self.min_ang_inc = min_angle_inc
         self.history_length = history_length
@@ -116,7 +119,7 @@ class Predictor():
         self.seg.inferConfig(num_classes=6, class_names=self.classes)
         self.seg.load_model("models/segmentation/multi/B.h5")
 
-        with h5py.File('test.h5','r') as f:
+        with h5py.File('test2.h5','r') as f:
             self.lookup_angles = np.copy(f['angles'])
             self.lookup_depth = np.copy(f['depth'])
 
@@ -157,23 +160,14 @@ class Predictor():
         if starting_point is None:
             angles = np.array([0]*6, dtype=float)
 
-            # lookup = ['lookup', 4]
-            # u_sweep = ['smartsweep', 25, 6, None, [False,False,True,False,False,False]]
-            # u_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.4,0.5,0.5,0.5]]
-            # s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
-            # sl_sweep_check = ['smartsweep', 4, 6, .25, [True,True,False,False,False,False]]
-            # lu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-            
-            # stages = [lookup, u_sweep, u_stage, s_flip_check_6, sl_sweep_check, lu_fine_tune]
-
-            lookup = ['lookup', 4]
+            lookup = ['lookup']
             u_sweep = ['smartsweep', 25, 6, None, [False,False,True,False,False,False]]
             u_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.4,0.5,0.5,0.5]]
             s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
-            #sl_sweep_check = ['smartsweep', 4, 6, .25, [True,True,False,False,False,False]]
             slu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
             
             stages = [lookup, u_sweep, u_stage, s_flip_check_6, slu_fine_tune]
+
         else:
             angles = starting_point
 
@@ -194,7 +188,9 @@ class Predictor():
 
                 diff = self._tgt_depth_stack - self.lookup_depth
                 diff = np.abs(diff) ** 0.5
-                lookup_err = np.mean(diff, (1,2))
+                #lookup_err = np.mean(diff, (1,2))
+                lookup_err = np.mean(diff, (1,2)) *- np.std(diff, (1,2))
+
                 angles = self.lookup_angles[lookup_err.argmin()]
 
             elif stage[0] == 'descent':
@@ -290,30 +286,6 @@ class Predictor():
                             err_history[1:] = err_history[:-1]
                             err_history[0] = err
 
-            elif stage[0] == 'sweep':
-                do_ang = np.array(stage[3])
-                self.renderer.setMaxParts(stage[2])
-                div = stage[1]
-
-                for idx in np.where(do_ang)[0]:
-                    temp_low = angles.copy()
-                    temp_low[idx] = self.u_reader.joint_limits[idx,0]
-                    temp_high = angles.copy()
-                    temp_high[idx] = self.u_reader.joint_limits[idx,1]
-
-                    space = np.linspace(temp_low, temp_high, div)
-                    space_err = []
-                    for angs in space:
-                        self.renderer.setJointAngles(angs)
-                        color, depth = self.renderer.render()
-                        space_err.append(self._error(stage[2], color, depth))
-                        if self.preview:
-                            self.viz.loadRenderedColor(color)
-                            self.viz.loadRenderedDepth(depth)
-                            self.viz.show()
-
-                    angles = space[space_err.index(min(space_err))]
-
             elif stage[0] == 'smartsweep':
 
                 do_ang = np.array(stage[4])
@@ -362,8 +334,16 @@ class Predictor():
                     
                     if min_type == 1: 
                         angles = space[space_err.index(min(space_err))]
+                        err_history[1:] = err_history[:-1]
+                        err_history[0] = min(space_err)
+
                     elif min_type == 2:
                         angles = angs
+                        err_history[1:] = err_history[:-1]
+                        err_history[0] = pred_min_err
+
+                    history[1:] = history[:-1]
+                    history[0] = angles
 
                     if self.preview:
                         self.renderer.setJointAngles(angles)
@@ -440,7 +420,8 @@ class Predictor():
         # Unmatched Error
         diff = self._tgt_depth - render_depth
         diff = np.abs(diff) ** 0.5
-        err += np.mean(diff[diff!=0])
+        #err += np.mean(diff[diff!=0])
+        err += np.mean(diff[diff!=0]) *- np.std(diff[diff!=0])
 
         return err
 
@@ -453,7 +434,7 @@ class ProjectionViz():
         self.resolution = resolution
         if video_path is not None:
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            self.writer = cv2.VideoWriter(video_path, fourcc, 30, resolution)
+            self.writer = cv2.VideoWriter(video_path, fourcc, fps, resolution)
 
         self.res = np.flip(np.array(self.resolution))
         self.resize_to = tuple(np.array(self.resolution) // 2)
@@ -477,11 +458,9 @@ class ProjectionViz():
         self.seg_links = segmented_color
         self.input_side_up_to_date = False
 
-    def loadRenderedColor(self, render_color: np.ndarray) -> None:
-        self.rend_color = render_color
+    def loadRenderedColor(self, render_color: np.ndarray) -> None: self.rend_color = render_color
 
-    def loadRenderedDepth(self, render_depth: np.ndarray) -> None:
-        self.rend_depth = render_depth
+    def loadRenderedDepth(self, render_depth: np.ndarray) -> None: self.rend_depth = render_depth
 
     def _genInput(self):
         self.frame[:self.res[0]//2, :self.res[1]//2] = self._orig()
