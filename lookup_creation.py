@@ -4,6 +4,6 @@ from robotpose import Dataset
 
 ds = Dataset('set10')
 
-lc = LookupCreator(ds.camera_pose[0])
-lc.load_config(3,[True,True,False,False,False,False],[20,20,20,0,0,0])
-lc.run('test3.h5', False)
+lc = LookupCreator(ds.camera_pose[0],8)
+lc.load_config(3,[True,True,False,False,False,False],[50,50,0,0,0,0])
+lc.run('test.h5', False)

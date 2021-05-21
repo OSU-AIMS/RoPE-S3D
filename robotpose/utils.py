@@ -83,6 +83,42 @@ class Timer():
 
 
 
+class FancyTimer():
+    def __init__(self):
+        self.clear()
+
+    def clear(self):
+        self.data = {}
+        self.triggers = []
+        self.tot = 0
+    
+    def new_it(self):
+        if len(self.triggers) > 1:
+            self.tot += max(self.triggers) - min(self.triggers)
+            self.triggers = []
+    
+    def start(self, event_name):
+        if event_name not in self.data.keys():
+            self.data[event_name] = {'total':0.0,'start_time':None}
+        self.triggers.append(time.time())
+        self.data[event_name]['start_time'] = time.time()
+
+    def stop(self, event_name):
+        t = time.time()
+        self.triggers.append(time.time())
+        self.data[event_name]['total'] += t - self.data[event_name]['start_time']
+        self.data[event_name]['start_time'] = None
+
+    def __repr__(self):
+        self.new_it()
+        out = f" Total Time: {self.tot:.3f}\nBreakdown:"
+        for item, value in self.data.items():
+            out += f"\n\t{item}:\t{value['total']:.3f}s {(value['total'] * 100/self.tot):.2f}%"
+        return out
+
+
+
+
 
 
 

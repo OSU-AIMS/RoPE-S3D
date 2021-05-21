@@ -15,29 +15,25 @@ from tqdm import tqdm
 am = Predictor(ds_factor=8)
 ds = Dataset('set10')
 
-start = 0
-end = 1000
-
-print("Copying Data...")
-
-target_imgs = np.zeros((end-start,720,1280,3),np.uint8)
-target_depths = np.zeros((end-start,720,1280))
-
-og_imgs = np.copy(ds.og_img[start:end])
-seg_img = np.copy(ds.seg_img[start:end])
-dms = np.copy(ds.depthmaps[start:end])
-cam_poses = np.copy(ds.camera_pose[start:end])
-angles = np.copy(ds.angles[start:end])
-angles[:,:3] += (np.random.rand(*(angles[:,:3].shape)) - .5) * 1
-
-for i in range(end-start):
-    target_imgs[i,] = seg_img[i]
-    target_depths[i] = dms[i]
+div_size = 100
 
 out = []
 
-for idx in tqdm(range(end-start)):
-    out.append(am.run(og_imgs[idx], target_imgs[idx], target_depths[idx], cam_poses[idx]))
+for start in range(0,1000,div_size):
+    end = start+div_size
+
+    print("Copying Data...")
+
+    target_imgs = np.zeros((div_size,720,1280,3),np.uint8)
+    target_depths = np.zeros((div_size,720,1280))
+
+    og_imgs = np.copy(ds.og_img[start:end])
+    target_imgs = np.copy(ds.seg_img[start:end])
+    dms = np.copy(ds.depthmaps[start:end])
+    cam_poses = np.copy(ds.camera_pose[start:end])
+
+    for idx in tqdm(range(div_size)):
+        out.append(am.run(og_imgs[idx], target_imgs[idx], dms[idx], cam_poses[idx]))
 
 out = np.array(out)
 

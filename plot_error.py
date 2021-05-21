@@ -34,10 +34,9 @@ class LookupErrorViewer():
         self._load_target(target_depth)
         self.renderer.setMaxParts(4)
 
-        diff = self._tgt_depth_stack - self.lookup_depth
-        diff = np.abs(diff) ** 0.25
-        #lookup_err = np.mean(diff, (1,2))
-        lookup_err = np.mean(diff, (1,2)) - np.std(diff, (1,2))
+        diff = self._tgt_depth_stack ** 0.5 - self.lookup_depth ** 0.5
+        diff = np.abs(diff)# ** 0.5
+        lookup_err = np.mean(diff, (1,2)) *-np.var(diff, (1,2))
 
         s,l = np.meshgrid(np.unique(self.lookup_angles[:,0]),np.unique(self.lookup_angles[:,1]), indexing='ij')
         err = np.zeros((len(s),len(l)))
@@ -68,7 +67,7 @@ class LookupErrorViewer():
 a = LookupErrorViewer()
 ds = Dataset('set10')
 
-idx = 900
+idx = 704
 
 a.run(np.copy(ds.depthmaps[idx]),ds.camera_pose[idx],ds.angles[idx])
 

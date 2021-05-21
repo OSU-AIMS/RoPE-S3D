@@ -8,14 +8,15 @@
 # Author: Adam Exley
 
 from robotpose import Dataset, Predictor
+from robotpose.prediction.predict import TimePredictor
 import numpy as np
 from tqdm import tqdm
 
-am = Predictor(ds_factor=8, preview=True)#, save_to='output/projection_viz.avi')
+am = TimePredictor(ds_factor=8, preview=False)#, save_to='output/projection_viz.avi')
 ds = Dataset('set10')
 
-start = 674
-end = 680
+start = 98
+end = 103
 
 print("Copying Data...")
 target_imgs = np.copy(ds.seg_img[start:end])

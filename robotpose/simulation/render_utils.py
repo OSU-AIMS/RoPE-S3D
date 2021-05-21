@@ -11,22 +11,18 @@ from ..urdf import URDFReader
 
 MESH_CONFIG = os.path.join(p().DATASETS,'mesh_config.json')
 
-DEFAULT_COLORS = [
-    [0  , 0  , 85 ],[0  , 0  , 170],[0  , 0  , 255],
-    [0  , 85 , 0  ],[0  , 170, 0  ],[0  , 255, 0  ],
-    [85 , 0  , 0  ],[170, 0  , 0  ],[255, 0  , 0  ],
-    [0  , 85 , 85 ],[85 , 0  , 85 ],[85 , 85  , 0 ],
-    [0  , 170, 170],[170, 0  , 170],[170, 170 , 0 ],
-    [0  , 255, 255],[255, 0  , 255],[255, 255 , 0 ],
-    [170, 85 , 85 ],[85 , 170, 85 ],[85 , 85 , 170],
-    [255, 85 , 85 ],[85 , 255, 85 ],[85 , 85 , 255],
-    [255, 170, 170],[170, 255, 170],[170, 170, 255],
-    [85 , 170, 170],[170, 85 , 170],[170, 170, 85 ],
-    [85 , 255, 255],[255, 85 , 255],[255, 255, 85 ],
-    [85 , 170, 255],[255, 85 , 170],[170, 255, 85 ],
-    [85 , 85 , 85]
-]
+def default_color_maker(num):
+    b = np.linspace(0,255,num).astype(int) # Blue values are always unique
 
+    g = [0] * b.size
+    r = np.abs(255 - 2*b)
+
+    colors = []
+    for idx in range(num):
+        colors.append([b[idx],g[idx],r[idx]])
+    return colors
+
+DEFAULT_COLORS = default_color_maker(7)
 
 
 class MeshLoader():
