@@ -12,14 +12,13 @@ from robotpose.prediction.predict import TimePredictor
 import numpy as np
 from tqdm import tqdm
 
-am = TimePredictor(ds_factor=8, preview=True)#, save_to='output/projection_viz.avi')
+am = Predictor(ds_factor=8, preview=True)#, save_to='output/projection_viz.avi')
 ds = Dataset('set10')
 
-start = 98
-end = 103
+start = 180
+end = 200
 
 print("Copying Data...")
-target_imgs = np.copy(ds.seg_img[start:end])
 target_depths = np.copy(ds.depthmaps[start:end])
 og_imgs = np.copy(ds.og_img[start:end])
 cam_poses = np.copy(ds.camera_pose[start:end])
@@ -27,4 +26,4 @@ cam_poses = np.copy(ds.camera_pose[start:end])
 out = []
 
 for idx in tqdm(range(end-start)):
-    am.run(og_imgs[idx], target_imgs[idx], target_depths[idx], cam_poses[idx])
+    am.run(og_imgs[idx], target_depths[idx], cam_poses[idx])

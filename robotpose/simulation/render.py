@@ -65,6 +65,10 @@ class Renderer():
         self.node_color_map = {}
         self.setMode(mode)
         
+    @property
+    def resolution(self):
+        return (self.rend.viewport_height, self.rend.viewport_width)
+
     def setJointAngles(self, angles):
         setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([fwdKinematics(angles)]))[0])
 
