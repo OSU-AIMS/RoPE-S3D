@@ -11,8 +11,9 @@ from robotpose.utils import Grapher
 from robotpose import Dataset, Predictor
 import numpy as np
 from tqdm import tqdm
+from robotpose.prediction.predict import DoubleLookupPredictor
 
-am = Predictor(ds_factor=8)
+am = Predictor(ds_factor=8, preview=True)
 ds = Dataset('set10')
 
 div_size = 100

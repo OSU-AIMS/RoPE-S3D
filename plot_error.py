@@ -14,6 +14,8 @@ import cv2
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import h5py
+import tensorflow as tf
+tf.compat.v1.enable_eager_execution()
 
 
 class LookupErrorViewer():
@@ -35,6 +37,7 @@ class LookupErrorViewer():
         self.renderer.setMaxParts(4)
 
         diff = self._tgt_depth_stack ** 0.5 - self.lookup_depth ** 0.5
+        tf_err = tf.keras.losses.MSE(tf.constant(self._tgt_depth_stack), tf.constant(self.lookup_depth)).numpy()
         diff = np.abs(diff)# ** 0.5
         lookup_err = np.mean(diff, (1,2)) *-np.var(diff, (1,2))
 

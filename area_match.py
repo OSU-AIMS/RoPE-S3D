@@ -12,7 +12,7 @@ from robotpose.prediction.predict import TimePredictor
 import numpy as np
 from tqdm import tqdm
 
-am = TimePredictor(ds_factor=8, preview=False)#, save_to='output/projection_viz.avi')
+am = TimePredictor(ds_factor=8, preview=True)#, save_to='output/projection_viz.avi')
 ds = Dataset('set10')
 
 start = 98
