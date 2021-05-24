@@ -15,6 +15,8 @@ from tqdm import tqdm
 am = Predictor(ds_factor=8, preview=False)
 ds = Dataset('set10')
 
+starting_points = True
+
 div_size = 100
 
 out = []

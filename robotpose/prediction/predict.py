@@ -7,22 +7,17 @@
 #
 # Author: Adam Exley
 
-from tensorflow.python.ops.gen_math_ops import exp
 from robotpose.utils import FancyTimer
-from h5py._hl import base
 import numpy as np
 import h5py
 
 import cv2
 from pixellib.instance import custom_segmentation
-from scipy.interpolate import interp1d, interp2d,RectBivariateSpline
+from scipy.interpolate import interp1d
 
 from ..simulation.render import Renderer
 from ..urdf import URDFReader
 from ..turbo_colormap import color_array
-
-from tqdm import tqdm
-import time
 
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
@@ -32,66 +27,6 @@ tf.compat.v1.enable_eager_execution()
 DEFAULT_CAMERA_POSE = [.042,-1.425,.399, -.01,1.553,-.057]
 
 LOOKUP_LOCATION = 'lookups'
-
-class LookupCreator(Renderer):
-    def __init__(self, camera_pose, ds_factor = 8):
-
-        self.u_reader = URDFReader()
-        super().__init__('seg', camera_pose=camera_pose, camera_intrin=f'1280_720_color_{ds_factor}')
-
-    def load_config(self, joints_to_render, angles_to_do, divisions):
-        self.setMaxParts(joints_to_render)
-        divisions = np.array(divisions)
-        angles_to_do = np.array(angles_to_do)
-
-        divisions[~angles_to_do] = 1
-        self.num = np.prod(divisions)
-
-        self.angles = np.zeros((self.num,6))
-
-        for idx in np.where(angles_to_do)[0]:
-            angle_range = np.linspace(self.u_reader.joint_limits[idx,0],self.u_reader.joint_limits[idx,1],divisions[idx])
-
-            repeat = np.prod(divisions[:idx])
-            tile = self.num//(repeat*divisions[idx])
-
-            self.angles[:,idx] = np.tile(np.repeat(angle_range,repeat),tile)
-
-    def run(self, file_name, preview = True):
-
-        self.setJointAngles([0,0,0,0,0,0])
-        color, depth = self.render()
-
-        color_arr = np.zeros((self.num, *color.shape), dtype=np.uint8)
-        depth_arr = np.zeros((self.num, *color.shape[:2]), dtype=float)
-
-        for pose,idx in tqdm(zip(self.angles, range(len(self.angles))),total=len(self.angles),desc="Rendering Lookup Table"):
-            self.setJointAngles(pose)
-            color, depth = self.render()
-            color_arr[idx] = color
-            depth_arr[idx] = depth
-            if preview:
-                self._show(color)
-
-        with tqdm(total=3, desc=f"Writing to {file_name}") as pbar:
-            f = h5py.File(file_name, 'w')
-            f.create_dataset('angles',data=self.angles)
-            pbar.update(1)
-            f.create_dataset('color',data=color_arr, compression="gzip", compression_opts=1)
-            pbar.update(1)
-            f.create_dataset('depth',data=depth_arr, compression="gzip", compression_opts=1)
-            pbar.update(1)
-
-
-    def _show(self, color):
-        size = color.shape[0:2]
-        dim = [x*8 for x in size]
-        dim.reverse()
-        dim = tuple(dim)
-        color = cv2.resize(color, dim, interpolation=cv2.INTER_NEAREST)
-        cv2.imshow("Lookup Table Creation",color)
-        cv2.waitKey(1)
-
 
 
 class Predictor():
@@ -130,7 +65,7 @@ class Predictor():
             self.lookup_depth = tf.pow(tf.constant(np.copy(f['depth']),tf.float32),0.5)
 
 
-    def run(self, og_image, target_depth, camera_pose = None, starting_point = None):
+    def run(self, og_image, target_depth, camera_pose = None):
         if camera_pose is None:
             camera_pose = self.def_cam_pose
         self.renderer.setCameraPose(camera_pose)
@@ -161,28 +96,18 @@ class Predictor():
         # Flip: 
         #   Num_link_to_render, edit_angles
 
-        if starting_point is None:
-            angles = np.array([0]*6, dtype=float)
+        angles = np.array([0]*6, dtype=float)
 
-            lookup = ['lookup']
-            u_sweep_wide = ['tensorsweep', 50, 6, None, [False,False,True,False,False,False]]
-            u_sweep_gen = ['tensorsweep', 50, 6, .3, [False,False,True,False,False,False]]
-            u_sweep_narrow = ['smartsweep', 10, 6, .1, [False,False,True,False,False,False]]
-            u_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.4,0.5,0.5,0.5]]
-            s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
-            slu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-            
-            stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune]
+        lookup = ['lookup']
+        u_sweep_wide = ['tensorsweep', 50, 6, None, [False,False,True,False,False,False]]
+        u_sweep_gen = ['tensorsweep', 50, 6, .3, [False,False,True,False,False,False]]
+        u_sweep_narrow = ['smartsweep', 10, 6, .1, [False,False,True,False,False,False]]
+        u_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.4,0.5,0.5,0.5]]
+        s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
+        slu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+        
+        stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune]
 
-        else:
-            angles = starting_point
-
-            area_sweeps = ['smartsweep', 10, 6, .4, [True,True,True,False,False,False]]
-            slu_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.1,0.5,0.5,0.5]]
-            s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
-            lu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
-            
-            stages = [area_sweeps, slu_stage, s_flip_check_6, lu_fine_tune]
 
         self.renderer.setJointAngles(angles)
         self._load_target(segmentation_data, target_depth)
@@ -423,7 +348,7 @@ class Predictor():
                 self._target_masks[link] = link_mask
                 
     def _error(self, num_joints: int, render_color: np.ndarray, render_depth: np.ndarray) -> float:
-        color_dict = self.renderer.getColorDict()
+        color_dict = self.renderer.color_dict
         err = 0
 
         # Matched Error
@@ -874,7 +799,7 @@ class TimePredictor():
         self.tim_err.new_it()
         self.tim_err.start('full')
 
-        color_dict = self.renderer.getColorDict()
+        color_dict = self.renderer.color_dict
         err = 0
 
         # Matched Error

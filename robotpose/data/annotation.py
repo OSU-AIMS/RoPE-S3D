@@ -169,9 +169,7 @@ class AutomaticAnnotator():
             self.rend = ds_renderer
             self.rend.setMode({'body':'seg_full','link':'seg'}.get(mode))
 
-        color_dict = self.rend.getColorDict()
-
-        self.anno = Annotator(color_dict = color_dict, pad_size=3)
+        self.anno = Annotator(color_dict = self.rend.color_dict, pad_size=3)
         self.ds = Dataset(dataset)
 
         self.dest_path = {'body':self.ds.body_anno_path,'link':self.ds.link_anno_path}.get(mode)

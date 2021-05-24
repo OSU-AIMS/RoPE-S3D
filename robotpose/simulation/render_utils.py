@@ -48,16 +48,22 @@ class MeshLoader():
         self.pose_list = [d[x]['pose'] for x in d.keys()]
 
     def load(self):
-        self.meshes = []
+        self._meshes = []
         for file, pose in zip(self.mesh_list, self.pose_list):
             tm = trimesh.load(os.path.join(os.getcwd(),file))
-            self.meshes.append(pyrender.Mesh.from_trimesh(tm,smooth=True, poses=makePose(*pose)))
+            self._meshes.append(pyrender.Mesh.from_trimesh(tm,smooth=True, poses=makePose(*pose)))
 
-    def getMeshes(self):
-        return self.meshes
+    @property
+    def meshes(self):
+        return self._meshes
 
-    def getNames(self):
+    @property
+    def names(self):
         return self.name_list
+
+    @property
+    def meshes_and_names(self):
+        return self._meshes, self.name_list
 
 
 

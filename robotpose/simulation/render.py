@@ -13,8 +13,8 @@ import cv2
 import pyrender
 import PySimpleGUI as sg
 
-from ..projection import makePresetIntrinsics
-from .render_utils import DEFAULT_COLORS, MeshLoader, cameraFromIntrinsics, makePose, posesFromData, setPoses
+from ..projection import Intrinsics
+from .render_utils import DEFAULT_COLORS, MeshLoader, makePose, posesFromData, setPoses
 from ..data import Dataset
 
 from .fwd_kinematics_mh5l import FwdKinematic_MH5L_AllJoints as fwdKinematics
@@ -30,7 +30,7 @@ class Renderer():
             suppress_warnings = False
             ):
 
-        intrin = makePresetIntrinsics(camera_intrin)
+        self.intrinsics = Intrinsics(camera_intrin)
 
         self.mode = mode
         self.suppress_warnings = suppress_warnings
@@ -38,8 +38,7 @@ class Renderer():
 
         ml = MeshLoader()
         ml.load()
-        name_list = ml.getNames()
-        self.meshes = ml.getMeshes()
+        self.meshes, name_list = ml.meshes_and_names
          
         if camera_pose is not None:
             c_pose = camera_pose
@@ -48,7 +47,7 @@ class Renderer():
 
         self.scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])  # Make scene
 
-        camera = cameraFromIntrinsics(intrin)
+        camera = self.intrinsics.pyrender_camera
         cam_pose = makePose(*c_pose)
         self.camera_node = self.scene.add(camera, pose=cam_pose)
 
@@ -61,13 +60,10 @@ class Renderer():
             self.joint_nodes.append(pyrender.Node(name=name,mesh=mesh))
         for node in self.joint_nodes:
             self.scene.add_node(node)
-        self.rend = pyrender.OffscreenRenderer(intrin.width, intrin.height)
+        self.rend = pyrender.OffscreenRenderer(self.intrinsics.width, self.intrinsics.height)
         self.node_color_map = {}
         self.setMode(mode)
         
-    @property
-    def resolution(self):
-        return (self.rend.viewport_height, self.rend.viewport_width)
 
     def setJointAngles(self, angles):
         setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([fwdKinematics(angles)]))[0])
@@ -87,15 +83,6 @@ class Renderer():
 
     def setCameraPose(self, pose):
         setPoses(self.scene, [self.camera_node], [makePose(*pose)])
-
-    def getColorDict(self):
-        if self.mode == 'seg':
-            out = {}
-            for node, color in zip(self.node_color_map.keys(), self.node_color_map.values()):
-                out[node.name] = color
-            return out
-        elif self.mode == 'seg_full':
-            return {'robot': DEFAULT_COLORS[0]}
 
     def _setNodeColor(self, node_name, color):
         try:
@@ -123,6 +110,24 @@ class Renderer():
         elif self.mode == 'seg_full':
             for joint in self.joint_nodes:
                 self.node_color_map[joint] = DEFAULT_COLORS[0]
+
+    @property
+    def resolution(self):
+        return (self.rend.viewport_height, self.rend.viewport_width)
+
+    @property
+    def camera_pose(self):
+        return self.scene.get_pose(self.camera_node)
+
+    @property
+    def color_dict(self):
+        if self.mode == 'seg':
+            out = {}
+            for node, color in zip(self.node_color_map.keys(), self.node_color_map.values()):
+                out[node.name] = color
+            return out
+        elif self.mode == 'seg_full':
+            return {'robot': DEFAULT_COLORS[0]}
 
 
 

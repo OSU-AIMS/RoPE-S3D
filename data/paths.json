@@ -1,5 +1,6 @@
 {
     "DATASETS": "data/",
+    "LOOKUP_TABLES": "lookup_tables/",
     "MODELS": "models/",
     "SEG_MODELS": "models/segmentation",
     "BASE_MODEL": "models/mask_rcnn_coco.h5",
