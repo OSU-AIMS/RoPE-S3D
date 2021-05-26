@@ -1,5 +1,78 @@
 {
     "body": {},
-    "link": {},
+    "link": {
+        "BHWX": {
+            "type": "link",
+            "id": "BHWX",
+            "dataset": "set10",
+            "dataset_size": 1000,
+            "train_size": 700,
+            "valid_size": 200,
+            "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+            "epochs_trained": 0,
+            "date_trained": "2021-05-25 21:44:20.211376",
+            "benchmarks": []
+        },
+        "DBJE": {
+            "type": "link",
+            "id": "DBJE",
+            "dataset": "set10",
+            "dataset_size": 1000,
+            "train_size": 700,
+            "valid_size": 200,
+            "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+            "epochs_trained": 0,
+            "date_trained": "2021-05-25 21:42:53.328376",
+            "benchmarks": []
+        },
+        "IHDL": {
+            "type": "link",
+            "id": "IHDL",
+            "dataset": "set10",
+            "dataset_size": 1000,
+            "train_size": 700,
+            "valid_size": 200,
+            "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+            "epochs_trained": 0,
+            "date_trained": "2021-05-25 21:45:45.049253",
+            "benchmarks": []
+        },
+        "MYXJ": {
+            "type": "link",
+            "id": "MYXJ",
+            "dataset": "set10",
+            "dataset_size": 1000,
+            "train_size": 700,
+            "valid_size": 200,
+            "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+            "epochs_trained": 0,
+            "date_trained": "2021-05-25 21:48:04.269214",
+            "benchmarks": []
+        },
+        "RQUL": {
+            "type": "link",
+            "id": "RQUL",
+            "dataset": "set10",
+            "dataset_size": 1000,
+            "train_size": 700,
+            "valid_size": 200,
+            "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+            "epochs_trained": 0,
+            "date_trained": "2021-05-25 21:34:15.471523",
+            "benchmarks": []
+        },
+        "ZKGI": {
+            "type": "link",
+            "id": "ZKGI",
+            "dataset": "set10",
+            "dataset_size": 1000,
+            "train_size": 700,
+            "valid_size": 200,
+            "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+            "epochs_trained": 0,
+            "date_trained": "2021-05-25 21:33:16.337641",
+            "benchmarks": []
+        }
+    },
     "untyped": []
 }
