@@ -24,12 +24,12 @@ class Intrinsics():
         input : str, optional
             Preset intrinsics or string representation of intrinsics to replicate, by default None
         """
+        self.bases = ['1280_720_color', '1280_720_depth','640_480_color','640_480_depth']
 
         if input is not None:
             is_preset = False
 
-            bases = ['1280_720_color', '1280_720_depth','640_480_color','640_480_depth']
-            for base in bases:
+            for base in self.bases:
                 if input == base or (base + '_') in input:
                     is_preset = True
                     break
@@ -107,8 +107,7 @@ class Intrinsics():
         self.model = rs.distortion.brown_conrady
         self.coeffs = [0,0,0,0,0]
 
-        bases = ['1280_720_color', '1280_720_depth','640_480_color','640_480_depth']
-        for base in bases:
+        for base in self.bases:
             if preset == base:
                 self.resolution, self.pp, self.f = get_details(preset)
                 return
@@ -127,7 +126,7 @@ class Intrinsics():
                     return
 
 
-        raise ValueError(f"Preset must be one of: {bases}\nDownscaling a preset can be done by appending '_x' to a preset where x is a valid number.")
+        raise ValueError(f"Preset must be one of: {self.bases}\nDownscaling a preset can be done by appending '_x' to a preset where x is a valid number.")
 
 
     @property

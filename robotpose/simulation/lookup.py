@@ -61,7 +61,7 @@ class LookupCreator(Renderer):
             f = h5py.File(file_name, 'w')
             f.attrs['pose'] = self.camera_pose
             f.attrs['ds_factor'] = self.ds_factor
-            f.attrs['intrinsics'] = f'1280_720_color_{self.ds_factor}'
+            f.attrs['intrinsics'] = str(self.intrinsics)
             f.create_dataset('angles', data=self.angles)
             pbar.update(1)
             # f.create_dataset('color',data=color_arr, compression="gzip", compression_opts=1)
@@ -82,4 +82,8 @@ class LookupCreator(Renderer):
 
 
 class LookupInfo():
-    pass
+    def __init__(self) -> None:
+        self._update()
+    
+    def _update(self):
+        pass

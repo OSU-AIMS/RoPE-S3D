@@ -66,14 +66,6 @@ class MeshLoader():
         return self._meshes, self.name_list
 
 
-
-def cameraFromIntrinsics(rs_intrinsics):
-    """Returns Pyrender Camera.
-    Makes a Pyrender camera from realsense intrinsics
-    """
-    return pyrender.IntrinsicsCamera(cx=rs_intrinsics.ppx, cy=rs_intrinsics.ppy, fx=rs_intrinsics.fx, fy=rs_intrinsics.fy)
-
-
 def angToPoseArr(yaw,pitch,roll, arr = None):
     """Returns 4x4 pose array.
     Converts rotations to a pose array
@@ -129,7 +121,6 @@ def makePose(x,y,z,pitch,roll,yaw):
     return pose
 
 
-
 def posesFromData(ang, pos):
     """
     Returns Zx6x4x4 array of pose arrays
@@ -155,14 +146,13 @@ def posesFromData(ang, pos):
             poses[idx,sub_idx] = makePose(*coord[idx,sub_idx])
 
     # Determine BT with vectors because it's easier
-
     bt = pos[:,5] - pos[:,4]    # Vectors from B to T
 
     y = poses[:,4,:3,1] # Y Axis is common with R joint
     z = np.cross(bt, y)
 
-    z = z/np.vstack([np.linalg.norm(z, axis=-1)]*3).transpose()
-    x = bt/np.vstack([np.linalg.norm(bt, axis=-1)]*3).transpose()
+    z = z / np.vstack([np.linalg.norm(z, axis=-1)]*3).transpose()
+    x = bt / np.vstack([np.linalg.norm(bt, axis=-1)]*3).transpose()
 
     b_poses = np.zeros((pos.shape[0],4,4))
 
@@ -175,7 +165,6 @@ def posesFromData(ang, pos):
     poses[:,-1,:] = b_poses
 
     return poses
-
 
 
 def setPoses(scene, nodes, poses):

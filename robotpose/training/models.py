@@ -91,6 +91,8 @@ class ModelInfo():
             modelfiles = [x for x in os.listdir(folder) if x.endswith('.h5')]
             epoch = [int(x.split('.')[1].split('-')[0]) for x in modelfiles]
 
+        epoch.append(0)
+
         return max(epoch)
 
 
@@ -114,10 +116,10 @@ class ModelManager(ModelInfo):
         ds = Dataset(dataset)
         folder = ds.link_anno_path if model_type == 'link' else ds.body_anno_path
         train_length = len(os.listdir(os.path.join(folder,'train'))) // 2
-        valid_length = len(os.listdir(os.path.join(folder,'train'))) // 2
+        valid_length = len(os.listdir(os.path.join(folder,'test'))) // 2
 
         md = ModelData(type = model_type, id = name,
-            dataset = dataset, dataset_size = ds.length,
+            dataset = dataset, dataset_size = int(ds.length),
             train_size = train_length, valid_size = valid_length,
             classes = classes, date_trained = str(datetime.now()))
         md.write(folder_path)
