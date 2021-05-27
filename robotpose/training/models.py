@@ -51,9 +51,9 @@ class ModelData():
 
 class ModelInfo():
     def __init__(self):
-        self._update()
+        self.update()
     
-    def _update(self):
+    def update(self):
         data_files = [os.path.join(r,x) for r,d,y in os.walk(p().MODELS) for x in y if x.endswith('ModelData.json')]
         valid_types = ['body','link']
         not_info = {k:{} for k in valid_types}
@@ -176,7 +176,7 @@ class ModelManager(ModelInfo):
                 Number of epochs model was trained for.
 
         """
-        self._update()
+        self.update()
         kwargs.update(kwarg_dict)   # Allow kwargs to be input as a dict
 
         assert model_type in ['body','link'], "type must be either 'body' or 'link'"

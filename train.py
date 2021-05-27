@@ -16,10 +16,13 @@ import os
 
 from pixellib.custom_train import instance_custom_training
 
-os.environ["ROBOTPOSE_TRAINING"] = ""
 from robotpose import Dataset, DatasetRenderer
 from robotpose.training import ModelManager
 from robotpose.paths import Paths as p
+
+# Eager Exec. is enabled when importing robotpose; disable
+import tensorflow as tf
+tf.compat.v1.disable_eager_execution()
 
 
 def train(dataset, mode, batch):
@@ -40,6 +43,8 @@ def train(dataset, mode, batch):
     # Train
     train_maskrcnn.load_dataset({'body':ds.body_anno_path,'link':ds.link_anno_path}.get(mode))
     train_maskrcnn.train_model(num_epochs = 300, augmentation=True,  path_trained_models = os.path.abspath(dest))
+
+    mm.update()
 
 
 

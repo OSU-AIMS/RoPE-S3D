@@ -1,0 +1,33 @@
+{
+    "camera_poses": {
+        "P_A": [0.042, -1.425, 0.399, -0.01, 1.5495, -0.0567963]
+    },
+    "intrinsics": { "I_A": "[ 160x90  p[79.7989 45.1866]  f[113.154 113.107]  Brown Conrady [0 0 0 0 0] ]" },
+    "lookups": {
+        "I_A": {
+            "P_A": {
+                "gd56l": {
+                    "divisions": [50, 10, 1, 1, 1, 1],
+                    "ds_factor": 8,
+                    "intrinsics": "[ 160x90  p[79.7989 45.1866]  f[113.154 113.107]  Brown Conrady [0 0 0 0 0] ]",
+                    "joints_used": [true, true, false, false, false, false],
+                    "pose": [0.042, -1.425, 0.399, -0.01, 1.5495, -0.0567963]
+                },
+                "gdl": {
+                    "divisions": [10, 10, 1, 1, 1, 1],
+                    "ds_factor": 8,
+                    "intrinsics": "[ 160x90  p[79.7989 45.1866]  f[113.154 113.107]  Brown Conrady [0 0 0 0 0] ]",
+                    "joints_used": [true, true, false, false, false, false],
+                    "pose": [0.042, -1.425, 0.399, -0.01, 1.5495, -0.0567963]
+                },
+                "ghkl": {
+                    "divisions": [10, 10, 1, 1, 1, 1],
+                    "ds_factor": 8,
+                    "intrinsics": "[ 160x90  p[79.7989 45.1866]  f[113.154 113.107]  Brown Conrady [0 0 0 0 0] ]",
+                    "joints_used": [true, true, false, false, false, false],
+                    "pose": [0.042, -1.425, 0.399, -0.01, 1.5495, -0.0567963]
+                }
+            }
+        }
+    }
+}
