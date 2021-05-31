@@ -11,22 +11,25 @@ import numpy as np
 import pyrealsense2 as rs
 import pyrender
 import re
+from typing import Union
 
 FLT_EPSILON = 1
 
 class Intrinsics():
 
-    def __init__(self, input: str = None):
+    def __init__(self, input: Union[str, 'Intrinsics'] = None):
         """Create intrinsics object
 
         Parameters
         ----------
-        input : str, optional
-            Preset intrinsics or string representation of intrinsics to replicate, by default None
+        input : Union[str, robotpose.Intrinsics], optional
+            Preset intrinsics or string representation of intrinsics to replicate, by default None, by default None
         """
+
         self.bases = ['1280_720_color', '1280_720_depth','640_480_color','640_480_depth']
 
         if input is not None:
+            input = str(input)
             is_preset = False
 
             for base in self.bases:
@@ -38,7 +41,6 @@ class Intrinsics():
                 self.fromPreset(input)
             else:
                 self.fromString(input)
-
 
     def fromString(self, input: str):
         """Configure intrinsics from the string representation of said intrinsics.

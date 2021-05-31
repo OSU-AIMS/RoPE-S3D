@@ -7,11 +7,14 @@
 #
 # Author: Adam Exley
 
+from __future__ import division
 import numpy as np
 import h5py
 import os
 import json
 import string
+from typing import Union
+import random
 
 import cv2
 
@@ -23,13 +26,17 @@ from ..CompactJSONEncoder import CompactJSONEncoder
 
 from tqdm import tqdm
 
+def get_key(dict, val):
+    return list(dict.keys())[list(dict.values()).index(val)]
+
 class LookupCreator(Renderer):
-    def __init__(self, camera_pose, intrinsics):
+    def __init__(self, camera_pose: np.ndarray, intrinsics: Union[str, Intrinsics]):
         self.inp_pose = camera_pose
         self.u_reader = URDFReader()
         super().__init__('seg', camera_pose=camera_pose, camera_intrin=intrinsics)
 
-    def load_config(self, joints_to_render, angles_to_do, divisions):
+    def load_config(self, joints_to_render: int, angles_to_do: np.ndarray, divisions:np.ndarray):
+        self.num_rendered = joints_to_render
         self.setMaxParts(joints_to_render)
         self.divisions = np.array(divisions)
         self.angles_to_do = np.array(angles_to_do)
@@ -64,7 +71,8 @@ class LookupCreator(Renderer):
             f = h5py.File(file_name, 'w')
             f.attrs['pose'] = self.inp_pose
             f.attrs['intrinsics'] = str(self.intrinsics)
-            f.attrs['joints_used'] = self.angles_to_do
+            f.attrs['num_links_rendered'] = self.num_rendered
+            f.attrs['angles_changed'] = self.angles_to_do
             f.attrs['divisions'] = self.divisions
             f.create_dataset('angles', data=self.angles)
             pbar.update(1)
@@ -101,7 +109,8 @@ class LookupInfo():
     def update(self):
         self.data = {}
 
-        paths = [os.path.join(r,x) for r,d,y in os.walk(p().LOOKUPS) for x in y if x.endswith('.h5')]
+        #paths = [os.path.join(r,x) for r,d,y in os.walk(p().LOOKUPS) for x in y if x.endswith('.h5')]
+        paths = [os.path.join(p().LOOKUPS,x) for x in os.listdir(p().LOOKUPS) if x.endswith('.h5')]
         raw_tables = {}
         for path in paths:
             with h5py.File(path,'r') as f:
@@ -113,9 +122,10 @@ class LookupInfo():
         for key in raw_tables:
             tmp_intrin = Intrinsics(raw_tables[key]['intrinsics'])
             raw_tables[key]['element_number'] = tmp_intrin.size * np.prod(raw_tables[key]['divisions'])
+            raw_tables[key]['pose_number'] = np.prod(raw_tables[key]['divisions'])
             raw_tables[key]['intrinsics'] = str(tmp_intrin)
             raw_tables[key]['pose'] = tuple(raw_tables[key]['pose'])
-            for attr in ['joints_used', 'divisions']:
+            for attr in ['angles_changed', 'divisions']:
                 raw_tables[key][attr] = list(raw_tables[key][attr])
             
         camera_poses = {x['pose'] for x in raw_tables.values()}
@@ -129,9 +139,6 @@ class LookupInfo():
         # Create structure for lookup organization (intrin -> pose -> table)
         pose_dict = {pose:{} for pose in pose_shortnames}
         self.data['lookups'] = {intrin:pose_dict for intrin in intrin_shortnames}
-
-        def get_key(dict, val):
-            return list(dict.keys())[list(dict.values()).index(val)]
 
         for table in raw_tables:
             intrin = get_key(intrin_shortnames, raw_tables[table]['intrinsics'])
@@ -147,14 +154,95 @@ class LookupInfo():
 
 
 
-
-
 class LookupManager(LookupInfo):
 
     def __init__(self) -> None:
         super().__init__()
 
+    def get(self, 
+        intrinsics: Union[str, Intrinsics], 
+        camera_pose: np.ndarray, 
+        num_rendered_links: int, 
+        varying_angles: np.ndarray, 
+        max_elements: int = None,
+        max_poses: int = None,
+        divisions: np.ndarray = None,
+        create_optimal: bool = True
+        ):
+
+        assert sum([x is not None for x in [max_elements, max_poses, divisions]]) > 0,\
+             "Some specifying critera must be given in order to limit the size of the lookup requested"
+        assert sum([x is not None for x in [max_elements, max_poses, divisions]]) == 1,\
+             "Only one specifiying criterion can be used from [max_elements, max_poses, divisons]"
 
 
-    def create():
-        pass
+        if type(intrinsics) is str: intrinsics = Intrinsics(intrinsics)
+        intrinsics = str(intrinsics)
+
+        create = False
+
+        if intrinsics in self.data['intrinsics'].values():
+            intrinsic_short = get_key(self.data['intrinsics'], intrinsics)
+            if list(camera_pose) in self.data['camera_poses'].values():
+                camera_pose_short = get_key(self.data['camera_poses'], list(camera_pose))
+            else:
+                create = True
+        else:
+            create = True
+
+        if not create:
+            acceptable = self.data['lookups'][intrinsic_short][camera_pose_short]
+            acceptable = {k:acceptable[k] for k in acceptable if acceptable[k]['num_links_rendered'] == num_rendered_links}
+            acceptable = {k:acceptable[k] for k in acceptable if [x != 1 for x in acceptable[k]['divisions']] == varying_angles}
+            if len(acceptable) == 0:
+                create = True
+            else:
+                if max_elements is not None:
+                    acceptable = {k:acceptable[k] for k in acceptable if acceptable[k]['element_number'] <= max_elements}
+                elif max_poses is not None:
+                    acceptable = {k:acceptable[k] for k in acceptable if acceptable[k]['pose_number'] <= max_poses}
+                elif divisions is not None:
+                    acceptable = {k:acceptable[k] for k in acceptable if acceptable[k]['divisions'] == list(divisions)}
+
+            if len(acceptable) == 0:
+                create = True
+            else:
+                if create_optimal:
+                    pass
+
+
+        if create:
+            if divisions is None:
+                if max_poses is None:
+                    max_poses = max_elements / Intrinsics(intrinsics).size
+                # By default, allocate divisions equally
+                divisions = np.zeros(6)
+                divisions[varying_angles] = int(max_poses ** (1 / sum(varying_angles)))
+
+            self.create(intrinsics, camera_pose, num_rendered_links, varying_angles, divisions)
+
+            name = self.get(intrinsics, camera_pose, num_rendered_links, varying_angles, max_elements, max_poses, divisions, create_optimal)
+        else:
+            # Return one with highest pose count
+            name = [k for k in acceptable if acceptable[k]['pose_number'] == max([x['pose_number'] for x in acceptable.values()])][0]
+
+        return self.load(name)
+
+
+    def load(self, name: str):
+        if not name.endswith('.h5'):
+            name = name.join('.h5')
+        with h5py.File(name, 'r') as f:
+            return f['angles'], f['depth']
+
+
+    def create(self, intrinsics: Union[str, Intrinsics], camera_pose: np.ndarray, num_rendered_links: int, varying_angles: np.ndarray, divisions: np.ndarray):
+        creator = LookupCreator(camera_pose, intrinsics)
+        creator.load_config(num_rendered_links, varying_angles, divisions)
+        letters = string.ascii_lowercase
+        pick = True
+        while pick:
+            name = ''.join(random.choice(letters) for i in range(5)).join('.h5')
+            if name not in os.listdir(p().LOOKUPS):
+                pick = False
+        creator.run(os.path.join(p().LOOKUPS, name), False)
