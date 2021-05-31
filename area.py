@@ -21,7 +21,7 @@ div_size = 100
 
 out = []
 
-for start in range(0,1000,div_size):
+for start in range(0,100,div_size):
     end = start+div_size
 
     print("Copying Data...")

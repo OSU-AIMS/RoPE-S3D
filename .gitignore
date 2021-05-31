@@ -90,3 +90,4 @@ examples/deepposekit-data
 data/datasets.json
 models/mask_rcnn_coco.h5
 output/projection_viz_set10.avi
+lookup/lookups.json

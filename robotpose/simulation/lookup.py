@@ -42,7 +42,7 @@ class LookupCreator(Renderer):
         self.angles_to_do = np.array(angles_to_do)
 
         self.divisions[~self.angles_to_do] = 1
-        self.num = np.prod(self.divisions)
+        self.num = int(np.prod(self.divisions))
 
         self.angles = np.zeros((self.num,6))
 
@@ -156,7 +156,8 @@ class LookupInfo():
 
 class LookupManager(LookupInfo):
 
-    def __init__(self) -> None:
+    def __init__(self, element_bits = 32) -> None:
+        self.element_bits = element_bits
         super().__init__()
 
     def get(self, 
@@ -183,8 +184,8 @@ class LookupManager(LookupInfo):
 
         if intrinsics in self.data['intrinsics'].values():
             intrinsic_short = get_key(self.data['intrinsics'], intrinsics)
-            if list(camera_pose) in self.data['camera_poses'].values():
-                camera_pose_short = get_key(self.data['camera_poses'], list(camera_pose))
+            if tuple(list(camera_pose)) in self.data['camera_poses'].values():
+                camera_pose_short = get_key(self.data['camera_poses'], tuple(list(camera_pose)))
             else:
                 create = True
         else:
@@ -193,7 +194,7 @@ class LookupManager(LookupInfo):
         if not create:
             acceptable = self.data['lookups'][intrinsic_short][camera_pose_short]
             acceptable = {k:acceptable[k] for k in acceptable if acceptable[k]['num_links_rendered'] == num_rendered_links}
-            acceptable = {k:acceptable[k] for k in acceptable if [x != 1 for x in acceptable[k]['divisions']] == varying_angles}
+            acceptable = {k:acceptable[k] for k in acceptable if np.all([x != 1 for x in acceptable[k]['divisions']] == varying_angles,-1)}
             if len(acceptable) == 0:
                 create = True
             else:
@@ -214,26 +215,26 @@ class LookupManager(LookupInfo):
         if create:
             if divisions is None:
                 if max_poses is None:
-                    max_poses = max_elements / Intrinsics(intrinsics).size
+                    max_poses = max_elements / (Intrinsics(intrinsics).size * self.element_bits)
                 # By default, allocate divisions equally
-                divisions = np.zeros(6)
+                divisions = np.zeros(6, int)
                 divisions[varying_angles] = int(max_poses ** (1 / sum(varying_angles)))
 
-            self.create(intrinsics, camera_pose, num_rendered_links, varying_angles, divisions)
+            name = self.create(intrinsics, camera_pose, num_rendered_links, varying_angles, divisions)
 
-            name = self.get(intrinsics, camera_pose, num_rendered_links, varying_angles, max_elements, max_poses, divisions, create_optimal)
         else:
             # Return one with highest pose count
-            name = [k for k in acceptable if acceptable[k]['pose_number'] == max([x['pose_number'] for x in acceptable.values()])][0]
+            mx = max([x['pose_number'] for x in acceptable.values()])
+            name = [k for k in acceptable if acceptable[k]['pose_number'] == mx][0]
 
         return self.load(name)
 
 
     def load(self, name: str):
         if not name.endswith('.h5'):
-            name = name.join('.h5')
-        with h5py.File(name, 'r') as f:
-            return f['angles'], f['depth']
+            name = name + '.h5'
+        with h5py.File(os.path.join(p().LOOKUPS, name), 'r') as f:
+            return np.copy(f['angles']), np.copy(f['depth'])
 
 
     def create(self, intrinsics: Union[str, Intrinsics], camera_pose: np.ndarray, num_rendered_links: int, varying_angles: np.ndarray, divisions: np.ndarray):
@@ -242,7 +243,8 @@ class LookupManager(LookupInfo):
         letters = string.ascii_lowercase
         pick = True
         while pick:
-            name = ''.join(random.choice(letters) for i in range(5)).join('.h5')
+            name = ''.join(random.choice(letters) for i in range(5)) + ('.h5')
             if name not in os.listdir(p().LOOKUPS):
                 pick = False
         creator.run(os.path.join(p().LOOKUPS, name), False)
+        return name

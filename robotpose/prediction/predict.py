@@ -18,11 +18,22 @@ from scipy.interpolate import interp1d
 from ..simulation.render import Renderer
 from ..urdf import URDFReader
 from ..turbo_colormap import color_array
+from ..simulation.lookup import LookupManager
 
 import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
 
 
+import subprocess as sp
+
+def get_gpu_memory():
+    # https://stackoverflow.com/questions/59567226/how-to-programmatically-determine-available-gpu-memory-with-tensorflow
+    _output_to_list = lambda x: x.decode('ascii').split('\n')[:-1]
+
+    COMMAND = "nvidia-smi --query-gpu=memory.total --format=csv"
+    memory_free_info = _output_to_list(sp.check_output(COMMAND.split()))[1:]
+    memory_free_values = [int(x.split()[0])*67108864 for i, x in enumerate(memory_free_info)]
+    return memory_free_values 
 
 DEFAULT_CAMERA_POSE = [.042,-1.425,.399, -.01,1.553,-.057]
 
@@ -31,7 +42,7 @@ LOOKUP_LOCATION = 'lookups'
 
 class Predictor():
     def __init__(self,
-        default_camera_pose = DEFAULT_CAMERA_POSE,
+        camera_pose = DEFAULT_CAMERA_POSE,
         ds_factor = 8,
         preview = False,
         save_to = None,
@@ -40,7 +51,6 @@ class Predictor():
         history_length = 5
         ):
 
-        self.def_cam_pose = default_camera_pose
         self.ds_factor = ds_factor
         self.preview = preview
         if preview:
@@ -49,8 +59,10 @@ class Predictor():
         self.min_ang_inc = min_angle_inc
         self.history_length = history_length
 
+        self.intrinsics = f'1280_720_color_{self.ds_factor}'
+
         self.u_reader = URDFReader()
-        self.renderer = Renderer('seg',default_camera_pose,f'1280_720_color_{self.ds_factor}')
+        self.renderer = Renderer('seg',camera_pose,self.intrinsics)
 
         self.classes = ["BG"]
         self.classes.extend(self.u_reader.mesh_names[:6])
@@ -60,13 +72,29 @@ class Predictor():
         self.seg.inferConfig(num_classes=6, class_names=self.classes)
         self.seg.load_model("models/segmentation/multi/B.h5")
 
+        self.changeCameraPose(camera_pose)
         self._loadLookup()
 
 
+    def changeCameraPose(self, camera_pose):
+        self.camera_pose = camera_pose
+        self.renderer.setCameraPose(camera_pose)
+
+
     def _loadLookup(self):
-        with h5py.File('SL100.h5','r') as f:
-            self.lookup_angles = np.copy(f['angles'])
-            self.lookup_depth = tf.pow(tf.constant(np.copy(f['depth']),tf.float32),0.5)
+
+        max_elements = int(get_gpu_memory()[0] / (3 * 32))
+
+        lm = LookupManager()
+        ang, depth = lm.get(self.intrinsics, self.camera_pose, 4,
+            np.array([True,True,False,False,False,False]), max_elements)
+
+        self.lookup_angles = ang
+        self.lookup_depth = tf.pow(tf.constant(depth,tf.float32),0.5)
+
+        # with h5py.File('SL100.h5','r') as f:
+        #     self.lookup_angles = np.copy(f['angles'])
+        #     self.lookup_depth = tf.pow(tf.constant(np.copy(f['depth']),tf.float32),0.5)
 
     def _setStages(self):
 
@@ -80,7 +108,7 @@ class Predictor():
         # Flip: 
         #   Num_link_to_render, edit_angles
         
-        if self.do_angle == np.array([True,True,True,False,False,False]):
+        if np.all(self.do_angle == np.array([True,True,True,False,False,False]),-1):
 
             lookup = ['lookup']
             u_sweep_wide = ['tensorsweep', 50, 6, None, [False,False,True,False,False,False]]
@@ -92,7 +120,7 @@ class Predictor():
             
             self.stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune]
 
-        elif self.do_angle == np.array([True,True,True,True,True,False]):
+        elif np.all(self.do_angle == np.array([True,True,True,True,True,False]),-1):
 
             lookup = ['lookup']
             u_sweep_wide = ['tensorsweep', 50, 6, None, [False,False,True,False,False,False]]
@@ -112,9 +140,8 @@ class Predictor():
 
 
     def run(self, og_image, target_depth, camera_pose = None):
-        if camera_pose is None:
-            camera_pose = self.def_cam_pose
-        self.renderer.setCameraPose(camera_pose)
+        if camera_pose is not None:
+            self.changeCameraPose(camera_pose)
 
         if self.preview:
             self.viz.loadTargetColor(og_image)
