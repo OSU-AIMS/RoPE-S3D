@@ -7,7 +7,7 @@
 #
 # Author: Adam Exley
 
-from robotpose.utils import FancyTimer
+#from robotpose.utils import FancyTimer
 import numpy as np
 import h5py
 
@@ -107,6 +107,21 @@ class Predictor():
         slu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
         
         stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune]
+
+        # lookup = ['lookup']
+        # u_sweep_wide = ['tensorsweep', 50, 6, None, [False,False,True,False,False,False]]
+        # u_sweep_gen = ['tensorsweep', 50, 6, .3, [False,False,True,False,False,False]]
+        # u_sweep_narrow = ['smartsweep', 10, 6, .1, [False,False,True,False,False,False]]
+        # u_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.4,0.5,0.5,0.5]]
+        # s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
+        # slu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+        # rb_sweep_full = ['tensorsweep', 40, 6, None, [False,False,False,True,True,False]]
+        # rb_sweep = ['tensorsweep', 5, 6, .1, [False,False,False,True,True,False]]
+        # rb_fine_tune = ['descent',5,6,0.4,.015,[False,False,False,True,True,False],[None,None,None,.005,.005,None]]
+        # full_tune = ['descent',10,6,0.4,.015,[True,True,True,True,True,False],[None,None,None,None,None,None]]
+        
+        # stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune,
+        #     rb_sweep_full, rb_sweep, rb_fine_tune, full_tune]
 
 
         self.renderer.setJointAngles(angles)
@@ -469,388 +484,388 @@ class ProjectionViz():
 
 
 
-class TimePredictor():
-    def __init__(self,
-        default_camera_pose = DEFAULT_CAMERA_POSE,
-        ds_factor = 8,
-        preview = False,
-        save_to = None,
-        do_angle = np.array([True,True,True,False,False,False]),
-        min_angle_inc = np.array([.005]*6),
-        history_length = 5
-        ):
+# class TimePredictor():
+#     def __init__(self,
+#         default_camera_pose = DEFAULT_CAMERA_POSE,
+#         ds_factor = 8,
+#         preview = False,
+#         save_to = None,
+#         do_angle = np.array([True,True,True,False,False,False]),
+#         min_angle_inc = np.array([.005]*6),
+#         history_length = 5
+#         ):
 
-        self.def_cam_pose = default_camera_pose
-        self.ds_factor = ds_factor
-        self.preview = preview
-        if preview:
-            self.viz = ProjectionViz(save_to)
-        self.do_angle = do_angle
-        self.min_ang_inc = min_angle_inc
-        self.history_length = history_length
+#         self.def_cam_pose = default_camera_pose
+#         self.ds_factor = ds_factor
+#         self.preview = preview
+#         if preview:
+#             self.viz = ProjectionViz(save_to)
+#         self.do_angle = do_angle
+#         self.min_ang_inc = min_angle_inc
+#         self.history_length = history_length
 
-        self.u_reader = URDFReader()
-        self.renderer = Renderer('seg',default_camera_pose,f'1280_720_color_{self.ds_factor}')
+#         self.u_reader = URDFReader()
+#         self.renderer = Renderer('seg',default_camera_pose,f'1280_720_color_{self.ds_factor}')
 
-        self.classes = ["BG"]
-        self.classes.extend(self.u_reader.mesh_names[:6])
-        self.link_names = self.classes[1:]
+#         self.classes = ["BG"]
+#         self.classes.extend(self.u_reader.mesh_names[:6])
+#         self.link_names = self.classes[1:]
 
-        self.seg = custom_segmentation()
-        self.seg.inferConfig(num_classes=6, class_names=self.classes)
-        self.seg.load_model("models/segmentation/multi/B.h5")
+#         self.seg = custom_segmentation()
+#         self.seg.inferConfig(num_classes=6, class_names=self.classes)
+#         self.seg.load_model("models/segmentation/multi/B.h5")
 
-        with h5py.File('SL100.h5','r') as f:
-            self.lookup_angles = np.copy(f['angles'])
-            self.lookup_depth = tf.cast(tf.pow(tf.constant(np.copy(f['depth'])),0.5),tf.float32)
+#         with h5py.File('SL100.h5','r') as f:
+#             self.lookup_angles = np.copy(f['angles'])
+#             self.lookup_depth = tf.cast(tf.pow(tf.constant(np.copy(f['depth'])),0.5),tf.float32)
 
-        self.tim = FancyTimer()
-        self.tim_startup = FancyTimer()
-        self.tim_err = FancyTimer()
+#         self.tim = FancyTimer()
+#         self.tim_startup = FancyTimer()
+#         self.tim_err = FancyTimer()
 
 
-    def run(self, og_image, target_depth, camera_pose = None, starting_point = None):
-        self.tim_err.clear()
-        self.tim.clear()
-        self.tim_startup.clear()
-        self.tim.start('start')
-        self.tim_startup.start('full')
+#     def run(self, og_image, target_depth, camera_pose = None, starting_point = None):
+#         self.tim_err.clear()
+#         self.tim.clear()
+#         self.tim_startup.clear()
+#         self.tim.start('start')
+#         self.tim_startup.start('full')
 
-        if camera_pose is None:
-            camera_pose = self.def_cam_pose
-        self.renderer.setCameraPose(camera_pose)
+#         if camera_pose is None:
+#             camera_pose = self.def_cam_pose
+#         self.renderer.setCameraPose(camera_pose)
 
-        if self.preview:
-            self.viz.loadTargetColor(og_image)
-            self.viz.loadTargetDepth(target_depth)
+#         if self.preview:
+#             self.viz.loadTargetColor(og_image)
+#             self.viz.loadTargetDepth(target_depth)
 
-        self.tim_startup.start('ds')
-        target_depth = self._downsample(target_depth, self.ds_factor)
-        self.tim_startup.stop('ds')
+#         self.tim_startup.start('ds')
+#         target_depth = self._downsample(target_depth, self.ds_factor)
+#         self.tim_startup.stop('ds')
 
-        self.tim_startup.start('seg')
-        r, output = self.seg.segmentImage(self._downsample(og_image, self.ds_factor), process_frame=True)
-        segmentation_data = self._reorganize_by_link(r)
-        self.tim_startup.stop('seg')
+#         self.tim_startup.start('seg')
+#         r, output = self.seg.segmentImage(self._downsample(og_image, self.ds_factor), process_frame=True)
+#         segmentation_data = self._reorganize_by_link(r)
+#         self.tim_startup.stop('seg')
 
-        if self.preview:
-            self.viz.loadSegmentedLinks(output)
+#         if self.preview:
+#             self.viz.loadSegmentedLinks(output)
 
-        angle_learning_rate = np.zeros(6)
-        history = np.zeros((self.history_length, 6))
-        err_history = np.zeros(self.history_length)
-        # Stages in form:
-        # Lookup:
-        #   Num_link_to_render
-        # Sweep/Smartsweep:
-        #   Divisions, Num_link_to_render, offset to render, angles_to_edit
-        # Descent: 
-        #   Iterations, Num_link_to_render, rate reduction, early_stop_thresh, angles_to_edit, inital_learning_rate
-        # Flip: 
-        #   Num_link_to_render, edit_angles
+#         angle_learning_rate = np.zeros(6)
+#         history = np.zeros((self.history_length, 6))
+#         err_history = np.zeros(self.history_length)
+#         # Stages in form:
+#         # Lookup:
+#         #   Num_link_to_render
+#         # Sweep/Smartsweep:
+#         #   Divisions, Num_link_to_render, offset to render, angles_to_edit
+#         # Descent: 
+#         #   Iterations, Num_link_to_render, rate reduction, early_stop_thresh, angles_to_edit, inital_learning_rate
+#         # Flip: 
+#         #   Num_link_to_render, edit_angles
 
-        if starting_point is None:
-            angles = np.array([0]*6, dtype=float)
+#         if starting_point is None:
+#             angles = np.array([0]*6, dtype=float)
 
-            lookup = ['lookup']
-            u_sweep = ['smartsweep', 25, 6, None, [False,False,True,False,False,False]]
-            u_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.4,0.5,0.5,0.5]]
-            s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
-            slu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+#             lookup = ['lookup']
+#             u_sweep = ['smartsweep', 25, 6, None, [False,False,True,False,False,False]]
+#             u_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.4,0.5,0.5,0.5]]
+#             s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
+#             slu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
             
-            stages = [lookup, u_sweep, u_stage, s_flip_check_6, slu_fine_tune]
-        else:
-            angles = starting_point
+#             stages = [lookup, u_sweep, u_stage, s_flip_check_6, slu_fine_tune]
+#         else:
+#             angles = starting_point
 
-            area_sweeps = ['smartsweep', 10, 6, .4, [True,True,True,False,False,False]]
-            slu_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.1,0.5,0.5,0.5]]
-            s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
-            lu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+#             area_sweeps = ['smartsweep', 10, 6, .4, [True,True,True,False,False,False]]
+#             slu_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.1,0.5,0.5,0.5]]
+#             s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
+#             lu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
             
-            stages = [area_sweeps, slu_stage, s_flip_check_6, lu_fine_tune]
+#             stages = [area_sweeps, slu_stage, s_flip_check_6, lu_fine_tune]
 
-        self.tim_startup.start('target')
-        self.renderer.setJointAngles(angles)
-        self._load_target(segmentation_data, target_depth)
-        self.tim_startup.stop('target')
+#         self.tim_startup.start('target')
+#         self.renderer.setJointAngles(angles)
+#         self._load_target(segmentation_data, target_depth)
+#         self.tim_startup.stop('target')
 
-        self.tim_startup.stop('full')
-        self.tim.stop('start')
+#         self.tim_startup.stop('full')
+#         self.tim.stop('start')
 
-        def preview_if_applicable(color, depth):
-            if self.preview:
-                self.viz.loadRenderedColor(color)
-                self.viz.loadRenderedDepth(depth)
-                self.viz.show()
+#         def preview_if_applicable(color, depth):
+#             if self.preview:
+#                 self.viz.loadRenderedColor(color)
+#                 self.viz.loadRenderedDepth(depth)
+#                 self.viz.show()
 
-        def render_at_pos(angs):
-            self.tim.start('render')
-            self.renderer.setJointAngles(angs)
-            color, depth = self.renderer.render()
-            self.tim.stop('render')
-            return color, depth
+#         def render_at_pos(angs):
+#             self.tim.start('render')
+#             self.renderer.setJointAngles(angs)
+#             color, depth = self.renderer.render()
+#             self.tim.stop('render')
+#             return color, depth
 
-        for stage in stages:
+#         for stage in stages:
 
-            if stage[0] == 'lookup':
-                self.tim.start('lookup')
+#             if stage[0] == 'lookup':
+#                 self.tim.start('lookup')
 
-                stack = self._tgt_depth_stack_half
-                depth = self.lookup_depth
+#                 stack = self._tgt_depth_stack_half
+#                 depth = self.lookup_depth
 
-                diff = stack - depth
-                diff = tf.abs(diff) 
-                lookup_err = tf.reduce_mean(diff, (1,2)) *- tf.math.reduce_variance(diff, (1,2))
+#                 diff = stack - depth
+#                 diff = tf.abs(diff) 
+#                 lookup_err = tf.reduce_mean(diff, (1,2)) *- tf.math.reduce_variance(diff, (1,2))
 
-                angles = self.lookup_angles[tf.argmin(lookup_err).numpy()]
+#                 angles = self.lookup_angles[tf.argmin(lookup_err).numpy()]
 
-                self.tim.stop('lookup')
+#                 self.tim.stop('lookup')
 
-            elif stage[0] == 'descent':
-                self.tim.start('desc')
+#             elif stage[0] == 'descent':
+#                 self.tim.start('desc')
 
-                for i in range(6):
-                    if stage[6][i] is not None:
-                        angle_learning_rate[i] = stage[6][i]
+#                 for i in range(6):
+#                     if stage[6][i] is not None:
+#                         angle_learning_rate[i] = stage[6][i]
 
-                do_ang = np.array(stage[5])
-                self.renderer.setMaxParts(stage[2])
+#                 do_ang = np.array(stage[5])
+#                 self.renderer.setMaxParts(stage[2])
 
-                for i in range(stage[1]):
-                    for idx in np.where(do_ang)[0]:
+#                 for i in range(stage[1]):
+#                     for idx in np.where(do_ang)[0]:
 
-                        if abs(np.mean(history,0)[idx] - angles[idx]) <= angle_learning_rate[idx]:
-                            angle_learning_rate[idx] *= stage[3]
+#                         if abs(np.mean(history,0)[idx] - angles[idx]) <= angle_learning_rate[idx]:
+#                             angle_learning_rate[idx] *= stage[3]
 
-                        angle_learning_rate = np.max((angle_learning_rate,self.min_ang_inc),0)
+#                         angle_learning_rate = np.max((angle_learning_rate,self.min_ang_inc),0)
 
-                        def in_limits(ang):
-                            return ang >= self.u_reader.joint_limits[idx][0] and ang <= self.u_reader.joint_limits[idx][1]
+#                         def in_limits(ang):
+#                             return ang >= self.u_reader.joint_limits[idx][0] and ang <= self.u_reader.joint_limits[idx][1]
 
-                        # Under
-                        temp = angles.copy()
-                        temp[idx] -= angle_learning_rate[idx]
-                        if in_limits(temp[idx]):
-                            color, depth = render_at_pos(temp)
-                            under_err = self._error(stage[2], color, depth)
-                            preview_if_applicable(color, depth)
+#                         # Under
+#                         temp = angles.copy()
+#                         temp[idx] -= angle_learning_rate[idx]
+#                         if in_limits(temp[idx]):
+#                             color, depth = render_at_pos(temp)
+#                             under_err = self._error(stage[2], color, depth)
+#                             preview_if_applicable(color, depth)
 
-                        else:
-                            under_err = np.inf
+#                         else:
+#                             under_err = np.inf
 
-                        # Over
-                        temp[idx] += 2 * angle_learning_rate[idx]
-                        if in_limits(temp[idx]):
-                            color, depth = render_at_pos(temp)
-                            over_err = self._error(stage[2], color, depth)
-                            preview_if_applicable(color, depth)
-                        else:
-                            over_err = np.inf
+#                         # Over
+#                         temp[idx] += 2 * angle_learning_rate[idx]
+#                         if in_limits(temp[idx]):
+#                             color, depth = render_at_pos(temp)
+#                             over_err = self._error(stage[2], color, depth)
+#                             preview_if_applicable(color, depth)
+#                         else:
+#                             over_err = np.inf
 
-                        if over_err < under_err:
-                            angles[idx] += angle_learning_rate[idx]
-                        elif over_err > under_err:
-                            angles[idx] -= angle_learning_rate[idx]
+#                         if over_err < under_err:
+#                             angles[idx] += angle_learning_rate[idx]
+#                         elif over_err > under_err:
+#                             angles[idx] -= angle_learning_rate[idx]
 
-                    history[1:] = history[:-1]
-                    history[0] = angles
+#                     history[1:] = history[:-1]
+#                     history[0] = angles
 
-                    err_history[1:] = err_history[:-1]
-                    err_history[0] = min(over_err, under_err)
-                    if abs(np.mean(err_history) - err_history[0])/err_history[0] < stage[4]:
-                        break
+#                     err_history[1:] = err_history[:-1]
+#                     err_history[0] = min(over_err, under_err)
+#                     if abs(np.mean(err_history) - err_history[0])/err_history[0] < stage[4]:
+#                         break
 
-                    # Angle not changing
-                    if ((history.max(0) - history.min(0) <= self.min_ang_inc) + np.isclose((history.max(0) - history.min(0)),self.min_ang_inc)).all():
-                        break
-                    if (history[:3] == history[0]).all():
-                        break
+#                     # Angle not changing
+#                     if ((history.max(0) - history.min(0) <= self.min_ang_inc) + np.isclose((history.max(0) - history.min(0)),self.min_ang_inc)).all():
+#                         break
+#                     if (history[:3] == history[0]).all():
+#                         break
 
-                self.tim.stop('desc')
+#                 self.tim.stop('desc')
                 
 
-            elif stage[0] == 'flip':
+#             elif stage[0] == 'flip':
 
-                do_ang = np.array(stage[2])
-                self.renderer.setMaxParts(stage[1])
+#                 do_ang = np.array(stage[2])
+#                 self.renderer.setMaxParts(stage[1])
 
-                for idx in np.where(do_ang)[0]:
-                    temp = angles.copy()
-                    temp[idx] *= -1
-                    if temp[idx] >= self.u_reader.joint_limits[idx,0] and temp[idx] <= self.u_reader.joint_limits[idx,1]:
-                        color, depth = render_at_pos(temp)
-                        err = self._error(stage[1], color, depth)
+#                 for idx in np.where(do_ang)[0]:
+#                     temp = angles.copy()
+#                     temp[idx] *= -1
+#                     if temp[idx] >= self.u_reader.joint_limits[idx,0] and temp[idx] <= self.u_reader.joint_limits[idx,1]:
+#                         color, depth = render_at_pos(temp)
+#                         err = self._error(stage[1], color, depth)
 
-                        if err < err_history[0]:
-                            angles[idx] *= -1
+#                         if err < err_history[0]:
+#                             angles[idx] *= -1
 
-                            if self.preview:
-                                color, depth = render_at_pos(angles)
-                                preview_if_applicable(color, depth)
+#                             if self.preview:
+#                                 color, depth = render_at_pos(angles)
+#                                 preview_if_applicable(color, depth)
 
-                            history[1:] = history[:-1]
-                            history[0] = angles
-                            err_history[1:] = err_history[:-1]
-                            err_history[0] = err
+#                             history[1:] = history[:-1]
+#                             history[0] = angles
+#                             err_history[1:] = err_history[:-1]
+#                             err_history[0] = err
 
-            elif stage[0] == 'smartsweep':
+#             elif stage[0] == 'smartsweep':
 
-                do_ang = np.array(stage[4])
-                self.renderer.setMaxParts(stage[2])
-                div = stage[1]
+#                 do_ang = np.array(stage[4])
+#                 self.renderer.setMaxParts(stage[2])
+#                 div = stage[1]
 
-                color, depth = render_at_pos(angles)
-                base_err = self._error(stage[2], color, depth)
+#                 color, depth = render_at_pos(angles)
+#                 base_err = self._error(stage[2], color, depth)
 
-                for idx in np.where(do_ang)[0]:
-                    temp_low = angles.copy()
-                    temp_high = angles.copy()
-                    if stage[3] is None:
-                        temp_low[idx] = self.u_reader.joint_limits[idx,0]      
-                        temp_high[idx] = self.u_reader.joint_limits[idx,1]
-                    else:
-                        temp_low[idx] = max(temp_low[idx]-stage[3], self.u_reader.joint_limits[idx,0])
-                        temp_high[idx] = min(temp_low[idx]+stage[3], self.u_reader.joint_limits[idx,1])
+#                 for idx in np.where(do_ang)[0]:
+#                     temp_low = angles.copy()
+#                     temp_high = angles.copy()
+#                     if stage[3] is None:
+#                         temp_low[idx] = self.u_reader.joint_limits[idx,0]      
+#                         temp_high[idx] = self.u_reader.joint_limits[idx,1]
+#                     else:
+#                         temp_low[idx] = max(temp_low[idx]-stage[3], self.u_reader.joint_limits[idx,0])
+#                         temp_high[idx] = min(temp_low[idx]+stage[3], self.u_reader.joint_limits[idx,1])
 
-                    space = np.linspace(temp_low, temp_high, div)
-                    space_err = []
-                    for angs in space:
-                        color, depth = render_at_pos(angs)
-                        space_err.append(self._error(stage[2], color, depth))
-                        preview_if_applicable(color, depth)
+#                     space = np.linspace(temp_low, temp_high, div)
+#                     space_err = []
+#                     for angs in space:
+#                         color, depth = render_at_pos(angs)
+#                         space_err.append(self._error(stage[2], color, depth))
+#                         preview_if_applicable(color, depth)
 
-                    self.tim.start('swint')
+#                     self.tim.start('swint')
                     
-                    ang_space = space[:,idx]
-                    err_pred = interp1d(ang_space, np.array(space_err), kind='cubic')
-                    x = np.linspace(temp_low[idx], temp_high[idx], div*5)
-                    predicted_errors = err_pred(x)
-                    pred_min_ang = x[predicted_errors.argmin()]
+#                     ang_space = space[:,idx]
+#                     err_pred = interp1d(ang_space, np.array(space_err), kind='cubic')
+#                     x = np.linspace(temp_low[idx], temp_high[idx], div*5)
+#                     predicted_errors = err_pred(x)
+#                     pred_min_ang = x[predicted_errors.argmin()]
 
-                    angs = angles.copy()
-                    angs[idx] = pred_min_ang
-                    color, depth = render_at_pos(angs)
-                    pred_min_err = self._error(stage[2], color, depth)
+#                     angs = angles.copy()
+#                     angs[idx] = pred_min_ang
+#                     color, depth = render_at_pos(angs)
+#                     pred_min_err = self._error(stage[2], color, depth)
 
-                    errs = [base_err, min(space_err), pred_min_err]
-                    min_type = errs.index(min(errs))
+#                     errs = [base_err, min(space_err), pred_min_err]
+#                     min_type = errs.index(min(errs))
 
-                    self.tim.stop('swint')
+#                     self.tim.stop('swint')
                     
-                    if min_type == 1: 
-                        angles = space[space_err.index(min(space_err))]
-                        err_history[1:] = err_history[:-1]
-                        err_history[0] = min(space_err)
+#                     if min_type == 1: 
+#                         angles = space[space_err.index(min(space_err))]
+#                         err_history[1:] = err_history[:-1]
+#                         err_history[0] = min(space_err)
 
-                    elif min_type == 2:
-                        angles = angs
-                        err_history[1:] = err_history[:-1]
-                        err_history[0] = pred_min_err
+#                     elif min_type == 2:
+#                         angles = angs
+#                         err_history[1:] = err_history[:-1]
+#                         err_history[0] = pred_min_err
 
-                    history[1:] = history[:-1]
-                    history[0] = angles
+#                     history[1:] = history[:-1]
+#                     history[0] = angles
 
-                    if self.preview:
-                        color, depth = render_at_pos(angles)
-                        preview_if_applicable(color, depth)
+#                     if self.preview:
+#                         color, depth = render_at_pos(angles)
+#                         preview_if_applicable(color, depth)
 
-        print(self.tim)
-        return angles
+#         print(self.tim)
+#         return angles
 
 
-    def _downsample(self, base: np.ndarray, factor: int) -> np.ndarray:
-        dims = [x//factor for x in base.shape[0:2]]
-        dims.reverse()
-        return cv2.resize(base, tuple(dims))
+#     def _downsample(self, base: np.ndarray, factor: int) -> np.ndarray:
+#         dims = [x//factor for x in base.shape[0:2]]
+#         dims.reverse()
+#         return cv2.resize(base, tuple(dims))
 
-    def _reorganize_by_link(self, data: dict) -> dict:
-        out = {}
-        for idx in range(len(data['class_ids'])):
-            id = data['class_ids'][idx]
-            if id not in data['class_ids'][:idx]:
-                out[self.classes[id]] = {
-                    'roi':data['rois'][idx],
-                    'confidence':data['scores'][idx],
-                    'mask':data['masks'][...,idx]
-                    }
-            else:
-                out[self.classes[id]]['mask'] += data['masks'][...,idx]
-                out[self.classes[id]]['confidence'] = max(out[self.classes[id]]['confidence'], data['scores'][idx])
-                out[self.classes[id]]['roi'] = [ #TODO: Test this functionality
-                    np.min([out[self.classes[id]]['roi'][:2],data['rois'][idx][:2]]),
-                    np.max([out[self.classes[id]]['roi'][2:],data['rois'][idx][2:]])]
-        return out
+#     def _reorganize_by_link(self, data: dict) -> dict:
+#         out = {}
+#         for idx in range(len(data['class_ids'])):
+#             id = data['class_ids'][idx]
+#             if id not in data['class_ids'][:idx]:
+#                 out[self.classes[id]] = {
+#                     'roi':data['rois'][idx],
+#                     'confidence':data['scores'][idx],
+#                     'mask':data['masks'][...,idx]
+#                     }
+#             else:
+#                 out[self.classes[id]]['mask'] += data['masks'][...,idx]
+#                 out[self.classes[id]]['confidence'] = max(out[self.classes[id]]['confidence'], data['scores'][idx])
+#                 out[self.classes[id]]['roi'] = [ #TODO: Test this functionality
+#                     np.min([out[self.classes[id]]['roi'][:2],data['rois'][idx][:2]]),
+#                     np.max([out[self.classes[id]]['roi'][2:],data['rois'][idx][2:]])]
+#         return out
 
-    def _load_target(self, seg_data: dict, tgt_depth: np.ndarray) -> None:
-        self._masked_targets = {}
-        self._target_masks = {}
-        self._tgt_depth = tgt_depth
-        self._tgt_depth_stack_half = tf.cast(tf.stack([tf.pow(tf.constant(tgt_depth),0.5)]*len(self.lookup_angles)), tf.float32)
-        #self._tgt_depth_stack = np.stack([tgt_depth]*len(self.lookup_angles))
-        for link in self.link_names:
-            if link in seg_data.keys():
-                link_mask = seg_data[self.link_names[self.link_names.index(link)]]['mask']
-                target_masked = link_mask * tgt_depth
-                self._masked_targets[link] = target_masked
-                self._target_masks[link] = link_mask
+#     def _load_target(self, seg_data: dict, tgt_depth: np.ndarray) -> None:
+#         self._masked_targets = {}
+#         self._target_masks = {}
+#         self._tgt_depth = tgt_depth
+#         self._tgt_depth_stack_half = tf.cast(tf.stack([tf.pow(tf.constant(tgt_depth),0.5)]*len(self.lookup_angles)), tf.float32)
+#         #self._tgt_depth_stack = np.stack([tgt_depth]*len(self.lookup_angles))
+#         for link in self.link_names:
+#             if link in seg_data.keys():
+#                 link_mask = seg_data[self.link_names[self.link_names.index(link)]]['mask']
+#                 target_masked = link_mask * tgt_depth
+#                 self._masked_targets[link] = target_masked
+#                 self._target_masks[link] = link_mask
                 
-    def _error(self, num_joints: int, render_color: np.ndarray, render_depth: np.ndarray) -> float:
-        self.tim.start('error')
-        self.tim_err.new_it()
-        self.tim_err.start('full')
+#     def _error(self, num_joints: int, render_color: np.ndarray, render_depth: np.ndarray) -> float:
+#         self.tim.start('error')
+#         self.tim_err.new_it()
+#         self.tim_err.start('full')
 
-        color_dict = self.renderer.color_dict
-        err = 0
+#         color_dict = self.renderer.color_dict
+#         err = 0
 
-        # Matched Error
-        for link in self.link_names[:num_joints]:
-            if link in self._masked_targets.keys():
-                self.tim_err.start('match')
-                self.tim_err.start('cpy')
-                target_masked = self._masked_targets[link]
-                joint_mask = self._target_masks[link]
-                self.tim_err.stop('cpy')
+#         # Matched Error
+#         for link in self.link_names[:num_joints]:
+#             if link in self._masked_targets.keys():
+#                 self.tim_err.start('match')
+#                 self.tim_err.start('cpy')
+#                 target_masked = self._masked_targets[link]
+#                 joint_mask = self._target_masks[link]
+#                 self.tim_err.stop('cpy')
 
-                self.tim_err.start('g_msk')
-                a = color_dict[link]
-                render_mask = render_color[...,0] == color_dict[link][0]
-                render_masked = render_depth * render_mask
-                self.tim_err.stop('g_msk')
+#                 self.tim_err.start('g_msk')
+#                 a = color_dict[link]
+#                 render_mask = render_color[...,0] == color_dict[link][0]
+#                 render_masked = render_depth * render_mask
+#                 self.tim_err.stop('g_msk')
 
-                self.tim_err.start('mask')
-                # Mask
-                diff = joint_mask != render_mask
-                err += np.mean(diff)
-                self.tim_err.stop('mask')
+#                 self.tim_err.start('mask')
+#                 # Mask
+#                 diff = joint_mask != render_mask
+#                 err += np.mean(diff)
+#                 self.tim_err.stop('mask')
 
-                self.tim_err.start('dep')
-                # Only do if enough depth data present (>5% of required pixels have depth data)
-                if np.sum(target_masked != 0) > (.05 * np.sum(joint_mask)):
-                    # Depth
-                    diff = target_masked - render_masked
-                    diff = np.abs(diff) ** .5
-                    if diff[diff!=0].size > 0:
-                        err += np.mean(diff[diff!=0])
-                self.tim_err.stop('dep')
+#                 self.tim_err.start('dep')
+#                 # Only do if enough depth data present (>5% of required pixels have depth data)
+#                 if np.sum(target_masked != 0) > (.05 * np.sum(joint_mask)):
+#                     # Depth
+#                     diff = target_masked - render_masked
+#                     diff = np.abs(diff) ** .5
+#                     if diff[diff!=0].size > 0:
+#                         err += np.mean(diff[diff!=0])
+#                 self.tim_err.stop('dep')
 
-                self.tim_err.stop('match')
+#                 self.tim_err.stop('match')
 
-        self.tim_err.start('unmat')
-        # Unmatched Error
-        diff = self._tgt_depth - render_depth
-        diff = np.abs(diff) ** 0.5
-        #err += np.mean(diff[diff!=0])
-        err += np.mean(diff[diff!=0]) *- np.std(diff[diff!=0])
+#         self.tim_err.start('unmat')
+#         # Unmatched Error
+#         diff = self._tgt_depth - render_depth
+#         diff = np.abs(diff) ** 0.5
+#         #err += np.mean(diff[diff!=0])
+#         err += np.mean(diff[diff!=0]) *- np.std(diff[diff!=0])
 
-        # diff = tf.constant(self._tgt_depth) - tf.constant(render_depth, tf.float64)
-        # diff = tf.pow(tf.abs(diff), 0.5)
-        # err += (tf.reduce_mean(diff[diff!=0]) *- tf.math.reduce_std(diff[diff!=0])).numpy()
+#         # diff = tf.constant(self._tgt_depth) - tf.constant(render_depth, tf.float64)
+#         # diff = tf.pow(tf.abs(diff), 0.5)
+#         # err += (tf.reduce_mean(diff[diff!=0]) *- tf.math.reduce_std(diff[diff!=0])).numpy()
 
 
-        self.tim_err.stop('unmat')
+#         self.tim_err.stop('unmat')
 
-        self.tim_err.stop('full')
-        self.tim.stop('error')
+#         self.tim_err.stop('full')
+#         self.tim.stop('error')
 
-        return err
+#         return err
 

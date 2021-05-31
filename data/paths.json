@@ -1,7 +1,11 @@
 {
     "DATASETS": "data/",
+    "RAW_DATA": "data/raw/",
     "LOOKUPS": "lookup/",
     "MODELS": "models/",
+    "MODELS_BODY": "models/body/",
+    "MODELS_LINK": "models/link/",
+    "OUTPUT": "output/",
     "SEG_MODELS": "models/segmentation",
     "BASE_MODEL": "models/mask_rcnn_coco.h5",
     "VIDEO": "output/video.avi",

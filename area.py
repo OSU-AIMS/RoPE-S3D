@@ -37,15 +37,7 @@ for start in range(0,1000,div_size):
 
 out = np.array(out)
 
-out_dicts = []
-for pred in out:
-    out_dict = {}
-    for i,key in zip(range(3),['S','L','U']):
-        out_dict[key] = {}
-        out_dict[key]['val'] = pred[i]
-        out_dict[key]['percent_est'] = 0
-    out_dicts.append(out_dict)
-
-g = Grapher(['S','L','U'],out_dicts,np.copy(ds.angles))
+g = Grapher('SLU',out,np.copy(ds.angles))
 g.plot()
 g.plot(20)
+g.plot(10)

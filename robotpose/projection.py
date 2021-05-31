@@ -169,6 +169,10 @@ class Intrinsics():
     def height(self) -> int:
         return min(self.resolution)
 
+    @property
+    def size(self) -> int:
+        return np.prod(np.array(self.resolution))
+
     def __str__(self) -> str:
         return str(self.rs)
 

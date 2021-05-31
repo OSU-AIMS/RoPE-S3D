@@ -16,7 +16,6 @@ import string
 import cv2
 
 from ..projection import Intrinsics
-
 from .render import Renderer
 from ..urdf import URDFReader
 from ..paths import Paths as p
@@ -25,11 +24,10 @@ from ..CompactJSONEncoder import CompactJSONEncoder
 from tqdm import tqdm
 
 class LookupCreator(Renderer):
-    def __init__(self, camera_pose, ds_factor = 8):
+    def __init__(self, camera_pose, intrinsics):
         self.inp_pose = camera_pose
-        self.ds_factor = ds_factor
         self.u_reader = URDFReader()
-        super().__init__('seg', camera_pose=camera_pose, camera_intrin=f'1280_720_color_{ds_factor}')
+        super().__init__('seg', camera_pose=camera_pose, camera_intrin=intrinsics)
 
     def load_config(self, joints_to_render, angles_to_do, divisions):
         self.setMaxParts(joints_to_render)
@@ -65,7 +63,6 @@ class LookupCreator(Renderer):
         with tqdm(total=2, desc=f"Writing to {file_name}") as pbar:
             f = h5py.File(file_name, 'w')
             f.attrs['pose'] = self.inp_pose
-            f.attrs['ds_factor'] = self.ds_factor
             f.attrs['intrinsics'] = str(self.intrinsics)
             f.attrs['joints_used'] = self.angles_to_do
             f.attrs['divisions'] = self.divisions
@@ -114,12 +111,13 @@ class LookupInfo():
 
         # Normalize all values
         for key in raw_tables:
-            raw_tables[key]['intrinsics'] = str(Intrinsics(raw_tables[key]['intrinsics']))
+            tmp_intrin = Intrinsics(raw_tables[key]['intrinsics'])
+            raw_tables[key]['element_number'] = tmp_intrin.size * np.prod(raw_tables[key]['divisions'])
+            raw_tables[key]['intrinsics'] = str(tmp_intrin)
             raw_tables[key]['pose'] = tuple(raw_tables[key]['pose'])
             for attr in ['joints_used', 'divisions']:
                 raw_tables[key][attr] = list(raw_tables[key][attr])
             
-
         camera_poses = {x['pose'] for x in raw_tables.values()}
         pose_shortnames = {('P_'+k):v for k,v in zip(string.ascii_uppercase[:len(camera_poses)], camera_poses)}
         self.data['camera_poses'] = pose_shortnames
@@ -147,9 +145,16 @@ class LookupInfo():
         with open(LOOKUP_INFO,'w') as f:
             f.write(CompactJSONEncoder(max_width = 90, indent=4).encode(self.data).replace('\\','/'))
 
-    def _read(self):
-        if os.path.isfile(LOOKUP_INFO):
-            with open(LOOKUP_INFO,'r') as f:
-                return json.load(f)
-        else:
-            return {'camera_poses':{},'tables':{}}
+
+
+
+
+class LookupManager(LookupInfo):
+
+    def __init__(self) -> None:
+        super().__init__()
+
+
+
+    def create():
+        pass
