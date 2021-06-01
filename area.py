@@ -7,10 +7,11 @@
 #
 # Author: Adam Exley
 
-from robotpose.utils import Grapher
-from robotpose import Dataset, Predictor
 import numpy as np
 from tqdm import tqdm
+
+from robotpose import Dataset, Predictor
+from robotpose.utils import Grapher
 
 am = Predictor(ds_factor=8, preview=False)
 ds = Dataset('set10')
@@ -21,7 +22,7 @@ div_size = 100
 
 out = []
 
-for start in range(0,100,div_size):
+for start in range(0,1000,div_size):
     end = start+div_size
 
     print("Copying Data...")

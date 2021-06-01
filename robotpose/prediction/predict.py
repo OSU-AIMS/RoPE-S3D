@@ -7,46 +7,30 @@
 #
 # Author: Adam Exley
 
-#from robotpose.utils import FancyTimer
-import numpy as np
-import h5py
-
 import cv2
+
+import numpy as np
+import tensorflow as tf
 from pixellib.instance import custom_segmentation
 from scipy.interpolate import interp1d
 
-from ..simulation.render import Renderer
-from ..urdf import URDFReader
-from ..turbo_colormap import color_array
 from ..simulation.lookup import LookupManager
+from ..simulation.render import Renderer
+from ..turbo_colormap import color_array
+from ..urdf import URDFReader
+from ..utils import str_to_arr, get_gpu_memory
 
-import tensorflow as tf
 tf.compat.v1.enable_eager_execution()
 
-
-import subprocess as sp
-
-def get_gpu_memory():
-    # https://stackoverflow.com/questions/59567226/how-to-programmatically-determine-available-gpu-memory-with-tensorflow
-    _output_to_list = lambda x: x.decode('ascii').split('\n')[:-1]
-
-    COMMAND = "nvidia-smi --query-gpu=memory.total --format=csv"
-    memory_free_info = _output_to_list(sp.check_output(COMMAND.split()))[1:]
-    memory_free_values = [int(x.split()[0])*67108864 for i, x in enumerate(memory_free_info)]
-    return memory_free_values 
-
 DEFAULT_CAMERA_POSE = [.042,-1.425,.399, -.01,1.553,-.057]
-
-LOOKUP_LOCATION = 'lookups'
-
 
 class Predictor():
     def __init__(self,
         camera_pose = DEFAULT_CAMERA_POSE,
         ds_factor = 8,
-        preview = False,
-        save_to = None,
-        do_angle = np.array([True,True,True,False,False,False]),
+        preview: bool = False,
+        save_to: str = None,
+        do_angles: str = 'SLU',
         min_angle_inc = np.array([.005]*6),
         history_length = 5
         ):
@@ -55,7 +39,7 @@ class Predictor():
         self.preview = preview
         if preview:
             self.viz = ProjectionViz(save_to)
-        self.do_angle = do_angle
+        self.do_angles = str_to_arr(do_angles)
         self.min_ang_inc = min_angle_inc
         self.history_length = history_length
 
@@ -73,16 +57,16 @@ class Predictor():
         self.seg.load_model("models/segmentation/multi/B.h5")
 
         self.changeCameraPose(camera_pose)
-        self._loadLookup()
+
 
 
     def changeCameraPose(self, camera_pose):
         self.camera_pose = camera_pose
         self.renderer.setCameraPose(camera_pose)
+        self._loadLookup()
 
 
     def _loadLookup(self):
-
         max_elements = int(get_gpu_memory()[0] / (3 * 32))
 
         lm = LookupManager()
@@ -92,9 +76,7 @@ class Predictor():
         self.lookup_angles = ang
         self.lookup_depth = tf.pow(tf.constant(depth,tf.float32),0.5)
 
-        # with h5py.File('SL100.h5','r') as f:
-        #     self.lookup_angles = np.copy(f['angles'])
-        #     self.lookup_depth = tf.pow(tf.constant(np.copy(f['depth']),tf.float32),0.5)
+
 
     def _setStages(self):
 
@@ -108,7 +90,7 @@ class Predictor():
         # Flip: 
         #   Num_link_to_render, edit_angles
         
-        if np.all(self.do_angle == np.array([True,True,True,False,False,False]),-1):
+        if np.all(self.do_angles == str_to_arr('SLU'),-1):
 
             lookup = ['lookup']
             u_sweep_wide = ['tensorsweep', 50, 6, None, [False,False,True,False,False,False]]
@@ -120,7 +102,7 @@ class Predictor():
             
             self.stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune]
 
-        elif np.all(self.do_angle == np.array([True,True,True,True,True,False]),-1):
+        elif np.all(self.do_angles == str_to_arr('SLURB'),-1):
 
             lookup = ['lookup']
             u_sweep_wide = ['tensorsweep', 50, 6, None, [False,False,True,False,False,False]]
@@ -140,7 +122,7 @@ class Predictor():
 
 
     def run(self, og_image, target_depth, camera_pose = None):
-        if camera_pose is not None:
+        if camera_pose is not None and np.any(camera_pose != self.camera_pose):
             self.changeCameraPose(camera_pose)
 
         if self.preview:

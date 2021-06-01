@@ -1,5 +1,6 @@
 import json
 import os
+from .CompactJSONEncoder import CompactJSONEncoder
 JSON_PATH = r'data/paths.json'
 
 class Paths:
@@ -22,3 +23,8 @@ class Paths:
             if os.path.basename(item) == "":
                 if not os.path.isdir(item):
                     os.makedirs(item)
+
+    def set(self, path, value):
+        self.__dict__[path] = value
+        with open(JSON_PATH,'w') as f:
+            f.write(CompactJSONEncoder(indent=4).encode(self.__dict__))

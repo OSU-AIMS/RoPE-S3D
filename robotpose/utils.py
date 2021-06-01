@@ -7,15 +7,14 @@
 #
 # Author: Adam Exley
 
-from robotpose import prediction
-import string
-
-import numpy as np
-import cv2
-import time
-import matplotlib.pyplot as plt
-
 import multiprocessing as mp
+import string
+import time
+import subprocess as sp
+
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def setMemoryGrowth():
@@ -28,6 +27,24 @@ def setMemoryGrowth():
         except RuntimeError as e:
             print(e)
 
+def get_gpu_memory():
+    """Query GPU's for amount of VRAM
+    Modified from:
+    https://stackoverflow.com/questions/59567226/how-to-programmatically-determine-available-gpu-memory-with-tensorflow
+
+    Returns
+    -------
+    VRAM, List[int]
+        Total GPU VRAM in bits for each GPU.
+    """
+
+    _output_to_list = lambda x: x.decode('ascii').split('\n')[:-1]
+
+    COMMAND = "nvidia-smi --query-gpu=memory.total --format=csv"
+    memory_free_info = _output_to_list(sp.check_output(COMMAND.split()))[1:]
+    memory_free_values = [int(x.split()[0])*67108864 for i, x in enumerate(memory_free_info)]
+    return memory_free_values 
+
 
 def workerCount():
     cpu_count = mp.cpu_count()
@@ -37,6 +54,17 @@ def workerCount():
 def expandRegion(image, size, iterations = 1):
     kern = np.ones((size,size), dtype=np.uint8)
     return cv2.dilate(image, kern, iterations = iterations)
+
+
+def str_to_arr(string):
+    joints = ['S','L','U','R','B','T']
+    out = np.zeros(6, bool)
+    for letter in string.upper():
+        out[joints.index(letter)] = True
+    return out
+
+def get_key(dict, val):
+    return list(dict.keys())[list(dict.values()).index(val)]
 
 
 def reject_outliers_std(data, m=2):

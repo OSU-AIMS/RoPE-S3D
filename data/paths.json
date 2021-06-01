@@ -9,5 +9,5 @@
     "SEG_MODELS": "models/segmentation",
     "BASE_MODEL": "models/mask_rcnn_coco.h5",
     "VIDEO": "output/video.avi",
-    "urdf_path": "urdf/motoman_mh5_support/urdf/mh5l.urdf"
+    "URDF": "urdf/motoman_mh5_support/urdf/mh5l.urdf"
 }

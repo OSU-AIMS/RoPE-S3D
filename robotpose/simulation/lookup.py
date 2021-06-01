@@ -7,27 +7,23 @@
 #
 # Author: Adam Exley
 
-from __future__ import division
-import numpy as np
-import h5py
 import os
-import json
+import random
 import string
 from typing import Union
-import random
 
 import cv2
-
-from ..projection import Intrinsics
-from .render import Renderer
-from ..urdf import URDFReader
-from ..paths import Paths as p
-from ..CompactJSONEncoder import CompactJSONEncoder
-
+import h5py
+import numpy as np
 from tqdm import tqdm
 
-def get_key(dict, val):
-    return list(dict.keys())[list(dict.values()).index(val)]
+from ..CompactJSONEncoder import CompactJSONEncoder
+from ..paths import Paths as p
+from ..projection import Intrinsics
+from ..urdf import URDFReader
+from ..utils import str_to_arr, get_key
+from .render import Renderer
+
 
 class LookupCreator(Renderer):
     def __init__(self, camera_pose: np.ndarray, intrinsics: Union[str, Intrinsics]):
@@ -39,7 +35,7 @@ class LookupCreator(Renderer):
         self.num_rendered = joints_to_render
         self.setMaxParts(joints_to_render)
         self.divisions = np.array(divisions)
-        self.angles_to_do = np.array(angles_to_do)
+        self.angles_to_do = str_to_arr(angles_to_do)
 
         self.divisions[~self.angles_to_do] = 1
         self.num = int(np.prod(self.divisions))
@@ -164,7 +160,7 @@ class LookupManager(LookupInfo):
         intrinsics: Union[str, Intrinsics], 
         camera_pose: np.ndarray, 
         num_rendered_links: int, 
-        varying_angles: np.ndarray, 
+        varying_angles: str, 
         max_elements: int = None,
         max_poses: int = None,
         divisions: np.ndarray = None,
@@ -176,6 +172,7 @@ class LookupManager(LookupInfo):
         assert sum([x is not None for x in [max_elements, max_poses, divisions]]) == 1,\
              "Only one specifiying criterion can be used from [max_elements, max_poses, divisons]"
 
+        varying_angles_arr = str_to_arr(varying_angles)
 
         if type(intrinsics) is str: intrinsics = Intrinsics(intrinsics)
         intrinsics = str(intrinsics)
@@ -194,7 +191,7 @@ class LookupManager(LookupInfo):
         if not create:
             acceptable = self.data['lookups'][intrinsic_short][camera_pose_short]
             acceptable = {k:acceptable[k] for k in acceptable if acceptable[k]['num_links_rendered'] == num_rendered_links}
-            acceptable = {k:acceptable[k] for k in acceptable if np.all([x != 1 for x in acceptable[k]['divisions']] == varying_angles,-1)}
+            acceptable = {k:acceptable[k] for k in acceptable if np.all([x != 1 for x in acceptable[k]['divisions']] == varying_angles_arr,-1)}
             if len(acceptable) == 0:
                 create = True
             else:
@@ -218,7 +215,7 @@ class LookupManager(LookupInfo):
                     max_poses = max_elements / (Intrinsics(intrinsics).size * self.element_bits)
                 # By default, allocate divisions equally
                 divisions = np.zeros(6, int)
-                divisions[varying_angles] = int(max_poses ** (1 / sum(varying_angles)))
+                divisions[varying_angles_arr] = int(max_poses ** (1 / sum(varying_angles_arr)))
 
             name = self.create(intrinsics, camera_pose, num_rendered_links, varying_angles, divisions)
 
@@ -237,7 +234,7 @@ class LookupManager(LookupInfo):
             return np.copy(f['angles']), np.copy(f['depth'])
 
 
-    def create(self, intrinsics: Union[str, Intrinsics], camera_pose: np.ndarray, num_rendered_links: int, varying_angles: np.ndarray, divisions: np.ndarray):
+    def create(self, intrinsics: Union[str, Intrinsics], camera_pose: np.ndarray, num_rendered_links: int, varying_angles: str, divisions: np.ndarray):
         creator = LookupCreator(camera_pose, intrinsics)
         creator.load_config(num_rendered_links, varying_angles, divisions)
         letters = string.ascii_lowercase

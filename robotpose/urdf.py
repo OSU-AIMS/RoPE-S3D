@@ -1,44 +1,21 @@
 import xml.etree.ElementTree as ET
 import os
 import sys
-import json
-from .CompactJSONEncoder import CompactJSONEncoder
 import numpy as np
-
-JSON_PATH = r'data/paths.json'
+from .paths import Paths
 
 class URDFReader():
     def __init__(self):
-        if self.get_path():
+        if self._get_path():
             self.load()
 
-    def store_path(self, urdf_path):
-        if os.path.isfile(JSON_PATH):
-            with open(JSON_PATH,'r') as f:
-                data = json.load(f)
-        else:
-            data = {}
-        data['urdf_path'] = urdf_path
-        with open(JSON_PATH,'w') as f:
-            f.write(CompactJSONEncoder(indent=4).encode(data))
-
-    def get_path(self):
-        if os.path.isfile(JSON_PATH):
-            with open(JSON_PATH,'r') as f:
-                data = json.load(f)
-            if 'urdf_path' in data.keys():
-                self.path = data['urdf_path']
-                return True
-            else:
-                return False
+    def _get_path(self):
+        p = Paths()
+        if hasattr(p,'URDF'):
+            self.path = p.URDF
+            return True
         else:
             return False
-
-    def return_path(self):
-        if self.get_path():
-            return self.path
-        else:
-            return None
 
     def load(self):
         tree = ET.parse(self.path)
@@ -58,3 +35,23 @@ class URDFReader():
             j = joint.find('limit')
             self.joint_limits.append([float(j.get('lower')),float(j.get('upper'))])
         self.joint_limits = np.array(self.joint_limits)
+
+
+    @property
+    def path(self):
+        if self._get_path():
+            return self.path
+        else:
+            return None
+
+    @path.setter
+    def path(self, urdf_path):
+        Paths().set('URDF',urdf_path)
+        self._get_path()
+
+    @property
+    def name(self):
+        if self._get_path():
+            return os.path.basename(os.path.normpath(self.path)).replace('.urdf','')
+        else:
+            return None
