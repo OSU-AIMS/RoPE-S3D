@@ -8,19 +8,19 @@
 # Author: Adam Exley
 
 import multiprocessing as mp
-import numpy as np
 import os
-import tempfile
-import shutil
 import random
+import shutil
+import tempfile
 
 import cv2
+import numpy as np
 from labelme.label_file import LabelFile
 from tqdm import tqdm
 
-from .dataset import Dataset
 from ..simulation.render import DatasetRenderer
-from ..utils import workerCount, expandRegion
+from ..utils import expandRegion, workerCount
+from .dataset import Dataset
 
 
 def makeMask(image):

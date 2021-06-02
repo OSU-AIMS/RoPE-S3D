@@ -1,10 +1,22 @@
-import xml.etree.ElementTree as ET
+# Software License Agreement (Apache 2.0 License)
+#
+# Copyright (c) 2021, The Ohio State University
+# Center for Design and Manufacturing Excellence (CDME)
+# The Artificially Intelligent Manufacturing Systems Lab (AIMS)
+# All rights reserved.
+#
+# Author: Adam Exley
+
+import json
 import os
 import sys
+import xml.etree.ElementTree as ET
+
 import numpy as np
-from .paths import Paths
+
 from .CompactJSONEncoder import CompactJSONEncoder
-import json
+from .paths import Paths
+
 
 class URDFReader():
     def __init__(self):
@@ -22,6 +34,8 @@ class URDFReader():
     def load(self):
         tree = ET.parse(self.internal_path)
         root = tree.getroot()
+
+        # Find mesh locations and names
         self.meshes = []
         for link in root.findall('link')[:7]:
             self.meshes.append(link.find('visual').find('geometry').find('mesh').get('filename'))
@@ -32,6 +46,7 @@ class URDFReader():
         self.meshes = [os.path.join('urdf',x.replace('package://',"").replace('STL',fileend)) for x in self.meshes]
         self.mesh_names = [os.path.splitext(os.path.basename(x))[0] for x in self.meshes]
 
+        # Find joint limits
         self.joint_limits = []
         for joint in root.findall('joint')[:6]:
             jo = joint.find('limit')
@@ -61,7 +76,6 @@ class URDFReader():
 
         def complement(a):
             return a == 0
-            
         def sign(a):
             return np.prod(a+complement(a))
 
@@ -72,27 +86,30 @@ class URDFReader():
         aa[6] = np.linalg.norm(complement(axes[5])*origins[5]) * sign(complement(axes[5]))
         dd[6] = np.linalg.norm(axes[5]*origins[5]) * sign(axes[5])
 
-
         """
         This could be entirely incorrect and inapplicable to other robots.
-        Need to have user intervention.
+        May need to have user intervention.
         """
         def ang(a):
+            a = a[0] + 1j*a[1]
             a = np.angle(a)
             if a < 0:
                 a += 2*np.pi
             return a
 
         for idx in range(1,5):
+
+            # Determine common normal axis of rotation
             axis = np.cross(axes[idx], axes[idx-1])
 
+            # Convert 3D vectors to 2D vectors on plane of noraml axis
             new = axes[idx][axis==0]
             old = axes[idx-1][axis==0]
+
+            # This is the sketchy part, but it works?
             mult = np.sum(axis) * np.sum(new+old) / np.abs(np.sum(new+old))
 
             if abs(sum(axis)) == 1:
-                new = new[0] + 1j*new[1]
-                old = old[0] + 1j*old[1]
                 alpha[idx] = (ang(new) - ang(old)) * mult
 
         # Assume that the B and T alpha's are static (likely untrue)
