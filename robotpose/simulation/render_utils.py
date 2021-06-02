@@ -9,7 +9,7 @@ from ..paths import Paths as p
 from ..urdf import URDFReader
 
 
-MESH_CONFIG = os.path.join(p().DATASETS,'mesh_config.json')
+MESH_CONFIG = p().MESH_CONFIG
 
 def default_color_maker(num):
     b = np.linspace(0,255,num).astype(int) # Blue values are always unique

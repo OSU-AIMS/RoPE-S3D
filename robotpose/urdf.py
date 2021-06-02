@@ -3,6 +3,8 @@ import os
 import sys
 import numpy as np
 from .paths import Paths
+from .CompactJSONEncoder import CompactJSONEncoder
+import json
 
 class URDFReader():
     def __init__(self):
@@ -12,13 +14,13 @@ class URDFReader():
     def _get_path(self):
         p = Paths()
         if hasattr(p,'URDF'):
-            self.path = p.URDF
+            self.internal_path = p.URDF
             return True
         else:
             return False
 
     def load(self):
-        tree = ET.parse(self.path)
+        tree = ET.parse(self.internal_path)
         root = tree.getroot()
         self.meshes = []
         for link in root.findall('link')[:7]:
@@ -32,15 +34,89 @@ class URDFReader():
 
         self.joint_limits = []
         for joint in root.findall('joint')[:6]:
-            j = joint.find('limit')
-            self.joint_limits.append([float(j.get('lower')),float(j.get('upper'))])
+            jo = joint.find('limit')
+            self.joint_limits.append([float(jo.get('lower')),float(jo.get('upper'))])
         self.joint_limits = np.array(self.joint_limits)
+
+
+    def guessDHParams(self):
+        tree = ET.parse(self.internal_path)
+        root = tree.getroot()
+
+        def str_to_list(string):
+            return [float(x) for x in string.split(' ')]
+
+        origins = []
+        axes = []
+        for joint in root.findall('joint')[:6]:
+            origins.append(str_to_list(joint.find('origin').get('xyz')))
+            axes.append(str_to_list(joint.find('axis').get('xyz')))
+
+        origins = np.array(origins)
+        axes = np.array(axes)
+
+        aa = np.zeros(7)
+        alpha = np.zeros(7)
+        dd = np.zeros(7)
+
+        def complement(a):
+            return a == 0
+            
+        def sign(a):
+            return np.prod(a+complement(a))
+
+        # Skip B, as it shares a location with R 
+        for idx in range(1,5):
+            aa[idx] = np.linalg.norm(complement(axes[idx-1])*origins[idx]) * sign(complement(axes[idx-1]))
+            dd[idx] = np.linalg.norm(axes[idx-1]*origins[idx]) * sign(axes[idx-1])
+        aa[6] = np.linalg.norm(complement(axes[5])*origins[5]) * sign(complement(axes[5]))
+        dd[6] = np.linalg.norm(axes[5]*origins[5]) * sign(axes[5])
+
+
+        """
+        This could be entirely incorrect and inapplicable to other robots.
+        Need to have user intervention.
+        """
+        def ang(a):
+            a = np.angle(a)
+            if a < 0:
+                a += 2*np.pi
+            return a
+
+        for idx in range(1,5):
+            axis = np.cross(axes[idx], axes[idx-1])
+
+            new = axes[idx][axis==0]
+            old = axes[idx-1][axis==0]
+            mult = np.sum(axis) * np.sum(new+old) / np.abs(np.sum(new+old))
+
+            if abs(sum(axis)) == 1:
+                new = new[0] + 1j*new[1]
+                old = old[0] + 1j*old[1]
+                alpha[idx] = (ang(new) - ang(old)) * mult
+
+        # Assume that the B and T alpha's are static (likely untrue)
+        alpha[5] = -np.pi/2
+        alpha[6] = np.pi
+
+        params = {'a':aa,'alpha':alpha,'d':dd}
+
+        if os.path.isfile(Paths().DH_PARAMS):
+            with open(Paths().DH_PARAMS, 'w') as f:
+                config = json.load(f)
+        else:
+            config = {}
+
+        config[self.name] = params
+
+        with open(Paths().DH_PARAMS, 'w') as f:
+            f.write(CompactJSONEncoder(max_width=90,precise=True,indent=4).encode(config))
 
 
     @property
     def path(self):
         if self._get_path():
-            return self.path
+            return self.internal_path
         else:
             return None
 
@@ -52,6 +128,6 @@ class URDFReader():
     @property
     def name(self):
         if self._get_path():
-            return os.path.basename(os.path.normpath(self.path)).replace('.urdf','')
+            return os.path.basename(os.path.normpath(self.internal_path)).replace('.urdf','')
         else:
             return None

@@ -15,8 +15,9 @@ class CompactJSONEncoder(json.JSONEncoder):
 
     INDENTATION_CHAR = " "
 
-    def __init__(self, max_width = 80, *args, **kwargs):
+    def __init__(self, max_width = 80, precise = False, *args, **kwargs):
         self.max_width = max_width
+        self.precise = precise
         super().__init__(*args, **kwargs)
         self.indentation_level = 0
 
@@ -42,7 +43,10 @@ class CompactJSONEncoder(json.JSONEncoder):
             else:
                 return "{}"
         elif isinstance(o, float):  # Use scientific notation for floats, where appropiate
-            return format(o, "g")
+            if self.precise:
+                return format(o, ".12g")
+            else:
+                return format(o, "g")
         elif isinstance(o, str):  # escape newlines
             o = o.replace("\n", "\\n")
             return f'"{o}"'
@@ -50,6 +54,8 @@ class CompactJSONEncoder(json.JSONEncoder):
             return json.dumps(int(o))
         elif isinstance(o, np.bool_):
             return json.dumps(bool(o))
+        elif isinstance(o, np.ndarray):
+            return self.encode(list(o))
         else:
             return json.dumps(o)
 

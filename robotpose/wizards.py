@@ -27,11 +27,11 @@ class DatasetWizard(DatasetInfo):
         self.get()
 
         self.urdf_reader = URDFReader()
-        self.valid_urdf = self.urdf_reader.path != None
+        self.valid_urdf = self.urdf_reader.internal_path != None
 
         urdf_menu = [
             [sg.Txt("Current URDF:")],
-            [sg.Txt(self.urdf_reader.path,key='-current_urdf-'),
+            [sg.Txt(self.urdf_reader.internal_path,key='-current_urdf-'),
                 sg.Button("Change",key='-browse_urdf-',tooltip='Select URDF path')]
         ]
 
@@ -95,11 +95,11 @@ class DatasetWizard(DatasetInfo):
         if path is not None:
             if os.path.isfile(path) and path.endswith('.urdf'):
                 path = os.path.relpath(path, os.path.commonprefix([path,os.getcwd()]))
-                self.urdf_reader.path = path.replace('\\','/')
+                self.urdf_reader.internal_path = path.replace('\\','/')
                 self.valid_urdf = True
             else:
                 sg.popup_ok("Error:","Invalid URDF file selection.")
-        self.window['-current_urdf-'].update(self.urdf_reader.path)
+        self.window['-current_urdf-'].update(self.urdf_reader.internal_path)
            
 
     def _showDetails(self, dataset):

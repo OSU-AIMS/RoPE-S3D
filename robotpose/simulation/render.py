@@ -17,7 +17,7 @@ from ..projection import Intrinsics
 from .render_utils import DEFAULT_COLORS, MeshLoader, makePose, posesFromData, setPoses
 from ..data import Dataset
 
-from .fwd_kinematics_mh5l import FwdKinematic_MH5L_AllJoints as fwdKinematics
+from .kinematics import ForwardKinematics
 
 
 class Renderer():
@@ -29,6 +29,8 @@ class Renderer():
             camera_intrin = '1280_720_color',
             suppress_warnings = False
             ):
+
+        self.kine = ForwardKinematics()
 
         self.intrinsics = Intrinsics(camera_intrin)
 
@@ -66,7 +68,7 @@ class Renderer():
         
 
     def setJointAngles(self, angles):
-        setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([fwdKinematics(angles)]))[0])
+        setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([self.kine.calc(angles)]))[0])
 
     def render(self):
         return self.rend.render(

@@ -5,9 +5,11 @@
     "MODELS": "models/",
     "MODELS_BODY": "models/body/",
     "MODELS_LINK": "models/link/",
+    "MESH_CONFIG": "data/mesh_config.json",
     "OUTPUT": "output/",
     "SEG_MODELS": "models/segmentation",
     "BASE_MODEL": "models/mask_rcnn_coco.h5",
     "VIDEO": "output/video.avi",
-    "URDF": "urdf/motoman_mh5_support/urdf/mh5l.urdf"
+    "URDF": "urdf/motoman_mh5_support/urdf/mh5l.urdf",
+    "DH_PARAMS": "data/DH_params.json"
 }
