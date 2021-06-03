@@ -220,8 +220,8 @@ class AutomaticAnnotator():
                 jsons = [x for x in os.listdir(tempdir) if x.endswith('.json')]
                 random.shuffle(jsons)
 
-                valid_proportion = .2
-                test_proportion = .1
+                valid_proportion = .1
+                test_proportion = .5
 
                 valid_size = int(len(jsons) * valid_proportion)
                 test_size = int(len(jsons) * test_proportion)

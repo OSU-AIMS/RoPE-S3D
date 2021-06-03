@@ -30,6 +30,7 @@ class ModelData():
             input_dict = input_dict if type(input_dict) is dict else self._read(input_dict)
             self.__dict__.update((k, input_dict[k]) for k in input_dict.keys() if k in self.__dict__.keys())
         self.__dict__.update((k, v) for k, v in kwargs.items() if k in self.__dict__.keys())
+        self.train_ratio = self.train_size / self.dataset_size
 
     def _read(self, filepath):
         filepath = filepath if filepath.endswith('ModelData.json') else os.path.join(filepath,'ModelData.json')
@@ -49,8 +50,10 @@ class ModelData():
 
 
 
+
 class ModelInfo():
     def __init__(self):
+        self._cleanup()
         self.update()
     
     def update(self):
@@ -95,6 +98,14 @@ class ModelInfo():
 
         return max(epoch)
 
+    def _cleanup(self):
+        data_files = [os.path.join(r,x) for r,d,y in os.walk(p().MODELS) for x in y if x.endswith('ModelData.json')]
+        data_dirs = [x.replace('ModelData.json','') for x in data_files]
+
+        for folder in data_dirs:
+            if len(os.listdir(folder)) == 1:
+                os.remove(os.path.join(folder,'ModelData.json'))
+                os.rmdir(folder)
 
 
 class ModelManager(ModelInfo):
@@ -177,7 +188,8 @@ class ModelManager(ModelInfo):
 
         """
         self.update()
-        kwargs.update(kwarg_dict)   # Allow kwargs to be input as a dict
+        if kwarg_dict is not None:
+            kwargs.update(kwarg_dict)
 
         assert model_type in ['body','link'], "type must be either 'body' or 'link'"
         
@@ -243,8 +255,8 @@ class ModelManager(ModelInfo):
             return remaining
 
         remaining = self.info[model_type].copy()
-        for key in remaining.keys():
-            remaining[key]['train_ratio'] = remaining[key]['train_size'] / remaining[key]['dataset_size']
+        # for key in remaining.keys():
+        #     remaining[key]['train_ratio'] = remaining[key]['train_size'] / remaining[key]['dataset_size']
 
         remaining = apply_kwargs(remaining)
         if len(remaining) > 1:
