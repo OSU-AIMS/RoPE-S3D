@@ -39,7 +39,6 @@ class Renderer():
         self.limit_parts = False
 
         ml = MeshLoader()
-        ml.load()
         self.meshes, name_list = ml.meshes_and_names
          
         if camera_pose is not None:

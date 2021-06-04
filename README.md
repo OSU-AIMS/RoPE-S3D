@@ -4,13 +4,13 @@
 
 This tool uses Artifical Intelligence (AI), specifically image segmentation algorithms provided by [PixelLib](https://github.com/ayoolaolafenwa/PixelLib), to predict robot joint angles.
 
-This is acomplished by segmenting the robot and each of its joints from am RGBD (3-D) image. *With a known camera pose realtive to the robot*, these segmented sections of the image can be compared to a 3-D rendering of the robot in any possible pose.
+This is acomplished by segmenting the robot and each of its joints from an RGBD (3-D) image. *With a known camera pose realtive to the robot*, these segmented sections of the image can be compared to a 3-D rendering of the robot in any possible pose.
 
 An error function can be defined, quantitatively comparing these images based on visual and depth-based similarity. For any given input, this characterizes loss as a function of the rendered pose of the robot.
 
 Traversing this loss to find minima therefore enables the depicted robot pose to be estimated.
 
-The afforementioned 3D Rendering is done via [Pyrender](https://github.com/mmatl/pyrender), which
+The afforementioned 3D Rendering is done via [Pyrender](https://github.com/mmatl/pyrender)
 
 Depth visualization uses the [Turbo Colormap](https://ai.googleblog.com/2019/08/turbo-improved-rainbow-colormap-for.html).
 

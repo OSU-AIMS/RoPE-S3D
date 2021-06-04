@@ -1,3 +1,12 @@
+# Software License Agreement (Apache 2.0 License)
+#
+# Copyright (c) 2021, The Ohio State University
+# Center for Design and Manufacturing Excellence (CDME)
+# The Artificially Intelligent Manufacturing Systems Lab (AIMS)
+# All rights reserved.
+#
+# Author: Adam Exley
+
 import numpy as np
 import os
 import json
@@ -7,6 +16,7 @@ import trimesh
 
 from ..paths import Paths as p
 from ..urdf import URDFReader
+from ..CompactJSONEncoder import CompactJSONEncoder
 
 
 MESH_CONFIG = p().MESH_CONFIG
@@ -29,23 +39,28 @@ class MeshLoader():
 
     def __init__(self):
 
+        self.ureader = URDFReader()
+
         if not os.path.isfile(MESH_CONFIG):
             info = {}
-            default_pose = [0,0,0,0,0,-np.pi/2]
-            links = ['BASE','S','L','U','R','B','T']
-            for link in links:
-                info[link] = {"pose":default_pose}
             with open(MESH_CONFIG,'w') as f:
                 json.dump(info, f, indent=4)
 
+        self.refresh()
+        self.load()
+
+    def refresh(self):
         with open(MESH_CONFIG,'r') as f:
             d = json.load(f)
 
-        urdf_reader = URDFReader()
+        if self.ureader.name not in d:
+            d[self.ureader.name] = self.ureader.guessPoseConfig()
+            with open(MESH_CONFIG,'w') as f:
+                f.write(CompactJSONEncoder(max_width=90,precise=True,indent=4).encode(d))
 
-        self.name_list = urdf_reader.mesh_names
-        self.mesh_list = urdf_reader.meshes[:-1]
-        self.pose_list = [d[x]['pose'] for x in d.keys()]
+        self.name_list = self.ureader.mesh_names[:-1]
+        self.mesh_list = self.ureader.meshes[:-1]
+        self.pose_list = [d[self.ureader.name][x] for x in self.name_list]
 
     def load(self):
         self._meshes = []

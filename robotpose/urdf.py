@@ -18,6 +18,11 @@ from .CompactJSONEncoder import CompactJSONEncoder
 from .paths import Paths
 
 
+
+def str_to_list(string):
+    return [float(x) for x in string.split(' ')]
+
+
 class URDFReader():
     def __init__(self):
         if self._get_path():
@@ -57,9 +62,6 @@ class URDFReader():
     def guessDHParams(self):
         tree = ET.parse(self.internal_path)
         root = tree.getroot()
-
-        def str_to_list(string):
-            return [float(x) for x in string.split(' ')]
 
         origins = []
         axes = []
@@ -129,6 +131,25 @@ class URDFReader():
         with open(Paths().DH_PARAMS, 'w') as f:
             f.write(CompactJSONEncoder(max_width=90,precise=True,indent=4).encode(config))
 
+    def guessPoseConfig(self):
+        tree = ET.parse(self.internal_path)
+        root = tree.getroot()
+
+        keys = self.mesh_names[:-1] # Don't include T
+        config = {k:np.zeros(6) for k in keys}
+
+        origins = []
+        for joint in root.findall('joint')[:6]:
+            origins.append(str_to_list(joint.find('origin').get('xyz')))
+        origins = np.array(origins)
+
+        # Base is normally shifted down
+        config[keys[0]][2] = -1 * origins[0,2]
+
+        # R is normally shifted back
+        config[keys[4]][0] = -1 * origins[4,0]
+
+        return config
 
     @property
     def path(self):
