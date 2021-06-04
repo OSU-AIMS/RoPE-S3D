@@ -37,9 +37,6 @@ class Renderer():
         self.mode = mode
         self.suppress_warnings = suppress_warnings
         self.limit_parts = False
-
-        ml = MeshLoader()
-        self.meshes, name_list = ml.meshes_and_names
          
         if camera_pose is not None:
             c_pose = camera_pose
@@ -54,6 +51,22 @@ class Renderer():
 
         dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=10.0)
         self.scene.add(dl, parent_node=self.camera_node) # Add light at camera pose
+        self.rend = pyrender.OffscreenRenderer(self.intrinsics.width, self.intrinsics.height)
+
+        self.loadMeshes()        
+
+    def refresh(self):
+        self.kine.load()
+        self.loadMeshes()
+
+    def loadMeshes(self):
+        ml = MeshLoader()
+        self.meshes, name_list = ml.meshes_and_names
+
+        if hasattr(self, 'joint_nodes'):
+            if len(self.joint_nodes) > 0:
+                for node in self.joint_nodes:
+                    self.scene.remove_node(node)
 
         # Add in joints
         self.joint_nodes = []
@@ -61,10 +74,9 @@ class Renderer():
             self.joint_nodes.append(pyrender.Node(name=name,mesh=mesh))
         for node in self.joint_nodes:
             self.scene.add_node(node)
-        self.rend = pyrender.OffscreenRenderer(self.intrinsics.width, self.intrinsics.height)
         self.node_color_map = {}
-        self.setMode(mode)
-        
+        self.setMode(self.mode)
+
 
     def setJointAngles(self, angles):
         setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([self.kine.calc(angles)]))[0])

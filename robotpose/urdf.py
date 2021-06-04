@@ -121,7 +121,7 @@ class URDFReader():
         params = {'a':aa,'alpha':alpha,'d':dd}
 
         if os.path.isfile(Paths().DH_PARAMS):
-            with open(Paths().DH_PARAMS, 'w') as f:
+            with open(Paths().DH_PARAMS, 'r') as f:
                 config = json.load(f)
         else:
             config = {}

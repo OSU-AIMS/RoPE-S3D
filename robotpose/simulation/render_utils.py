@@ -47,7 +47,6 @@ class MeshLoader():
                 json.dump(info, f, indent=4)
 
         self.refresh()
-        self.load()
 
     def refresh(self):
         with open(MESH_CONFIG,'r') as f:
@@ -61,6 +60,8 @@ class MeshLoader():
         self.name_list = self.ureader.mesh_names[:-1]
         self.mesh_list = self.ureader.meshes[:-1]
         self.pose_list = [d[self.ureader.name][x] for x in self.name_list]
+
+        self.load()
 
     def load(self):
         self._meshes = []

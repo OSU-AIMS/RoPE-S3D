@@ -20,6 +20,9 @@ from ..urdf import URDFReader
 class ForwardKinematics():
 
     def __init__(self) -> None:
+        self.load()
+
+    def load(self):
         while not self._getParams(): pass
 
         self.aa    = np.array(self.params['a'])

@@ -95,11 +95,11 @@ class DatasetWizard(DatasetInfo):
         if path is not None:
             if os.path.isfile(path) and path.endswith('.urdf'):
                 path = os.path.relpath(path, os.path.commonprefix([path,os.getcwd()]))
-                self.urdf_reader.internal_path = path.replace('\\','/')
+                self.urdf_reader.path = path.replace('\\','/')
                 self.valid_urdf = True
             else:
                 sg.popup_ok("Error:","Invalid URDF file selection.")
-        self.window['-current_urdf-'].update(self.urdf_reader.internal_path)
+        self.window['-current_urdf-'].update(self.urdf_reader.path)
            
 
     def _showDetails(self, dataset):
@@ -204,6 +204,7 @@ class MeshWizard():
             event, values = self.window.read(5, timeout_key='TIMEOUT')
             if event not in (sg.WIN_CLOSED,'-quit-'):
                 if event != 'TIMEOUT' or values != prev_values:
+                    self.rend.refresh()
                     self._updateInputs(values)
                     self._runEvent(event, values)
                     self._setRotation(values)
