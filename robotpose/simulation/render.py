@@ -14,7 +14,7 @@ import pyrender
 import PySimpleGUI as sg
 
 from ..projection import Intrinsics
-from .render_utils import DEFAULT_COLORS, MeshLoader, makePose, posesFromData, setPoses
+from .render_utils import DEFAULT_COLORS, MeshLoader, makePose, setPoses
 from ..data import Dataset
 
 from .kinematics import ForwardKinematics
@@ -41,7 +41,7 @@ class Renderer():
         if camera_pose is not None:
             c_pose = camera_pose
         else:
-            c_pose = [.087,-1.425,.4, 0,1.551,-.025]
+            c_pose = [.087,-1.425,.73, 0,1.551,-.025]
 
         self.scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])  # Make scene
 
@@ -55,9 +55,6 @@ class Renderer():
 
         self.loadMeshes()        
 
-    def refresh(self):
-        self.kine.load()
-        self.loadMeshes()
 
     def loadMeshes(self):
         ml = MeshLoader()
@@ -79,7 +76,7 @@ class Renderer():
 
 
     def setJointAngles(self, angles):
-        setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([self.kine.calc(angles)]))[0])
+        setPoses(self.scene, self.joint_nodes,self.kine.calc(angles))
 
     def render(self):
         return self.rend.render(
@@ -163,9 +160,7 @@ class DatasetRenderer(Renderer):
         setPoses(self.scene, self.joint_nodes, poses)
 
     def setPosesFromDS(self, idx):
-        if not hasattr(self,'ds_poses'):
-            self.ds_poses = posesFromData(self.ds.angles, self.ds.positions)
-        self.setObjectPoses(self.ds_poses[idx])
+        self.setObjectPoses(self.kine.calc(self.ds.angles[idx]))
         setPoses(self.scene, [self.camera_node], [makePose(*self.ds.camera_pose[idx])])
 
 

@@ -10,18 +10,18 @@
 
 import datetime
 import json
-import multiprocessing as mp
-import numpy as np
 import os
 import time
 
 import cv2
 import h5py
+import numpy as np
 from tqdm import tqdm
 
 from ..paths import Paths as p
+from ..training import ModelInfo, ModelManager
 from .segmentation import RobotSegmenter
-from ..training import ModelManager, ModelInfo
+
 
 def save_video(path, img_arr):
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
