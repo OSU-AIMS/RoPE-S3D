@@ -113,7 +113,7 @@ class DatasetWizard(DatasetInfo):
     def _runMeshWizard(self):
         self.window.disable()
         self.window.disappear()
-        wiz = MeshWizard()
+        wiz = MeshViewer()
         wiz.run()
         cv2.destroyAllWindows()
         self.window.enable()
@@ -122,15 +122,14 @@ class DatasetWizard(DatasetInfo):
 
 
 
-ANGLES = ['-pi','-pi/2','0','pi/2','pi']
-ANGLE_DICT = {'-pi':-np.pi,'-pi/2':-np.pi/2,'0':0,'pi/2':np.pi/2,'pi':np.pi}
-
-class MeshWizard():
+class MeshViewer():
 
     def __init__(self):
 
         self.rend = Renderer(suppress_warnings=True)
-        self.base_pose = [1.5,-1.5,.35, 0,np.pi/2,0]
+        self.crop = False
+        self._findBasePose()
+        
 
         self.u_reader = URDFReader()
         lims = self.u_reader.joint_limits
@@ -161,9 +160,7 @@ class MeshWizard():
 
         column1 = [
             [sg.Frame('View Settings',[
-                [sg.Slider(range=(-30, 30), orientation='v', size=(5, 20), default_value=0,key='-vert_slider-'),
-                    sg.VerticalSeparator(),
-                    sg.Column(render_modes)],
+                [sg.Column(render_modes)],
                 [sg.Slider(range=(-180, 180), orientation='h', size=(20, 20), default_value=0, key='-horiz_slider-'),
                     sg.Button("Reset",key='-view_reset-')]
             ]
@@ -190,7 +187,6 @@ class MeshWizard():
             ]
         
 
-    
     def run(self):
         self.window = sg.Window('Skeleton Wizard', self.layout)
         event, values = self.window.read(1)
@@ -237,24 +233,19 @@ class MeshWizard():
             self.rend.setMode(mode)
             self.mode = mode
 
-
-
     def _resetRotation(self):
-        self._setRotation({'-horiz_slider-':0,'-vert_slider-':0})
-        for slider in ['-horiz_slider-','-vert_slider-']:
+        self._setRotation({'-horiz_slider-':0})
+        for slider in ['-horiz_slider-']:
             self.window[slider].update(0)
 
     def _setRotation(self, values):
         rotation_h = values['-horiz_slider-']
-        rotation_v = values['-vert_slider-']
         self.rotation_h = (rotation_h/180) * np.pi
-        self.rotation_v = (rotation_v/180) * np.pi
 
         self.c_pose = np.copy(self.base_pose)
-        self.c_pose[1] *= (1 - np.sin(self.rotation_v) * np.tan(self.rotation_v)) * np.cos(self.rotation_h)
+        self.c_pose[1] *= np.cos(self.rotation_h)
         self.c_pose[0] *= np.sin(self.rotation_h)
-        self.c_pose[2] = np.sin(self.rotation_v) * 1 + .15
-        self.c_pose[4] = np.pi/2 - self.rotation_v
+        self.c_pose[4] = np.pi/2
         self.c_pose[5] = self.rotation_h
         self.rend.setCameraPose(self.c_pose)
 
@@ -305,5 +296,51 @@ class MeshWizard():
             if min_row > 0:
                 min_row -=1
         return image[min_row:max_row,min_col:max_col]
+
+    
+    def _findBasePose(self):
+        self.rend.setJointAngles([0,0,np.pi/2,0,0,0])
+
+        def set_render_and_process(r,z):
+            self.base_pose = [0,-r,z, 0,np.pi/2,0]
+            self.rend.setCameraPose(self.base_pose)
+            self.base_pose[0] = r
+            frame = self.render()
+            return np.any(frame,-1)
+
+        r = 1.5
+        z = 0.75
+
+        frame = set_render_and_process(r,z)
+
+        for inc in [1,0.5,0.25,0.1,0.05,0.01]:
+
+            # Back away until blackspace on top and bottom
+            while frame[0].any() or frame[-1].any():
+                r += inc
+                frame = set_render_and_process(r,z)
+
+            # Used to determine max/min row
+            def r_val(frame, x):
+                # x is either 0 (min) or -1 (max)
+                f = frame.any(1)
+                return np.where(f)[0][x]
+
+            # Center down
+            while r_val(frame, 0) < (frame.shape[0] - r_val(frame, -1)):
+                z += inc
+                frame = set_render_and_process(r,z)
+            # Center up
+            while r_val(frame, 0) > (frame.shape[0] - r_val(frame, -1)):
+                z -= inc
+                frame = set_render_and_process(r,z)
+            k = 10 # Move towards, leaving k pixels above and/or below
+            while r_val(frame, 0) > k and (frame.shape[0] - r_val(frame, -1)) > k:
+                r -= inc
+                frame = set_render_and_process(r,z)
+        self.rend.setJointAngles([0,0,0,0,0,0])
+        set_render_and_process(r,z)
+        print(f'\n\nFor reference, the base camera position for this robot is:\n{self.base_pose}\n\n')
+
 
 
