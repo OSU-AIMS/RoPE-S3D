@@ -7,19 +7,14 @@
 #
 # Author: Adam Exley
 
-import numpy as np
 import os
-import json
 
+import numpy as np
 import pyrender
 import trimesh
 
-from ..paths import Paths as p
 from ..urdf import URDFReader
-from ..CompactJSONEncoder import CompactJSONEncoder
 
-
-MESH_CONFIG = p().MESH_CONFIG
 
 def default_color_maker(num):
     b = np.linspace(0,255,num).astype(int) # Blue values are always unique
@@ -40,26 +35,8 @@ class MeshLoader():
     def __init__(self):
 
         self.ureader = URDFReader()
-
-        if not os.path.isfile(MESH_CONFIG):
-            info = {}
-            with open(MESH_CONFIG,'w') as f:
-                json.dump(info, f, indent=4)
-
-        self.refresh()
-
-    def refresh(self):
-        with open(MESH_CONFIG,'r') as f:
-            d = json.load(f)
-
-        if self.ureader.name not in d:
-            d[self.ureader.name] = self.ureader.guessPoseConfig()
-            with open(MESH_CONFIG,'w') as f:
-                f.write(CompactJSONEncoder(max_width=90,precise=True,indent=4).encode(d))
-
         self.name_list = self.ureader.mesh_names
         self.mesh_list = self.ureader.meshes
-        self.pose_list = [d[self.ureader.name][x] for x in self.name_list]
 
         self.load()
 
@@ -135,52 +112,6 @@ def makePose(x,y,z,pitch,roll,yaw):
     pose = angToPoseArr(yaw,pitch,roll)
     pose = translatePoseArr(x,y,z,pose)
     return pose
-
-
-def posesFromData(ang, pos):
-    """
-    Returns Zx6x4x4 array of pose arrays
-    """
-    #Make arr in x,y,z,roll,pitch,yaw format
-    coord = np.zeros((pos.shape[0],6,6))
-    # Yaw of S-R is just S angle
-    for idx in range(1,5):
-        coord[:,idx,5] = ang[:,0]
-
-    coord[:,1:6,0:3] = pos[:,:5]    # Set xyz translations
-
-    coord[:,2,3] = ang[:,1]             # Pitch of L
-    coord[:,3,3] = ang[:,1] - ang[:,2]  # Pitch of U
-    coord[:,4,3] = ang[:,1] - ang[:,2]  # Pitch of R       
-
-    coord[:,4,4] = -ang[:,3]    # Roll of R
-
-
-    poses = np.zeros((coord.shape[0],6,4,4))    # X frames, 6 joints, 4x4 pose for each
-    for idx in range(coord.shape[0]):
-        for sub_idx in range(5):
-            poses[idx,sub_idx] = makePose(*coord[idx,sub_idx])
-
-    # Determine BT with vectors because it's easier
-    bt = pos[:,5] - pos[:,4]    # Vectors from B to T
-
-    y = poses[:,4,:3,1] # Y Axis is common with R joint
-    z = np.cross(bt, y)
-
-    z = z / np.vstack([np.linalg.norm(z, axis=-1)]*3).transpose()
-    x = bt / np.vstack([np.linalg.norm(bt, axis=-1)]*3).transpose()
-
-    b_poses = np.zeros((pos.shape[0],4,4))
-
-    b_poses[:,:3,0] = x # X Unit
-    b_poses[:,:3,1] = y # Y Unit
-    b_poses[:,:3,2] = z # Z Unit
-    b_poses[:,3,3] = 1
-    b_poses[:,:3,3] = pos[:,4] # XYZ Offset
-
-    poses[:,-1,:] = b_poses
-
-    return poses
 
 
 def setPoses(scene, nodes, poses):

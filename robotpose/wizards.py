@@ -8,17 +8,15 @@
 # Author: Adam Exley
 
 import os
-from PySimpleGUI.PySimpleGUI import Window
+
 import cv2
 import numpy as np
-
 import PySimpleGUI as sg
 
-from .data import DatasetInfo, Dataset
+from .data import Dataset, DatasetInfo
 from .simulation import Aligner, Renderer
 from .urdf import URDFReader
 from .utils import expandRegion
-
 
 
 class DatasetWizard(DatasetInfo):
@@ -204,7 +202,6 @@ class MeshWizard():
             event, values = self.window.read(5, timeout_key='TIMEOUT')
             if event not in (sg.WIN_CLOSED,'-quit-'):
                 if event != 'TIMEOUT' or values != prev_values:
-                    self.rend.refresh()
                     self._updateInputs(values)
                     self._runEvent(event, values)
                     self._setRotation(values)
