@@ -56,7 +56,6 @@ class Renderer():
         self.loadMeshes()        
 
     def refresh(self):
-        self.kine.load()
         self.loadMeshes()
 
     def loadMeshes(self):
@@ -79,7 +78,8 @@ class Renderer():
 
 
     def setJointAngles(self, angles):
-        setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([self.kine.calc(angles)]))[0])
+        #setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([self.kine.calc(angles)]))[0])
+        setPoses(self.scene, self.joint_nodes,self.kine.calc(angles))
 
     def render(self):
         return self.rend.render(

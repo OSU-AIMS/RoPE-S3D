@@ -13,3 +13,4 @@ tqdm
 psutil
 pandas
 pyopengl-accelerate
+klampt

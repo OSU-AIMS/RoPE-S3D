@@ -57,17 +57,17 @@ class MeshLoader():
             with open(MESH_CONFIG,'w') as f:
                 f.write(CompactJSONEncoder(max_width=90,precise=True,indent=4).encode(d))
 
-        self.name_list = self.ureader.mesh_names[:-1]
-        self.mesh_list = self.ureader.meshes[:-1]
+        self.name_list = self.ureader.mesh_names
+        self.mesh_list = self.ureader.meshes
         self.pose_list = [d[self.ureader.name][x] for x in self.name_list]
 
         self.load()
 
     def load(self):
         self._meshes = []
-        for file, pose in zip(self.mesh_list, self.pose_list):
+        for file in self.mesh_list:
             tm = trimesh.load(os.path.join(os.getcwd(),file))
-            self._meshes.append(pyrender.Mesh.from_trimesh(tm,smooth=True, poses=makePose(*pose)))
+            self._meshes.append(pyrender.Mesh.from_trimesh(tm,smooth=True))
 
     @property
     def meshes(self):

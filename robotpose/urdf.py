@@ -129,17 +129,17 @@ class URDFReader():
         config[self.name] = params
 
         with open(Paths().DH_PARAMS, 'w') as f:
-            f.write(CompactJSONEncoder(max_width=90,precise=True,indent=4).encode(config))
+            f.write(CompactJSONEncoder(max_width=100,precise=True,indent=4).encode(config))
 
     def guessPoseConfig(self):
         tree = ET.parse(self.internal_path)
         root = tree.getroot()
 
-        keys = self.mesh_names[:-1] # Don't include T
+        keys = self.mesh_names
         config = {k:np.zeros(6) for k in keys}
 
         origins = []
-        for joint in root.findall('joint')[:6]:
+        for joint in root.findall('joint')[:7]:
             origins.append(str_to_list(joint.find('origin').get('xyz')))
         origins = np.array(origins)
 
