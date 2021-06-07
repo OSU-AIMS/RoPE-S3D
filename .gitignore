@@ -6,11 +6,16 @@ data/datasets.json
 !data/raw/
 .vscode
 .github
-deprecated_segmentation/mask_rcnn_models/*.h5
-deprecated_segmentation/mask_rcnn_models/old/*.h5
-deprecated_segmentation/mask_rcnn_coco.h5
+
 models/segmentation/*.h5
 models/segmentation/*/*.h5
+
+models/link/*/*.h5
+models/body/*/*.h5
+
+
+
+models/*/*.h5
 output/projection_viz.avi
 
 seg_test/
@@ -83,3 +88,6 @@ examples/\.ipynb_checkpoints/
 
 examples/deepposekit-data
 data/datasets.json
+models/mask_rcnn_coco.h5
+output/projection_viz_set10.avi
+lookup/lookups.json

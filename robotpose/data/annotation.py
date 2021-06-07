@@ -8,17 +8,19 @@
 # Author: Adam Exley
 
 import multiprocessing as mp
-import numpy as np
 import os
+import random
+import shutil
 import tempfile
 
 import cv2
+import numpy as np
 from labelme.label_file import LabelFile
 from tqdm import tqdm
 
-from .dataset import Dataset
 from ..simulation.render import DatasetRenderer
-from ..utils import workerCount, expandRegion
+from ..utils import expandRegion, workerCount
+from .dataset import Dataset
 
 
 def makeMask(image):
@@ -167,9 +169,7 @@ class AutomaticAnnotator():
             self.rend = ds_renderer
             self.rend.setMode({'body':'seg_full','link':'seg'}.get(mode))
 
-        color_dict = self.rend.getColorDict()
-
-        self.anno = Annotator(color_dict = color_dict, pad_size=3)
+        self.anno = Annotator(color_dict = self.rend.color_dict, pad_size=3)
         self.ds = Dataset(dataset)
 
         self.dest_path = {'body':self.ds.body_anno_path,'link':self.ds.link_anno_path}.get(mode)
@@ -178,26 +178,71 @@ class AutomaticAnnotator():
 
     def run(self):
 
-        color_imgs = []
+        with tqdm(total=100, desc="Annotating", position=0, colour='green') as pbar:
+            color_imgs = []
 
-        for frame in tqdm(range(self.ds.length),desc="Rendering Segmentation Masks"):
-            self.rend.setPosesFromDS(frame)
-            color,depth = self.rend.render()
-            color_imgs.append(color)
-            if self.preview:
-                cv2.imshow("Automatic Segmentation Annotator", color)
-                cv2.waitKey(1)
+            pbar.set_description("Rendering Segmentation Masks", refresh=True)
 
-        cv2.destroyAllWindows()
-        inputs = []
-        print("Copying Image Array...")
-        og_img = np.copy(self.ds.og_img)
-        print("Image Array Copied.")
+            for frame in tqdm(range(self.ds.length),desc="Rendering",position=1,colour='red',leave=False):
+                self.rend.setPosesFromDS(frame)
+                color, depth = self.rend.render()
+                color_imgs.append(color)
+                if self.preview:
+                    cv2.imshow("Automatic Segmentation Annotator", color)
+                    cv2.waitKey(1)
+                if ((frame + 1)*10)% self.ds.length == 0:
+                    pbar.update(1)
 
-        for frame in tqdm(range(self.ds.length),desc="Packing Segmentation Pool"):
-            inputs.append((og_img[frame],color_imgs[frame],os.path.join(self.dest_path,f"{frame:05d}")))
+            cv2.destroyAllWindows()
+            pbar.set_description("Copying Image Array", refresh=True)
 
-        print("Starting Segmentation Pool...")
-        with mp.Pool(workerCount()) as pool:
-            pool.starmap(self.anno.annotate, inputs)
-        print("Pool Complete")
+            inputs = []
+            og_img = np.copy(self.ds.og_img)
+
+            pbar.set_description("Packing Pool")
+            pbar.update(19)
+
+            with tempfile.TemporaryDirectory() as tempdir:
+
+                for frame in tqdm(range(self.ds.length),desc="Packing",position=1, leave=False, colour='red'):
+                    inputs.append((og_img[frame],color_imgs[frame],os.path.join(tempdir,f"{frame:05d}")))
+                
+                pbar.update(1)
+                pbar.set_description("Running Pool", refresh=True)
+
+                with mp.Pool(workerCount()) as pool:
+                    pool.starmap(self.anno.annotate, inputs)
+
+                pbar.set_description("Organizing Data")
+                pbar.update(59)
+
+                # Split set into validation and train
+                jsons = [x for x in os.listdir(tempdir) if x.endswith('.json')]
+                random.shuffle(jsons)
+
+                valid_proportion = .1
+                test_proportion = .5
+
+                valid_size = int(len(jsons) * valid_proportion)
+                test_size = int(len(jsons) * test_proportion)
+                valid_list = jsons[:valid_size]
+                test_list = jsons[valid_size:valid_size + test_size]
+                train_list = jsons[valid_size + test_size:]
+
+                folders = ['train', 'test','ignore']
+                lists = [train_list, valid_list, test_list]
+
+                # Clear out / create folders
+                for folder in folders:
+                    path = os.path.join(self.dest_path, folder)
+                    if os.path.isdir(path): shutil.rmtree(path)
+                    os.mkdir(path)
+
+                for lst, folder in zip(lists,folders):
+                    path = os.path.join(self.dest_path, folder)
+                    for file in lst:
+                        shutil.copy2(os.path.join(tempdir, file), os.path.join(path, file))
+                        shutil.copy2(os.path.join(tempdir, file.replace('.json','.png')), os.path.join(path, file.replace('.json','.png')))
+
+                pbar.set_description("Annotation")
+                pbar.update(11)

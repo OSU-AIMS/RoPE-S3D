@@ -10,20 +10,17 @@
 
 import datetime
 import json
-import multiprocessing as mp
-import numpy as np
 import os
 import time
-from psutil import virtual_memory
 
 import cv2
 import h5py
+import numpy as np
 from tqdm import tqdm
 
-from .multithread import crop
 from ..paths import Paths as p
+from ..training import ModelInfo, ModelManager
 from .segmentation import RobotSegmenter
-from ..utils import workerCount
 
 
 def save_video(path, img_arr):
@@ -44,7 +41,12 @@ class Builder():
         self._get_filepaths_from_data_dir(data_path)
         self._load_json_data()
         self._load_imgs_and_depthmaps()
-        self._segment_images_and_maps()
+
+        if ModelInfo().num_types['body'] > 0:
+            self._segment_images_and_maps()
+        else:
+            self._fake_segment_images_and_maps()
+
         self._save_reference_videos()
         self._make_camera_poses()
         return self._save_full(dataset_ver)
@@ -52,7 +54,12 @@ class Builder():
     def recompile(self, ds_path, dataset_ver, name = None):
         self._set_dest_path_recompile(ds_path, name)
         self._load_raw_data_from_ds()
-        self._segment_images_and_maps()
+
+        if ModelInfo().num_types['body'] >= 0:
+            self._segment_images_and_maps()
+        else:
+            self._fake_segment_images_and_maps()
+
         self._save_reference_videos()
         return self._save_recompile(dataset_ver)
 
@@ -149,53 +156,27 @@ class Builder():
             with h5py.File(dest, 'r') as f:
                 self.length = f.attrs['length']
                 self.orig_img_arr = np.array(f['images/original'])
-                self.img_height, self.img_width = self.orig_img_arr.shape[1:3]
                 pbar.update(1)
                 self.depthmap_arr = np.array(f['coordinates/depthmaps'])
                 pbar.update(1)
 
-    
+    def _fake_segment_images_and_maps(self):
+        self.segmented_img_arr = self.orig_img_arr
+
     def _segment_images_and_maps(self):
-        segmenter = RobotSegmenter()
-        self.segmented_img_arr = np.zeros((self.length, segmenter.height(), segmenter.width(), 3), dtype=np.uint8)
-        self.pointmap = np.zeros((self.length, segmenter.height(), segmenter.width(), 3), dtype=np.float64)
-        self.mask_arr = np.zeros((self.length, self.img_height, self.img_width), dtype=bool)
-        self.rois = np.zeros((self.length, 4))
+        segmenter = RobotSegmenter(os.path.join(p().SEG_MODELS,'D.h5'))
+        self.segmented_img_arr = np.zeros(self.orig_img_arr.shape, dtype=np.uint8)
 
-        memory_size = virtual_memory().total
-        batch_size = int(np.around((72.1348 * np.log(memory_size) - 1600)/5) * 5)
-        if batch_size < 25:
-            batch_size = 25
+        padding = 10
+        kern = np.ones((padding,padding))
 
-        print(f"Detected {int(memory_size/1073741824)+1}GB of RAM")
-        print(f"Using Crop Pool of size {batch_size} with {workerCount()} workers.")
-        with tqdm(total=self.length, desc="Creating Segmented Images",position=0,colour="green") as pbar:
-            for start in range(0,self.length, batch_size):
+        # Segment images
+        for idx in tqdm(range(self.length),desc="Segmenting Images"):
+            mask = segmenter.segmentImage(self.orig_img_arr[idx])
+            mask = cv2.dilate(mask.astype(float), kern)
+            mask = np.stack([mask]*3,-1).astype(bool)
+            self.segmented_img_arr[idx] = np.multiply(self.orig_img_arr[idx], mask).astype(np.uint8)
 
-                if start + batch_size >= self.length:
-                    batch_size = self.length - start
-
-                # Segment images
-                for idx in tqdm(range(start,start+batch_size),desc="Segmenting Images",position=1,leave=False,colour="red"):
-                    self.mask_arr[idx], self.rois[idx] = segmenter.segmentImage(self.orig_img_arr[idx])
-                self.rois = self.rois.astype(int)
-
-                # Make iterable for pool
-                crop_inputs = []
-                for idx in range(start,start+batch_size):
-                    crop_inputs.append((self.depthmap_arr[idx], self.orig_img_arr[idx], self.mask_arr[idx], self.rois[idx]))
-                
-                def a():
-                    # Run pool to segment PLYs
-                    with mp.Pool(workerCount()) as pool:
-                        crop_outputs = pool.starmap(crop, crop_inputs)
-                    return crop_outputs
-                crop_outputs = a()
-
-                for idx in range(start,start+batch_size):
-                    self.segmented_img_arr[idx] = crop_outputs[idx-start][0]
-                    self.pointmap[idx] = crop_outputs[idx-start][1]
-                pbar.update(batch_size)
 
     def _save_reference_videos(self):
         save_video(os.path.join(self.dest_path,"og_vid.avi"), self.orig_img_arr)
@@ -206,7 +187,7 @@ class Builder():
 
     def _save_full(self, ver):
         dest = os.path.join(self.dest_path, self.name + '.h5')
-        with tqdm(total=10, desc="Writing Dataset") as pbar:
+        with tqdm(total=9, desc="Writing Dataset") as pbar:
             with h5py.File(dest,'a') as file:
                 file.attrs['name'] = self.name
                 file.attrs['version'] = ver
@@ -215,8 +196,7 @@ class Builder():
                 file.attrs['compile_date'] = str(datetime.datetime.now())
                 file.attrs['compile_time'] = time.time() - self.build_start_time
                 file.attrs['type'] = 'full'
-                file.attrs['original_resolution'] = self.orig_img_arr[0].shape
-                file.attrs['segmented_resolution'] = self.segmented_img_arr[0].shape
+                file.attrs['resolution'] = self.orig_img_arr[0].shape[:-1]
                 file.attrs['depth_intrinsics'] = self.intrin_depth
                 file.attrs['color_intrinsics'] = self.intrin_color
                 file.attrs['depth_scale'] = self.depth_scale
@@ -228,14 +208,11 @@ class Builder():
                 dm = coord_grop.create_dataset('depthmaps', data = self.depthmap_arr, compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 dm.attrs['depth_scale'] = self.depth_scale
-                coord_grop.create_dataset('pointmaps', data = self.pointmap, compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
                 img_grp = file.create_group('images')
                 img_grp.create_dataset('original', data = self.orig_img_arr, compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 img_grp.create_dataset('segmented', data = self.segmented_img_arr, compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                img_grp.create_dataset('rois', data = self.rois, compression="gzip",compression_opts=self.compression_level)
                 img_grp.create_dataset('camera_poses', data = self.camera_poses)
                 pbar.update(1)
                 path_grp = file.create_group('paths')
@@ -251,22 +228,18 @@ class Builder():
 
     def _save_recompile(self, ver):
         dest = os.path.join(self.dest_path, self.name + '.h5')
-        with tqdm(total=3, desc="Writing Dataset") as pbar:
+        with tqdm(total=1, desc="Writing Dataset") as pbar:
             with h5py.File(dest,'a') as file:
                 file.attrs['version'] = ver
                 file.attrs['compile_date'] = str(datetime.datetime.now())
                 file.attrs['compile_time'] = time.time() - self.build_start_time
-                file.attrs['segmented_resolution'] = self.segmented_img_arr[0].shape
-                file['coordinates/pointmaps'][...] = self.pointmap
-                pbar.update(1)
                 file['images/segmented'][...] = self.segmented_img_arr
                 pbar.update(1)
-                file['images/rois'][...] = self.rois
-                pbar.update(1)
+
 
 
     def _read_full(self, path):
-        with tqdm(total=10, desc="Reading Full Dataset") as pbar:
+        with tqdm(total=9, desc="Reading Full Dataset") as pbar:
             with h5py.File(path,'r') as file:
                 self.attrs = dict(file.attrs)
                 self.name = file.attrs['name']
@@ -281,14 +254,11 @@ class Builder():
                 pbar.update(1)
                 self.depthmap_arr = np.array(file['coordinates/depthmaps'])
                 pbar.update(1)
-                self.pointmap = np.array(file['coordinates/pointmaps'])
-                pbar.update(1)
 
                 self.orig_img_arr = np.array(file['images/original'])
                 pbar.update(1)
                 self.segmented_img_arr = np.array(file['images/segmented'])
                 pbar.update(1)
-                self.rois = np.array(file['images/rois'])
                 self.camera_poses = np.array(file['images/camera_poses'])
                 pbar.update(1)
 
@@ -301,7 +271,7 @@ class Builder():
 
     def _write_subset(self,path,sub_type,idxs):
         """Create a derivative dataset from a full dataset, using a subset of the data."""
-        with tqdm(total=10, desc=f"Writing {sub_type}") as pbar:
+        with tqdm(total=9, desc=f"Writing {sub_type}") as pbar:
             with h5py.File(path,'a') as file:
                 for key in self.attrs.keys():
                     file.attrs[key] = self.attrs[key]
@@ -317,14 +287,11 @@ class Builder():
                 dm = coord_grop.create_dataset('depthmaps', data = self.depthmap_arr[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 dm.attrs['depth_scale'] = self.depth_scale
-                coord_grop.create_dataset('pointmaps', data = self.pointmap[idxs], compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
                 img_grp = file.create_group('images')
                 img_grp.create_dataset('original', data = self.orig_img_arr[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 img_grp.create_dataset('segmented', data = self.segmented_img_arr[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
-                img_grp.create_dataset('rois', data = self.rois[idxs], compression="gzip",compression_opts=self.compression_level)
                 img_grp.create_dataset('camera_poses', data = self.camera_poses[idxs], compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
                 path_grp = file.create_group('paths')
@@ -344,7 +311,7 @@ class Builder():
         a_attrs = a.attrs
         b_attrs = b.attrs
 
-        for attribute in ['version','original_resolution','segmented_resolution','depth_intrinsics','color_intrinsics','depth_scale']:
+        for attribute in ['version','resolution','depth_intrinsics','color_intrinsics','depth_scale']:
             assert a_attrs[attribute] == b_attrs[attribute], f"{attribute} must be equal to join datasets"
 
         a_len = a.attrs['length']
@@ -357,10 +324,8 @@ class Builder():
         self.ang_arr = np.vstack((a['angles'],b['angles']))
         self.pos_arr = np.vstack((a['positions'],b['positions']))
         self.depthmap_arr = np.vstack((a['coordinates/depthmaps'],b['coordinates/depthmaps']))
-        self.pointmap = np.vstack((a['coordinates/pointmaps'],b['coordinates/pointmaps']))
         self.orig_img_arr = np.vstack((a['images/original'],b['images/original']))
         self.segmented_img_arr = np.vstack((a['images/segmented'],b['images/segmented']))
-        self.rois = np.vstack((a['images/rois'],b['images/rois']))
         self.jsons = np.vstack((a['paths/jsons'],b['paths/jsons']))
         self.maps = np.vstack((a['paths/depthmaps'],b['paths/depthmaps']))
         self.imgs = np.vstack((a['paths/images'],b['paths/images']))

@@ -13,92 +13,65 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-
-def mask_err(target, render):
-    # Returns 0-1 (1 is bad, 0 is good)
-    target_mask = ~(np.all(target == [0, 0, 0], axis=-1))
-    render_mask = ~(np.all(render == [0, 0, 0], axis=-1))
-
-    # Take IOU of arrays
-    overlap = target_mask*render_mask # Logical AND
-    union = target_mask + render_mask # Logical OR
-    iou = overlap.sum()/float(union.sum())
-    return 1 - iou
-    
-
-def depth_err(target, render):
-    target_mask = target != 0
-    render_masked = render * target_mask
-    diff = target - render_masked
-    diff = np.abs(diff) ** .5
-    err = np.mean(diff[diff!=0])
-    return err
-
-def downsample(base, factor):
-    dims = [x//factor for x in base.shape[0:2]]
-    dims.reverse()
-    return cv2.resize(base, tuple(dims))
+import h5py
+import tensorflow as tf
+tf.compat.v1.enable_eager_execution()
 
 
-CAMERA_POSE = [.042,-1.425,.399, -.01,1.553,-.057]
-WIDTH = 800
+class LookupErrorViewer():
+    def __init__(self, ds_factor = 8):
+        self.ds_factor = ds_factor
+        self.renderer = Renderer('seg',None,f'1280_720_color_{self.ds_factor}')
 
-renderer = Renderer('BASE','seg',CAMERA_POSE)
-renderer_quarter = Renderer('BASE','seg',CAMERA_POSE,'1280_720_color_8')
+        with h5py.File('test.h5','r') as f:
+            self.lookup_angles = np.copy(f['angles'])
+            self.lookup_depth = np.copy(f['depth'])
+
+
+    def run(self, target_depth, camera_pose, true):
+        self.renderer.setCameraPose(camera_pose)
+        target_depth = self._downsample(target_depth, self.ds_factor)
+
+
+        self._load_target(target_depth)
+        self.renderer.setMaxParts(4)
+
+        diff = self._tgt_depth_stack ** 0.5 - self.lookup_depth ** 0.5
+        tf_err = tf.keras.losses.MSE(tf.constant(self._tgt_depth_stack), tf.constant(self.lookup_depth)).numpy()
+        diff = np.abs(diff)# ** 0.5
+        lookup_err = np.mean(diff, (1,2)) *-np.var(diff, (1,2))
+
+        s,l = np.meshgrid(np.unique(self.lookup_angles[:,0]),np.unique(self.lookup_angles[:,1]), indexing='ij')
+        err = np.zeros((len(s),len(l)))
+
+        for s_idx in range(len(s)):
+            for l_idx in range(len(l)):
+                err[s_idx, l_idx] = lookup_err[s_idx + l_idx * len(s)]
+        
+        fig = plt.figure()
+        ax = plt.axes(projection='3d')
+        ax.plot_surface(s, l, err, rstride=1, cstride=1,cmap='viridis', edgecolor='none', zorder=1, alpha=.8)
+        ax.plot([true[0]]*2, [true[1]]*2, [min(lookup_err), max(lookup_err)],'m', zorder=2)
+        ax.plot([self.lookup_angles[lookup_err.argmin(),0]]*2, [self.lookup_angles[lookup_err.argmin(),1]]*2, [min(lookup_err), max(lookup_err)],'r', zorder=2)
+        ax.set_xlabel('S')
+        ax.set_ylabel('L')
+        plt.show()
+
+    def _downsample(self, base: np.ndarray, factor: int) -> np.ndarray:
+        dims = [x//factor for x in base.shape[0:2]]
+        dims.reverse()
+        return cv2.resize(base, tuple(dims))
+
+    def _load_target(self, tgt_depth: np.ndarray) -> None:
+        self._tgt_depth = tgt_depth
+        self._tgt_depth_stack = np.stack([tgt_depth]*len(self.lookup_angles))
+
+
+a = LookupErrorViewer()
 ds = Dataset('set10')
 
-idx = 50
+idx = 704
 
-ds_factor = 8
-roi_start = np.copy(ds.rois[idx,1])
-target_img = np.zeros((720,1280,3),np.uint8)
-target_img[:,roi_start:roi_start+WIDTH] = np.copy(ds.seg_img[idx])
-target_depth = np.zeros((720,1280))
-target_depth[:,roi_start:roi_start+WIDTH] = np.copy(ds.pointmaps[idx,...,2])
-
-
-if True:
-    target_img = downsample(target_img, ds_factor)
-    target_depth = downsample(target_depth, ds_factor)
-
-renderer.setJointAngles([0,0,0,0,0,0])
-renderer_quarter.setJointAngles([0,0,0,0,0,0])
-
-dp_err = []
-mk_err = []
-s_ang = []
-l_ang = []
-
-ns = 50
-nl = 50
-
-err = np.zeros((ns, nl))
-
-space_s = np.linspace(-np.pi,np.pi,ns)
-space_l = np.linspace(-np.pi,np.pi,nl)
-
-sv, lv = np.meshgrid(space_s,space_l)
-
-for s in tqdm(range(ns)):
-    for l in range(nl):
-        renderer_quarter.setJointAngles([sv[s,l],lv[s,l],0,0,0,0])
-        color, depth = renderer_quarter.render()
-
-        dp_err.append(depth_err(target_depth,depth))
-        mk_err.append(mask_err(target_img,color))
-        err[s,l] = depth_err(target_depth,depth) + mask_err(target_img,color)
-
-dp_err = np.array(dp_err)
-mk_err = np.array(mk_err)
-
-
-fig = plt.figure()
-ax = plt.axes(projection='3d')
-ax.plot_surface(sv, lv, err, rstride=1, cstride=1,cmap='viridis', edgecolor='none')
-ax.set_xlabel('S')
-ax.set_ylabel('L')
-plt.show()
-
-
+a.run(np.copy(ds.depthmaps[idx]),ds.camera_pose[idx],ds.angles[idx])
 
 

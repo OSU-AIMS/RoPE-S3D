@@ -13,11 +13,11 @@ import cv2
 import pyrender
 import PySimpleGUI as sg
 
-from ..projection import makePresetIntrinsics
-from .render_utils import DEFAULT_COLORS, MeshLoader, cameraFromIntrinsics, makePose, posesFromData, setPoses
+from ..projection import Intrinsics
+from .render_utils import DEFAULT_COLORS, MeshLoader, makePose, setPoses
 from ..data import Dataset
 
-from .fwd_kinematics_mh5l import FwdKinematic_MH5L_AllJoints as fwdKinematics
+from .kinematics import ForwardKinematics
 
 
 class Renderer():
@@ -30,30 +30,40 @@ class Renderer():
             suppress_warnings = False
             ):
 
-        intrin = makePresetIntrinsics(camera_intrin)
+        self.kine = ForwardKinematics()
+
+        self.intrinsics = Intrinsics(camera_intrin)
 
         self.mode = mode
         self.suppress_warnings = suppress_warnings
         self.limit_parts = False
-
-        ml = MeshLoader()
-        ml.load()
-        name_list = ml.getNames()
-        self.meshes = ml.getMeshes()
          
         if camera_pose is not None:
             c_pose = camera_pose
         else:
-            c_pose = [.087,-1.425,.4, 0,1.551,-.025]
+            c_pose = [.087,-1.425,.73, 0,1.551,-.025]
 
         self.scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])  # Make scene
 
-        camera = cameraFromIntrinsics(intrin)
+        camera = self.intrinsics.pyrender_camera
         cam_pose = makePose(*c_pose)
         self.camera_node = self.scene.add(camera, pose=cam_pose)
 
         dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=10.0)
         self.scene.add(dl, parent_node=self.camera_node) # Add light at camera pose
+        self.rend = pyrender.OffscreenRenderer(self.intrinsics.width, self.intrinsics.height)
+
+        self.loadMeshes()        
+
+
+    def loadMeshes(self):
+        ml = MeshLoader()
+        self.meshes, name_list = ml.meshes_and_names
+
+        if hasattr(self, 'joint_nodes'):
+            if len(self.joint_nodes) > 0:
+                for node in self.joint_nodes:
+                    self.scene.remove_node(node)
 
         # Add in joints
         self.joint_nodes = []
@@ -61,12 +71,12 @@ class Renderer():
             self.joint_nodes.append(pyrender.Node(name=name,mesh=mesh))
         for node in self.joint_nodes:
             self.scene.add_node(node)
-        self.rend = pyrender.OffscreenRenderer(intrin.width, intrin.height)
         self.node_color_map = {}
-        self.setMode(mode)
-        
+        self.setMode(self.mode)
+
+
     def setJointAngles(self, angles):
-        setPoses(self.scene, self.joint_nodes,posesFromData(np.array([angles]), np.array([fwdKinematics(angles)]))[0])
+        setPoses(self.scene, self.joint_nodes,self.kine.calc(angles))
 
     def render(self):
         return self.rend.render(
@@ -84,15 +94,6 @@ class Renderer():
     def setCameraPose(self, pose):
         setPoses(self.scene, [self.camera_node], [makePose(*pose)])
 
-    def getColorDict(self):
-        if self.mode == 'seg':
-            out = {}
-            for node, color in zip(self.node_color_map.keys(), self.node_color_map.values()):
-                out[node.name] = color
-            return out
-        elif self.mode == 'seg_full':
-            return {'robot': DEFAULT_COLORS[0]}
-
     def _setNodeColor(self, node_name, color):
         try:
             nodes = {node.name:node for node in self.node_color_map.keys()}
@@ -103,6 +104,7 @@ class Renderer():
     def setMaxParts(self, number_of_parts):
         self.limit_parts = True
         self.limit_number = number_of_parts
+        self._updateMode()
 
     def _updateMode(self):
 
@@ -118,6 +120,24 @@ class Renderer():
         elif self.mode == 'seg_full':
             for joint in self.joint_nodes:
                 self.node_color_map[joint] = DEFAULT_COLORS[0]
+
+    @property
+    def resolution(self):
+        return (self.rend.viewport_height, self.rend.viewport_width)
+
+    @property
+    def camera_pose(self):
+        return self.scene.get_pose(self.camera_node)
+
+    @property
+    def color_dict(self):
+        if self.mode == 'seg':
+            out = {}
+            for node, color in zip(self.node_color_map.keys(), self.node_color_map.values()):
+                out[node.name] = color
+            return out
+        elif self.mode == 'seg_full':
+            return {'robot': DEFAULT_COLORS[0]}
 
 
 
@@ -140,9 +160,7 @@ class DatasetRenderer(Renderer):
         setPoses(self.scene, self.joint_nodes, poses)
 
     def setPosesFromDS(self, idx):
-        if not hasattr(self,'ds_poses'):
-            self.ds_poses = posesFromData(self.ds.angles, self.ds.positions)
-        self.setObjectPoses(self.ds_poses[idx])
+        self.setObjectPoses(self.kine.calc(self.ds.angles[idx]))
         setPoses(self.scene, [self.camera_node], [makePose(*self.ds.camera_pose[idx])])
 
 
@@ -164,7 +182,7 @@ class Aligner():
         # Load dataset
         self.ds = Dataset(dataset, permissions='a')
 
-        self.renderer = DatasetRenderer(dataset, None, mode='seg_full')
+        self.renderer = DatasetRenderer(dataset, mode='seg_full')
 
         if start_idx is not None:
             self.start_idx = start_idx

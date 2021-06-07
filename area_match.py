@@ -8,35 +8,22 @@
 # Author: Adam Exley
 
 from robotpose import Dataset, Predictor
+from robotpose.prediction.predict import TimePredictor
 import numpy as np
-import cv2
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-WIDTH = 800
-
-am = Predictor(ds_factor=8, preview=True)
+am = Predictor(ds_factor=8, preview=True)#, save_to='output/projection_viz.avi')
 ds = Dataset('set10')
 
-start = 0
-end = 1000
+start = 180
+end = 200
 
 print("Copying Data...")
-roi_start = np.copy(ds.rois[start:end,1])
-target_imgs = np.zeros((end-start,720,1280,3),np.uint8)
-target_depths = np.zeros((end-start,720,1280), np.float32)
-
+target_depths = np.copy(ds.depthmaps[start:end])
 og_imgs = np.copy(ds.og_img[start:end])
-seg_img = np.copy(ds.seg_img[start:end])
-dms = np.copy(ds.pointmaps[start:end,...,2])
 cam_poses = np.copy(ds.camera_pose[start:end])
-
-for i,s in zip(range(end-start),roi_start):
-    target_imgs[i,:,s:s+WIDTH] = seg_img[i]
-    target_depths[i,:,s:s+WIDTH] = dms[i]
-
 
 out = []
 
 for idx in tqdm(range(end-start)):
-    am.run(og_imgs[idx], target_imgs[idx], target_depths[idx], cam_poses[idx])
+    am.run(og_imgs[idx], target_depths[idx], cam_poses[idx])

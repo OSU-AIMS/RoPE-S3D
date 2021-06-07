@@ -1,7 +1,15 @@
 {
     "DATASETS": "data/",
+    "RAW_DATA": "data/raw/",
+    "LOOKUPS": "lookup/",
     "MODELS": "models/",
+    "MODELS_BODY": "models/body/",
+    "MODELS_LINK": "models/link/",
+    "OUTPUT": "output/",
     "SEG_MODELS": "models/segmentation",
+    "BASE_MODEL": "models/mask_rcnn_coco.h5",
     "VIDEO": "output/video.avi",
-    "urdf_path": "urdf/motoman_mh5_support/urdf/mh5l.urdf"
+    "URDFS": "urdfs/",
+    "URDF": "urdfs/motoman_mh5_support/urdf/mh5l.urdf",
+    "DH_PARAMS": "data/DH_params.json"
 }

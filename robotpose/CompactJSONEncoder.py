@@ -1,23 +1,24 @@
 import json
 from typing import Union
+import numpy as np
 
-# Taken from:
+# Modified from
 # https://gist.github.com/jannismain/e96666ca4f059c3e5bc28abb711b5c92#file-compactjsonencoder-py
+# to handle more classes 
 class CompactJSONEncoder(json.JSONEncoder):
     """A JSON Encoder that puts small containers on single lines."""
 
     CONTAINER_TYPES = (list, tuple, dict)
     """Container datatypes include primitives or other containers."""
 
-    MAX_WIDTH = 80
-    """Maximum width of a container that might be put on a single line."""
-
     MAX_ITEMS = 6
     """Maximum number of items in container that might be put on single line."""
 
     INDENTATION_CHAR = " "
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, max_width = 80, precise = False, *args, **kwargs):
+        self.max_width = max_width
+        self.precise = precise
         super().__init__(*args, **kwargs)
         self.indentation_level = 0
 
@@ -43,15 +44,24 @@ class CompactJSONEncoder(json.JSONEncoder):
             else:
                 return "{}"
         elif isinstance(o, float):  # Use scientific notation for floats, where appropiate
-            return format(o, "g")
+            if self.precise:
+                return format(o, ".12g")
+            else:
+                return format(o, "g")
         elif isinstance(o, str):  # escape newlines
             o = o.replace("\n", "\\n")
             return f'"{o}"'
+        elif isinstance(o, np.int32):
+            return json.dumps(int(o))
+        elif isinstance(o, np.bool_):
+            return json.dumps(bool(o))
+        elif isinstance(o, np.ndarray):
+            return self.encode(list(o))
         else:
             return json.dumps(o)
 
     def _put_on_single_line(self, o):
-        return self._primitives_only(o) and len(o) <= self.MAX_ITEMS and len(str(o)) - 2 <= self.MAX_WIDTH
+        return self._primitives_only(o) and len(o) <= self.MAX_ITEMS and len(str(o)) - 2 <= self.max_width
 
     def _primitives_only(self, o: Union[list, tuple, dict]):
         if isinstance(o, (list, tuple)):
