@@ -28,9 +28,9 @@ class DatasetWizard(DatasetInfo):
         self.valid_urdf = self.urdf_reader.internal_path != None
 
         urdf_menu = [
-            [sg.Txt("Current URDF:")],
-            [sg.Txt(self.urdf_reader.internal_path,key='-current_urdf-'),
-                sg.Button("Change",key='-browse_urdf-',tooltip='Select URDF path')]
+            [sg.Txt("URDF:"),
+                sg.Combo(self.urdf_reader.available_names,self.urdf_reader.name,key='-urdf-', size=(10, 1))],
+            [sg.Button("View Robot",key='-view-',tooltip='View robot in MeshViewer')]
         ]
 
         dataset_menu = [
@@ -53,13 +53,13 @@ class DatasetWizard(DatasetInfo):
         while event not in (sg.WIN_CLOSED,'-quit-'):
             event, values = self.window.read(10)
             if event not in (sg.WIN_CLOSED,'-quit-'):
-                self._updateButtons(values)
+                self._updateValues(values)
                 self._runEvent(event, values)
 
         self.window.close()
 
 
-    def _updateButtons(self,values):
+    def _updateValues(self,values):
 
         if values['-dataset-'] in self.unique_sets():
             for button in ['-details-','-align-']:
@@ -71,6 +71,9 @@ class DatasetWizard(DatasetInfo):
         if not self.valid_urdf:
             for button in ['-align-']:
                 self.window[button].update(disabled = True)
+
+        if values['-urdf-'] in self.urdf_reader.available_names and values['-urdf-'] != self.urdf_reader.name:
+            self.urdf_reader.path = self.urdf_reader.available_paths[self.urdf_reader.available_names.index(values['-urdf-'] )]
                 
 
     def _runEvent(self,event,values):
@@ -78,27 +81,9 @@ class DatasetWizard(DatasetInfo):
             self._runAligner(values['-dataset-'])
         elif event == '-details-':
             self._showDetails(values['-dataset-'])
-        elif event == '-edit_skele-':
-            self._runKeypointWizard(values['-skeleton-'])
-        elif event == '-browse_urdf-':
-            self._changeURDF()
+        elif event == '-view-':
+            self._runMeshViewer()
 
-
-    def _changeURDF(self):
-        self.valid_urdf = False
-        path = sg.popup_get_file("Select new URDF",
-            title="URDF Selection",
-            file_types=(("URDF Files", ".urdf"),), 
-            initial_folder=os.getcwd())
-        if path is not None:
-            if os.path.isfile(path) and path.endswith('.urdf'):
-                path = os.path.relpath(path, os.path.commonprefix([path,os.getcwd()]))
-                self.urdf_reader.path = path.replace('\\','/')
-                self.valid_urdf = True
-            else:
-                sg.popup_ok("Error:","Invalid URDF file selection.")
-        self.window['-current_urdf-'].update(self.urdf_reader.path)
-           
 
     def _showDetails(self, dataset):
         ds = Dataset(dataset)
@@ -110,7 +95,7 @@ class DatasetWizard(DatasetInfo):
         align.run()
         print(f'Alignment Complete')
 
-    def _runMeshWizard(self):
+    def _runMeshViewer(self):
         self.window.disable()
         self.window.disappear()
         wiz = MeshViewer()

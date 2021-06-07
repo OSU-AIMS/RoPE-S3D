@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from .CompactJSONEncoder import CompactJSONEncoder
 JSON_PATH = r'data/paths.json'
 
@@ -25,6 +26,6 @@ class Paths:
                     os.makedirs(item)
 
     def set(self, path, value):
-        self.__dict__[path] = value
+        self.__dict__[path] = re.sub('\\\\','/',value)
         with open(JSON_PATH,'w') as f:
             f.write(CompactJSONEncoder(indent=4).encode(self.__dict__))
