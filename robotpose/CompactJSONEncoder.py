@@ -2,8 +2,9 @@ import json
 from typing import Union
 import numpy as np
 
-# Taken from:
+# Modified from
 # https://gist.github.com/jannismain/e96666ca4f059c3e5bc28abb711b5c92#file-compactjsonencoder-py
+# to handle more classes 
 class CompactJSONEncoder(json.JSONEncoder):
     """A JSON Encoder that puts small containers on single lines."""
 

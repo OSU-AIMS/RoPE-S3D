@@ -20,10 +20,7 @@ class ForwardKinematics():
 
     def load(self):
         u_reader = URDFReader()
-        self.world = WorldModel()
-
-        # Load into env
-        self.world.loadElement(u_reader.path)
+        self.world = WorldModel(u_reader.path)
         self.robot = self.world.robot(0)
 
         # Get link IDs

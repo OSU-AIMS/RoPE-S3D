@@ -36,7 +36,7 @@ class MeshLoader():
 
         self.ureader = URDFReader()
         self.name_list = self.ureader.mesh_names
-        self.mesh_list = self.ureader.meshes
+        self.mesh_list = self.ureader.mesh_paths
 
         self.load()
 

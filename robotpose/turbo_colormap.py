@@ -34,7 +34,7 @@ def interpolate_or_clip(x, colormap=turbo_colormap_data):
 # The following functions
 # Copyright 2021 OSU CDME
 # SPDX-License-Identifier: Apache-2.0
-
+#
 # Author: Adam Exley
 
 def normalize_and_interpolate(x, x_min, x_max):

@@ -19,7 +19,7 @@ from .urdf import URDFReader
 from .utils import expandRegion
 
 
-class DatasetWizard(DatasetInfo):
+class Wizard(DatasetInfo):
     def __init__(self):
         super().__init__()
         self.get()
@@ -30,6 +30,7 @@ class DatasetWizard(DatasetInfo):
         urdf_menu = [
             [sg.Txt("URDF:"),
                 sg.Combo(self.urdf_reader.available_names,self.urdf_reader.name,key='-urdf-', size=(10, 1))],
+            [sg.Txt("Active:"), sg.Txt(self.urdf_reader.name,key='-active_urdf-')],
             [sg.Button("View Robot",key='-view-',tooltip='View robot in MeshViewer')]
         ]
 
@@ -41,7 +42,7 @@ class DatasetWizard(DatasetInfo):
         self.layout = [
             [sg.Frame("URDF Options", urdf_menu)],
             [sg.Frame("Dataset Options", dataset_menu)],
-            [sg.Button("Quit",key='-quit-',tooltip='Quit Dataset Wizard')]
+            [sg.Button("Quit",key='-quit-',tooltip='Quit Wizard')]
             ]
 
 
@@ -74,6 +75,7 @@ class DatasetWizard(DatasetInfo):
 
         if values['-urdf-'] in self.urdf_reader.available_names and values['-urdf-'] != self.urdf_reader.name:
             self.urdf_reader.path = self.urdf_reader.available_paths[self.urdf_reader.available_names.index(values['-urdf-'] )]
+            self.window['-active_urdf-'].update(self.urdf_reader.name)
                 
 
     def _runEvent(self,event,values):

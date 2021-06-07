@@ -10,29 +10,23 @@ An error function can be defined, quantitatively comparing these images based on
 
 Traversing this loss to find minima therefore enables the depicted robot pose to be estimated.
 
-The afforementioned 3D Rendering is done via [Pyrender](https://github.com/mmatl/pyrender)
+The afforementioned 3D Rendering is done via [Pyrender](https://github.com/mmatl/pyrender), with forward kinematics handled by [Klamp't](https://github.com/krishauser/Klampt).
 
 Depth visualization uses the [Turbo Colormap](https://ai.googleblog.com/2019/08/turbo-improved-rainbow-colormap-for.html).
 
 # Usage
 
 The following are the main steps that must be taken to train a new model:
-1. Configure meshes
-2. Create a dataset
-3. Align the dataset
-4. Perform automatic annotation
-5. Train the model
+1. Create a dataset
+2. Align the dataset
+3. Perform automatic annotation
+4. Train the model
 
 ## Meshes
 
-Meshes are loaded from a robot's URDF.
+Meshes are loaded directly from a robot's URDF.
 
-The URDF can be changed via the wizard: ```python wizard.py```
-
-The mesh for each joint, as well as that mesh's specific name, is specified in ```mesh_config.json``` in the ```data``` directory.
-
-More details about mesh configuration can be found in that directory's README.
-
+The active URDF can be changed by running the wizard (with ```python wizard.py```), which will automatically 
 
 ## Datasets
 
@@ -85,8 +79,6 @@ It is recommended to **not** install Visual Studio integration with CUDA (do a c
 
 ## Final Installation
 
-It is suggested to use a virtual environment configured to use **Python 3.6.4**.
-
 It is recommended to simply install requirements with pip:
 ```bash
 pip install --upgrade -r requirements.txt
@@ -102,7 +94,17 @@ Notably, every instance of ```.decode('utf8')``` in ```"lib\site-packages\tensor
 
 This will often cause issues when loading a model for segmentation.
 
+#### Numpy
+
+**This is avoided if using ```requirements.txt``` to install**
+
+Numpy **1.19.5** may be automatically installed with tensorflow. This version of Numpy presents memory issues on some machines when running Multiprocessing, as this repository does.
+
+Numpy **1.19.2** should work with this repository.
+
 #### PixelLib
+
+**In the suggested configuration using *Tensorflow 2.4.1* this is avoided.**
 
 **This is avoided if using ```requirements.txt``` to install**
 
@@ -113,13 +115,7 @@ pip install --upgrade tensorflow-gpu
 pip install --upgrade tensorflow-gpu==2.0.0
 ```
 
-#### Numpy
 
-**This is avoided if using ```requirements.txt``` to install**
-
-Numpy **1.19.5** may be automatically installed with tensorflow. This version of Numpy presents memory issues on some machines when running Multiprocessing, as this repository does.
-
-Numpy **1.19.2** should work with this repository.
 
 
 

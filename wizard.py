@@ -18,7 +18,7 @@ logging.getLogger("OpenGL.acceleratesupport").setLevel(logging.WARNING)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # or any {'0', '1', '2'}
 import tensorflow as tf
 
-from robotpose import DatasetWizard, Dataset, DatasetInfo
+from robotpose import Wizard, Dataset, DatasetInfo
 
 
 if __name__ == "__main__":
@@ -33,5 +33,5 @@ if __name__ == "__main__":
         args = parser.parse_args()
         ds = Dataset(args.dataset, recompile=args.recompile, rebuild=args.rebuild, permissions='a')
     else:
-        wiz = DatasetWizard()
+        wiz = Wizard()
         wiz.run()

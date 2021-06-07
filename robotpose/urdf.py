@@ -37,20 +37,19 @@ class URDFReader():
         root = tree.getroot()
 
         # Find mesh locations and names
-        self.meshes = []
+        self.mesh_paths = []
         for link in root.findall('link')[:7]:
-            self.meshes.append(link.find('visual').find('geometry').find('mesh').get('filename'))
+            self.mesh_paths.append(link.find('visual').find('geometry').find('mesh').get('filename'))
 
         if sys.platform == 'win32':
             fileend = 'stl'
         elif sys.platform == 'linux':
             fileend = 'STL'
-        self.meshes = [os.path.join('urdf',x.replace('package://',"").replace('STL',fileend)) for x in self.meshes]
+        self.mesh_paths = [os.path.join(Paths().URDFS,x.replace('package://',"").replace('STL',fileend)) for x in self.mesh_paths]
 
         self.mesh_names = []
         for link in root.findall('link')[:7]:
             self.mesh_names.append(link.get('name'))
-
 
         # Find joint limits
         self.joint_limits = []
@@ -80,7 +79,8 @@ class URDFReader():
     @path.setter
     def path(self, urdf_path):
         Paths().set('URDF',urdf_path)
-        self._get_path()
+        if self._get_path():
+            self.load()
 
     @property
     def name(self):
