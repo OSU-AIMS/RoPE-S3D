@@ -25,7 +25,7 @@ from ..utils import str_to_arr, get_key
 from .render import Renderer
 
 
-class LookupCreator(Renderer):
+class RobotLookupCreator(Renderer):
     def __init__(self, camera_pose: np.ndarray, intrinsics: Union[str, Intrinsics]):
         self.inp_pose = camera_pose
         self.u_reader = URDFReader()
@@ -86,9 +86,6 @@ class LookupCreator(Renderer):
         cv2.waitKey(1)
 
 
-
-LOOKUP_INFO = os.path.join(p().LOOKUPS,'lookups.json')
-
 """
 Camera intrin
 Camera pos
@@ -97,7 +94,7 @@ Joints used
     Div / joint
 """
 
-class LookupInfo():
+class RobotLookupInfo():
 
     def __init__(self) -> None:
         self.update()
@@ -105,8 +102,8 @@ class LookupInfo():
     def update(self):
         self.data = {}
 
-        #paths = [os.path.join(r,x) for r,d,y in os.walk(p().LOOKUPS) for x in y if x.endswith('.h5')]
-        paths = [os.path.join(p().LOOKUPS,x) for x in os.listdir(p().LOOKUPS) if x.endswith('.h5')]
+        #paths = [os.path.join(r,x) for r,d,y in os.walk(p().ROBOT_LOOKUPS) for x in y if x.endswith('.h5')]
+        paths = [os.path.join(p().ROBOT_LOOKUPS,x) for x in os.listdir(p().ROBOT_LOOKUPS) if x.endswith('.h5')]
         raw_tables = {}
         for path in paths:
             with h5py.File(path,'r') as f:
@@ -145,12 +142,12 @@ class LookupInfo():
 
 
     def _write(self):
-        with open(LOOKUP_INFO,'w') as f:
+        with open(p().ROBOT_LOOKUP_INFO,'w') as f:
             f.write(CompactJSONEncoder(max_width = 90, indent=4).encode(self.data).replace('\\','/'))
 
 
 
-class LookupManager(LookupInfo):
+class RobotLookupManager(RobotLookupInfo):
 
     def __init__(self, element_bits = 32) -> None:
         self.element_bits = element_bits
@@ -230,18 +227,18 @@ class LookupManager(LookupInfo):
     def load(self, name: str):
         if not name.endswith('.h5'):
             name = name + '.h5'
-        with h5py.File(os.path.join(p().LOOKUPS, name), 'r') as f:
+        with h5py.File(os.path.join(p().ROBOT_LOOKUPS, name), 'r') as f:
             return np.copy(f['angles']), np.copy(f['depth'])
 
 
     def create(self, intrinsics: Union[str, Intrinsics], camera_pose: np.ndarray, num_rendered_links: int, varying_angles: str, divisions: np.ndarray):
-        creator = LookupCreator(camera_pose, intrinsics)
+        creator = RobotLookupCreator(camera_pose, intrinsics)
         creator.load_config(num_rendered_links, varying_angles, divisions)
         letters = string.ascii_lowercase
         pick = True
         while pick:
             name = ''.join(random.choice(letters) for i in range(5)) + ('.h5')
-            if name not in os.listdir(p().LOOKUPS):
+            if name not in os.listdir(p().ROBOT_LOOKUPS):
                 pick = False
-        creator.run(os.path.join(p().LOOKUPS, name), False)
+        creator.run(os.path.join(p().ROBOT_LOOKUPS, name), False)
         return name

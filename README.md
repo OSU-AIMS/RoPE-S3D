@@ -115,10 +115,6 @@ pip install --upgrade tensorflow-gpu
 pip install --upgrade tensorflow-gpu==2.0.0
 ```
 
-
-
-
-
 # License
 
 Released under a Apache 2.0 License. See [LICENSE](https://github.com/jgraving/deepposekit/blob/master/LICENSE) for details.

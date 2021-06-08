@@ -14,7 +14,7 @@ import tensorflow as tf
 from pixellib.instance import custom_segmentation
 from scipy.interpolate import interp1d
 
-from ..simulation.lookup import LookupManager
+from ..simulation.lookup import RobotLookupManager
 from ..simulation.render import Renderer
 from ..turbo_colormap import color_array
 from ..urdf import URDFReader
@@ -69,7 +69,7 @@ class Predictor():
     def _loadLookup(self):
         max_elements = int(get_gpu_memory()[0] / (3 * 32))
 
-        lm = LookupManager()
+        lm = RobotLookupManager()
         ang, depth = lm.get(self.intrinsics, self.camera_pose, 4,
             np.array([True,True,False,False,False,False]), max_elements)
 

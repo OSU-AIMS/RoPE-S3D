@@ -1,7 +1,10 @@
 {
     "DATASETS": "data/",
     "RAW_DATA": "data/raw/",
-    "LOOKUPS": "lookup/",
+    "ROBOT_LOOKUPS": "lookup/robot/",
+    "ROBOT_LOOKUP_INFO": "lookup/robot/lookup_info.json",
+    "CAMERA_LOOKUPS": "lookup/camera/",
+    "CAMERA_LOOKUP_INFO": "lookup/camera/lookup_info.json",
     "MODELS": "models/",
     "MODELS_BODY": "models/body/",
     "MODELS_LINK": "models/link/",
