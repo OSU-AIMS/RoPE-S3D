@@ -33,7 +33,7 @@ class CameraPredictor():
         ds_factor: int = 8,
         preview: bool = False,
         save_to: str = None,
-        min_angle_inc = np.array([.005]*6),
+        min_angle_inc = np.array([0.001,0.001,0.001,0.002,0.002,0.002]),
         history_length = 5
         ):
 
@@ -94,25 +94,30 @@ class CameraPredictor():
         #   Divisions, range (one-sided)
 
         
-        coarse_descent = ['descent', 50, 0.5, .1, [True]*6, [0.1,0.1,0.1,0.05,0.05,0.05]]
-        wide_tensorsweep_xyz = ['tensorsweep', 25, .2, [True,True,True,False,False,False]]
-        wide_tensorsweep_rpy = ['tensorsweep', 25, .1, [False,False,False,True,True,True]]
+        coarse_descent = ['descent', 50, 0.5, .01, [True]*6, [0.1,0.1,0.1,0.05,0.05,0.05]]
+        wide_tensorsweep_xyz = ['tensorsweep', 20, .2, [True,True,True,False,False,False]]
+        wide_tensorsweep_rpy = ['tensorsweep', 20, .1, [False,False,False,True,True,True]]
         fine_descent = ['descent', 50, 0.5, .001, [True]*6, [0.01,0.01,0.01,0.01,0.01,0.01]]
         # tilt_fix = ['descent', 100, 0.75, .00001, [False,False,True,False,True,False], [None,None,0.1,None,0.05,None]]
         # z_sweep = ['smartsweep', 10, .2, [False,False,True,False,False,False]]
         # p_sweep = ['smartsweep', 10, .1, [False,False,False,False,True,False]]
         # u_sweep_narrow = ['smartsweep', 10, .1, [False,False,True,False,False,False]]
 
-        zp_sweep = ['zp_sweep', 10, 0.1]
-        quick_descent = ['descent', 5, 0.5, .001, [True]*6, [0.01,0.01,0.01,0.01,0.01,0.01]]
+        zp_sweep = ['zp_sweep', 20, 0.1]
+        p_fix = ['smartsweep', 20, .03, [False,False,False,False,True,False]]
+        xyya_narrow = ['smartsweep', 5, .025, [True,True,False,False,False,True]]*2
+        quick_descent = ['descent', 15, 0.5, .001, [True]*6, [0]*6]
+
+        combo = [zp_sweep,p_fix,xyya_narrow]*2
         
         # rb_fine_tune = ['descent', 5, 0.4, .015, [False,False,False,True,True,False], [None,None,None,.005,.005,None]]
         # full_tune = ['descent', 10, 0.4, .015, [True,True,True,True,True,False], [None,None,None,None,None,None]]
         
-        self.stages = [coarse_descent, *([wide_tensorsweep_xyz, wide_tensorsweep_rpy]), fine_descent, *([zp_sweep, quick_descent]*10)]
+        #self.stages = [coarse_descent, wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, zp_sweep, p_fix, xyya_narrow, quick_descent]
+        self.stages = [coarse_descent, wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, *combo, quick_descent]
 
 
-    def run(self, og_images, target_depths, robot_poses):
+    def run(self, og_images, target_depths, robot_poses, starting_camera_pose = None):
         if len(og_images.shape) == 3:
             og_images = np.array([og_images])
             target_depths = np.array([target_depths])
@@ -141,7 +146,11 @@ class CameraPredictor():
 
         history = np.zeros((self.history_length, 6))
         err_history = np.zeros(self.history_length)
-        pose = np.copy(self.base_pose)
+        
+        if starting_camera_pose is None:
+            pose = np.copy(self.base_pose)
+        else:
+            pose = np.array(starting_camera_pose)
 
         self._setStages()
 
@@ -190,6 +199,7 @@ class CameraPredictor():
 
                         if abs(np.mean(history,0)[idx] - pose[idx]) <= learning_rates[idx]:
                             learning_rates[idx] *= stage[2]
+                            #print(f"{['x ','y ','z ','ro','pi','ya'][idx]} rate reduction to {learning_rates[idx]}")
 
                         learning_rates = np.max((learning_rates,self.min_ang_inc),0)
 
@@ -312,8 +322,8 @@ class CameraPredictor():
                     temp_low = pose.copy()
                     temp_high = pose.copy()
 
-                    temp_low[idx] = temp_low[idx]-stage[2]
-                    temp_high[idx] = temp_low[idx]+stage[2]
+                    temp_low[idx] -= stage[2]
+                    temp_high[idx] += stage[2]
 
                     space = np.linspace(temp_low, temp_high, div)
                     depths = np.zeros((div, number_of_poses, *self.renderer.resolution))
@@ -326,7 +336,12 @@ class CameraPredictor():
                     stack = tf.stack([tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)]*div)
 
                     diff = tf.abs(stack - lookup_depth)
+
                     lookup_err = tf.reduce_mean(diff, (1,2,3)) *- tf.math.reduce_std(diff, (1,2,3))
+
+                    # lookup_err = tf.reduce_mean(diff, (2,3)) *- tf.math.reduce_std(diff, (2,3))
+                    # lookup_err = tf.reduce_mean(lookup_err**2, (1,)) *- tf.math.reduce_std(lookup_err**2, (1,))
+                    
 
                     pose = space[tf.argmin(lookup_err).numpy()]
 
@@ -440,10 +455,10 @@ class CameraPredictor():
 
     def _error(self, render_color_frames: np.ndarray, render_depth_frames: np.ndarray) -> float:
         color_dict = self.renderer.color_dict
-        err = 0
+        tot_err = 0
 
         for idx in range(render_color_frames.shape[0]):
-
+            err = 0
             # Matched Error
             for link in self.link_names:
                 if link in self._masked_targets[idx].keys():
@@ -473,7 +488,9 @@ class CameraPredictor():
             #err += np.mean(diff[diff!=0])
             err += np.mean(diff[diff!=0]) *- np.std(diff[diff!=0])
 
-        return err
+            tot_err += err ** 2
+
+        return tot_err
 
 
 

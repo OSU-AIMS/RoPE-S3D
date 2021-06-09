@@ -323,7 +323,7 @@ class Predictor():
                         temp_high[idx] = self.u_reader.joint_limits[idx,1]
                     else:
                         temp_low[idx] = max(temp_low[idx]-stage[3], self.u_reader.joint_limits[idx,0])
-                        temp_high[idx] = min(temp_low[idx]+stage[3], self.u_reader.joint_limits[idx,1])
+                        temp_high[idx] = min(temp_high[idx]+stage[3], self.u_reader.joint_limits[idx,1])
 
                     space = np.linspace(temp_low, temp_high, div)
                     depths = np.zeros((div, *self.renderer.resolution))

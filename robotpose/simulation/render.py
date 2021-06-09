@@ -166,7 +166,7 @@ class DatasetRenderer(Renderer):
 
     def setPosesFromDS(self, idx):
         self.setObjectPoses(self.kine.calc(self.ds.angles[idx]))
-        setPoses(self.scene, [self.camera_node], [makePose(*self.ds.camera_pose[idx])])
+        self.setCameraPose(self.ds.camera_pose[idx])
 
 
 
@@ -239,6 +239,11 @@ class Aligner():
                 if 0 <= self.idx and self.idx < self.ds.length:
                     self.idx = values
                     move = True
+            elif event == 'pose_entry':
+                if np.any(values != self.c_pose):
+                    self.c_pose = values
+                    self.saveCameraPose()
+
 
             self._getSection()
             self.readCameraPose()
@@ -369,6 +374,7 @@ class AlignerGUI():
             "R/F - Tilt down/up\nG/H - Pan left/right\n+/- - Increase/Decrease Step size\nK/L - Last/Next image"
         self.layout = [[sg.Text("Currently Editing:"), sg.Text(size=(40,1), key='editing')],
                         [sg.Input(size=(5,1),key='num_input'),sg.Button('Go To',key='num_goto'), sg.Button('New Section',key='new_section')],
+                        [sg.Text("Manual Pose:"), sg.Input(size=(20,1),key='pose_entry')],
                         [sg.Text("",key='warn',text_color="red", size=(22,1))],
                         [sg.Table([[["Sections:"]],[[1,1]]], key='sections'),sg.Text(control_str)],
                         [sg.Button('Quit',key='quit')]]
@@ -398,6 +404,15 @@ class AlignerGUI():
         if event == 'quit':
             self.close()
             return ['quit',None]
+
+        try:
+            entry = values['pose_entry'].replace('[','').replace(']','').replace(',',' ')
+            entry = np.fromstring(entry,np.float,sep=' ')
+            if entry.shape == (6,):
+                return ['pose_entry',entry]
+
+        except ValueError:
+            pass
 
         return [None,None]
 
