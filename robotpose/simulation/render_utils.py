@@ -35,7 +35,7 @@ class MeshLoader():
     def __init__(self, include_t = False):
 
         self.ureader = URDFReader()
-        if not include_t:
+        if include_t:
             self.name_list = self.ureader.mesh_names
             self.mesh_list = self.ureader.mesh_paths
         else:

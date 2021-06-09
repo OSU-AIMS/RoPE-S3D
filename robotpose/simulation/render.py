@@ -91,7 +91,9 @@ class Renderer():
         self.mode = mode
         self._updateMode()
 
-    def setCameraPose(self, pose):
+    def setCameraPose(self, pose_in):
+        pose = np.copy(pose_in)
+        pose[4] += np.pi/2
         setPoses(self.scene, [self.camera_node], [makePose(*pose)])
 
     def _setNodeColor(self, node_name, color):
