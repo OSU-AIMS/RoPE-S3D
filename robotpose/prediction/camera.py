@@ -11,7 +11,6 @@ import cv2
 
 import numpy as np
 import tensorflow as tf
-from pixellib.instance import custom_segmentation
 from scipy.interpolate import interp1d
 
 from ..simulation.lookup import RobotLookupManager
@@ -20,7 +19,6 @@ from ..turbo_colormap import color_array
 from ..urdf import URDFReader
 from ..utils import str_to_arr, get_gpu_memory
 
-from typing import List
 
 tf.compat.v1.enable_eager_execution()
 
@@ -55,17 +53,7 @@ class CameraPredictor():
         self.classes.extend(self.u_reader.mesh_names[:6])
         self.link_names = self.classes[1:]
 
-        self.seg = custom_segmentation()
-        self.seg.inferConfig(num_classes=6, class_names=self.classes)
-        self.seg.load_model("models/segmentation/multi/B.h5")
-
         self.renderer.setMaxParts(None)
-
-
-    # def changeCameraPose(self, camera_pose):
-    #     self.camera_pose = camera_pose
-    #     self.renderer.setCameraPose(camera_pose)
-    #     self._loadLookup()
 
 
     # def _loadLookup(self):
@@ -111,11 +99,9 @@ class CameraPredictor():
         combo = [zp_sweep,p_fix,xyya_narrow]*2
 
         coarse_descent = ['descent', 50, 0.5, .01, [True]*6, [0.1,0.1,0.1,0.05,0.05,0.05]]
-        coarse_a = ['smartsweep', 4, .1, [True,True,True,False,False,False]]
-        coarse_b = ['smartsweep', 4, .05, [False,False,False,True,True,True]]
 
         coarse_replacement = []
-        [coarse_replacement.extend([['smartsweep', 6, x, [True,True,True,False,False,False]],['smartsweep', 6, x/2, [False,False,False,True,True,True]]]) for x in np.linspace(.25,.025,10)]
+        [coarse_replacement.extend([['tensorsweep', 20, x, [True,True,True,False,False,False]],['tensorsweep', 20, x/2, [False,False,False,True,True,True]]]) for x in np.logspace(1,.05,5)/30]
 
         # rb_fine_tune = ['descent', 5, 0.4, .015, [False,False,False,True,True,False], [None,None,None,.005,.005,None]]
         # full_tune = ['descent', 10, 0.4, .015, [True,True,True,True,True,False], [None,None,None,None,None,None]]
@@ -125,30 +111,32 @@ class CameraPredictor():
         self.stages = [*(coarse_replacement), wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, *combo, quick_descent]
 
 
+    def do_renders_at_pose(self, pose):
+        self.renderer.setCameraPose(pose)
+        color_out = np.zeros((self.number_of_poses,*self.renderer.resolution,3))
+        depth_out = np.zeros((self.number_of_poses,*self.renderer.resolution))
+        for idx in range(self.number_of_poses):
+            self.renderer.setJointAngles(self.robot_poses[idx])
+            color_out[idx], depth_out[idx] = self.renderer.render()
+
+        return color_out, depth_out
+
     def run(self, og_images, target_depths, robot_poses, starting_camera_pose = None):
         if len(og_images.shape) == 3:
             og_images = np.array([og_images])
             target_depths = np.array([target_depths])
             robot_poses = np.array([robot_poses])
-
-        assert og_images.shape[0] == target_depths.shape[0] == robot_poses.shape[0]
+        self.robot_poses = np.array(robot_poses)
+        assert og_images.shape[0] == target_depths.shape[0] == self.robot_poses.shape[0]
         
-        number_of_poses = og_images.shape[0]
+        self.number_of_poses = og_images.shape[0]
 
         if self.preview:
             self.viz.loadTargetColor(og_images[0])
             self.viz.loadTargetDepth(target_depths[0])
 
-        target_depths = self._batch_downsample(target_depths, self.ds_factor)
-
+        self._tgt_depths = self._batch_downsample(target_depths, self.ds_factor)
         og_images = self._batch_downsample(og_images, self.ds_factor)
-        segmentation_data = []
-        for idx in range(og_images.shape[0]):
-            r, output = self.seg.segmentImage(og_images[idx].astype(np.uint8), process_frame=True)
-            segmentation_data.append(self._reorganize_by_link(r))
-
-            if self.preview and idx == 0:
-                self.viz.loadSegmentedLinks(output)
 
         learning_rates = np.zeros(6)
 
@@ -162,7 +150,6 @@ class CameraPredictor():
 
         self._setStages()
 
-        self._load_targets(segmentation_data, target_depths)
 
         def preview_if_applicable(color, depth):
             if len(color.shape) == 4:
@@ -173,15 +160,7 @@ class CameraPredictor():
                 self.viz.loadRenderedDepth(depth)
                 self.viz.show()
 
-        def do_renders_at_pose(pose):
-            self.renderer.setCameraPose(pose)
-            color_out = np.zeros((number_of_poses,*self.renderer.resolution,3))
-            depth_out = np.zeros((number_of_poses,*self.renderer.resolution))
-            for idx in range(number_of_poses):
-                self.renderer.setJointAngles(robot_poses[idx])
-                color_out[idx], depth_out[idx] = self.renderer.render()
 
-            return color_out, depth_out
 
         for stage in self.stages:
             print(pose, f"starting {stage[0]}")
@@ -214,14 +193,14 @@ class CameraPredictor():
                         # Under
                         temp = pose.copy()
                         temp[idx] -= learning_rates[idx]
-                        color, depth = do_renders_at_pose(temp)
-                        under_err = self._error(color, depth)
+                        color, depth = self.do_renders_at_pose(temp)
+                        under_err = self._error(depth)
                         preview_if_applicable(color, depth)
 
                         # Over
                         temp[idx] += 2 * learning_rates[idx]
-                        color, depth = do_renders_at_pose(temp)
-                        over_err = self._error(color, depth)
+                        color, depth = self.do_renders_at_pose(temp)
+                        over_err = self._error(depth)
                         preview_if_applicable(color, depth)
 
                         if over_err < under_err:
@@ -244,37 +223,13 @@ class CameraPredictor():
                     if (history[:3] == history[0]).all():
                         break
 
-            # elif stage[0] == 'flip':
-
-            #     do_param = np.array(stage[2])
-
-            #     for idx in np.where(do_param)[0]:
-            #         temp = pose.copy()
-            #         temp[idx] *= -1
-            #         if temp[idx] >= self.u_reader.joint_limits[idx,0] and temp[idx] <= self.u_reader.joint_limits[idx,1]:
-            #             self.renderer.setJointAngles(temp)
-            #             color, depth = self.renderer.render()
-            #             err = self._error(color, depth)
-
-            #             if err < err_history[0]:
-            #                 pose[idx] *= -1
-
-            #                 if self.preview:
-            #                     color, depth = render_at_pose(pose)
-            #                     preview_if_applicable(color, depth)
-
-            #                 history[1:] = history[:-1]
-            #                 history[0] = pose
-            #                 err_history[1:] = err_history[:-1]
-            #                 err_history[0] = err
-
             elif stage[0] == 'smartsweep':
 
                 do_param = np.array(stage[3])
                 div = stage[1]
 
-                color, depth = do_renders_at_pose(pose)
-                base_err = self._error(color, depth)
+                color, depth = self.do_renders_at_pose(pose)
+                base_err = self._error(depth)
 
                 for idx in np.where(do_param)[0]:
                     temp_low = pose.copy()
@@ -286,8 +241,8 @@ class CameraPredictor():
                     space = np.linspace(temp_low, temp_high, div)
                     space_err = []
                     for pose_val in space:
-                        color, depth = do_renders_at_pose(pose_val)
-                        space_err.append(self._error(color, depth))
+                        color, depth = self.do_renders_at_pose(pose_val)
+                        space_err.append(self._error(depth))
                         preview_if_applicable(color, depth)
 
                     pose_space = space[:,idx]
@@ -298,8 +253,8 @@ class CameraPredictor():
 
                     temp_pose = pose.copy()
                     temp_pose[idx] = pred_min_ang
-                    color, depth = do_renders_at_pose(temp_pose)
-                    pred_min_err = self._error(color, depth)
+                    color, depth = self.do_renders_at_pose(temp_pose)
+                    pred_min_err = self._error(depth)
 
                     errs = [base_err, min(space_err), pred_min_err]
                     min_type = errs.index(min(errs))
@@ -318,7 +273,7 @@ class CameraPredictor():
                     history[0] = pose
 
                     if self.preview:
-                        color, depth = do_renders_at_pose(pose)
+                        color, depth = self.do_renders_at_pose(pose)
                         preview_if_applicable(color, depth)
 
             elif stage[0] == 'tensorsweep':
@@ -334,9 +289,9 @@ class CameraPredictor():
                     temp_high[idx] += stage[2]
 
                     space = np.linspace(temp_low, temp_high, div)
-                    depths = np.zeros((div, number_of_poses, *self.renderer.resolution))
+                    depths = np.zeros((div, self.number_of_poses, *self.renderer.resolution))
                     for temp_pose, i in zip(space, range(div)):
-                        color, depth = do_renders_at_pose(temp_pose)
+                        color, depth = self.do_renders_at_pose(temp_pose)
                         depths[i] = depth
                         preview_if_applicable(color, depth)
 
@@ -354,7 +309,7 @@ class CameraPredictor():
                     pose = space[tf.argmin(lookup_err).numpy()]
 
                     if self.preview:
-                        color, depth = do_renders_at_pose(pose)
+                        color, depth = self.do_renders_at_pose(pose)
                         preview_if_applicable(color, depth)
 
             elif stage[0] == 'zp_sweep':
@@ -370,9 +325,9 @@ class CameraPredictor():
                 space[:,4] = np.arctan(np.tan(temp_pose[4]) - ((space[:,2] - temp_pose[2]) / np.sqrt(temp_pose[0] ** 2 + temp_pose[1] ** 2)))
 
                 # Using Tensorflow
-                depths = np.zeros((div, number_of_poses, *self.renderer.resolution))
+                depths = np.zeros((div, self.number_of_poses, *self.renderer.resolution))
                 for temp_pose, i in zip(space, range(div)):
-                    color, depth = do_renders_at_pose(temp_pose)
+                    color, depth = self.do_renders_at_pose(temp_pose)
                     depths[i] = depth
                     preview_if_applicable(color, depth)
 
@@ -383,33 +338,6 @@ class CameraPredictor():
                 lookup_err = tf.reduce_mean(diff, (1,2,3)) *- tf.math.reduce_std(diff, (1,2,3))
 
                 pose = space[tf.argmin(lookup_err).numpy()]
-
-                # # Using _error
-                # space_err = []
-                # for pose_val in space:
-                #     color, depth = do_renders_at_pose(pose_val)
-                #     space_err.append(self._error(color, depth))
-                #     preview_if_applicable(color, depth)
-
-                # pose_space = space[:,2]
-                # err_pred = interp1d(pose_space, np.array(space_err), kind='cubic')
-                # x = np.linspace(temp_low[2], temp_high[2], div*5)
-                # predicted_errors = err_pred(x)
-                # pred_min_ang = x[predicted_errors.argmin()]
-
-                # temp_pose = pose.copy()
-                # temp_pose[2] = pred_min_ang
-                # temp_pose[4] = np.arctan(np.tan(pose[4]) - ((temp_pose[2] - pose[2]) / np.sqrt(pose[0] ** 2 + pose[1] ** 2)))
-                # color, depth = do_renders_at_pose(temp_pose)
-                # pred_min_err = self._error(color, depth)
-
-                # errs = [min(space_err), pred_min_err]
-                # min_type = errs.index(min(errs))
-                
-                # if min_type == 0: 
-                #     pose = space[space_err.index(min(space_err))]
-                # elif min_type == 1:
-                #     pose = temp_pose
 
 
 
@@ -428,77 +356,29 @@ class CameraPredictor():
             out[idx] = cv2.resize(base[idx], tuple(dims))
         return out
 
-    def _reorganize_by_link(self, data: dict) -> dict:
 
-        out = {}
-        for idx in range(len(data['class_ids'])):
-            id = data['class_ids'][idx]
-            if id not in data['class_ids'][:idx]:
-                out[self.classes[id]] = {
-                    'roi':data['rois'][idx],
-                    'confidence':data['scores'][idx],
-                    'mask':data['masks'][...,idx]
-                    }
-            else:
-                out[self.classes[id]]['mask'] += data['masks'][...,idx]
-                out[self.classes[id]]['confidence'] = max(out[self.classes[id]]['confidence'], data['scores'][idx])
-                out[self.classes[id]]['roi'] = [ #TODO: Test this functionality
-                    np.min([out[self.classes[id]]['roi'][:2],data['rois'][idx][:2]]),
-                    np.max([out[self.classes[id]]['roi'][2:],data['rois'][idx][2:]])]
-        return out
+    def _error(self, render_depth_frames: np.ndarray) -> float:
+        # Doesn't need to be batch-compatible?
 
-    def _load_targets(self, seg_data: List[dict], tgt_depths: np.ndarray) -> None:
+        # input_pose_num x height x width 
 
-        self._masked_targets = [{}] * len(seg_data)
-        self._target_masks = [{}] * len(seg_data)
-        self._tgt_depths = tgt_depths
-        # self._tgt_depth_stack_half = tf.stack([tf.pow(tf.constant(tgt_depth, tf.float32),0.5)]*len(self.lookup_angles))
+        rendered = tf.pow(tf.constant(render_depth_frames,tf.float32),0.5)
+        actual = tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)
 
-        for idx in range(len(seg_data)):
-            for link in self.link_names:
-                if link in seg_data[idx].keys():
-                    link_mask = seg_data[idx][self.link_names[self.link_names.index(link)]]['mask']
-                    self._masked_targets[idx][link] = link_mask * tgt_depths[idx]
-                    self._target_masks[idx][link] = link_mask
+        # actual = actual * tf.cast((rendered != 0),float)
+        # rendered = rendered * tf.cast((actual != 0),float)
 
-    def _error(self, render_color_frames: np.ndarray, render_depth_frames: np.ndarray) -> float:
-        color_dict = self.renderer.color_dict
-        tot_err = 0
+        diff = tf.abs(actual - rendered)
+        err = tf.reduce_mean(diff, (1,2)) *- tf.math.reduce_std(diff, (1,2))
+        # err = tf.pow(err,2) / tf.reduce_sum(tf.cast((diff != 0) ,float), (1,2))
+        err = tf.reduce_sum(err).numpy()
 
-        for idx in range(render_color_frames.shape[0]):
-            err = 0
-            # Matched Error
-            for link in self.link_names:
-                if link in self._masked_targets[idx].keys():
-                    target_masked = self._masked_targets[idx][link]
-                    joint_mask = self._target_masks[idx][link]
 
-                    # NOTE: Instead of matching color, this matches blue values,
-                    #       as each of the default colors has a unique blue value when made.
-                    render_mask = render_color_frames[idx,...,0] == color_dict[link][0]
-                    render_masked = render_depth_frames[idx] * render_mask
+        return err
 
-                    # Mask
-                    diff = joint_mask != render_mask
-                    err += np.mean(diff)
-
-                    # Only do if enough depth data present (>5% of required pixels have depth data)
-                    if np.sum(target_masked != 0) > (.05 * np.sum(joint_mask)):
-                        # Depth
-                        diff = target_masked - render_masked
-                        diff = np.abs(diff) ** .5
-                        if diff[diff!=0].size > 0:
-                            err += np.mean(diff[diff!=0])
-
-            # Unmatched Error
-            diff = self._tgt_depths[idx] - render_depth_frames[idx]
-            diff = np.abs(diff) ** 0.5
-            #err += np.mean(diff[diff!=0])
-            err += np.mean(diff[diff!=0]) *- np.std(diff[diff!=0])
-
-            tot_err += err ** 2
-
-        return tot_err
+    def error_at(self, pose):
+        color, depth = self.do_renders_at_pose(pose)
+        return self._error(depth)
 
 
 
@@ -525,17 +405,12 @@ class ProjectionViz():
         self.tgt_depth = target_depth
         self.input_side_up_to_date = False
 
-    def loadSegmentedLinks(self, segmented_color: np.ndarray) -> None:
-        self.seg_links = segmented_color
-        self.input_side_up_to_date = False
-
     def loadRenderedColor(self, render_color: np.ndarray) -> None: self.rend_color = render_color
 
     def loadRenderedDepth(self, render_depth: np.ndarray) -> None: self.rend_depth = render_depth
 
     def _genInput(self):
         self.frame[:self.res[0]//2, :self.res[1]//2] = self._orig()
-        self.frame[self.res[0]//2:, :self.res[1]//2] = self._seg()
 
         # Add overlay
         color = (255, 255, 255)
@@ -564,8 +439,6 @@ class ProjectionViz():
         if self.write_to_file:
             self.writer.write(self.frame)
 
-    def _seg(self):
-        return  cv2.resize(self.seg_links, self.resize_to)
 
     def _orig(self):
         COLOR_ALPHA = .6
