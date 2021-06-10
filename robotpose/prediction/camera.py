@@ -361,6 +361,9 @@ class CameraPredictor():
                 #stage[1] is div
                 #stage[2] is range
 
+                temp_low = pose.copy()
+                temp_high = pose.copy()
+
                 temp_pose = pose.copy()
 
                 temp_low[2] = temp_pose[2]-stage[2]
