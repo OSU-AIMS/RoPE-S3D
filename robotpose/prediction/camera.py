@@ -109,12 +109,20 @@ class CameraPredictor():
         quick_descent = ['descent', 15, 0.5, .001, [True]*6, [0]*6]
 
         combo = [zp_sweep,p_fix,xyya_narrow]*2
-        
+
+        coarse_descent = ['descent', 50, 0.5, .01, [True]*6, [0.1,0.1,0.1,0.05,0.05,0.05]]
+        coarse_a = ['smartsweep', 4, .1, [True,True,True,False,False,False]]
+        coarse_b = ['smartsweep', 4, .05, [False,False,False,True,True,True]]
+
+        coarse_replacement = []
+        [coarse_replacement.extend([['smartsweep', 6, x, [True,True,True,False,False,False]],['smartsweep', 6, x/2, [False,False,False,True,True,True]]]) for x in np.linspace(.25,.025,10)]
+
         # rb_fine_tune = ['descent', 5, 0.4, .015, [False,False,False,True,True,False], [None,None,None,.005,.005,None]]
         # full_tune = ['descent', 10, 0.4, .015, [True,True,True,True,True,False], [None,None,None,None,None,None]]
         
         #self.stages = [coarse_descent, wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, zp_sweep, p_fix, xyya_narrow, quick_descent]
-        self.stages = [coarse_descent, wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, *combo, quick_descent]
+        #self.stages = [coarse_descent, wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, *combo, quick_descent]
+        self.stages = [*(coarse_replacement), wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, *combo, quick_descent]
 
 
     def run(self, og_images, target_depths, robot_poses, starting_camera_pose = None):
