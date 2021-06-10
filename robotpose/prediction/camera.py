@@ -67,9 +67,6 @@ class CameraPredictor():
     #     self.lookup_depth = tf.pow(tf.constant(depth,tf.float32),0.5)
 
 
-    """
-    Do sweeps of trig angles that have the same focus. z-p x-yaw 
-    """
 
     def _setStages(self):
 
@@ -93,10 +90,14 @@ class CameraPredictor():
 
         zp_sweep = ['zp_sweep', 20, 0.1]
         p_fix = ['smartsweep', 20, .03, [False,False,False,False,True,False]]
-        xyya_narrow = ['smartsweep', 5, .025, [True,True,False,False,False,True]]*2
+        xyya_narrow = ['smartsweep', 20, .15, [True,True,False,False,False,True]]*10
         quick_descent = ['descent', 15, 0.5, .001, [True]*6, [0]*6]
+        
+        xya_sweep = ['xya_sweep', 20, 0.1]
+        ya_fix = p_fix = ['smartsweep', 20, .03, [False,False,False,False,False,True]]
 
         combo = [zp_sweep,p_fix,xyya_narrow]*2
+        combo_2 = [xya_sweep,ya_fix]*2
 
         coarse_descent = ['descent', 50, 0.5, .01, [True]*6, [0.1,0.1,0.1,0.05,0.05,0.05]]
 
@@ -108,7 +109,8 @@ class CameraPredictor():
         
         #self.stages = [coarse_descent, wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, zp_sweep, p_fix, xyya_narrow, quick_descent]
         #self.stages = [coarse_descent, wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, *combo, quick_descent]
-        self.stages = [*(coarse_replacement), wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, *combo, quick_descent]
+        self.stages = [*(coarse_replacement), wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, *combo, quick_descent,*combo_2,quick_descent]
+
 
 
     def do_renders_at_pose(self, pose):
@@ -295,18 +297,21 @@ class CameraPredictor():
                         depths[i] = depth
                         preview_if_applicable(color, depth)
 
-                    lookup_depth = tf.pow(tf.constant(depths,tf.float32),0.5)
-                    stack = tf.stack([tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)]*div)
+                    # lookup_depth = tf.pow(tf.constant(depths,tf.float32),0.5)
+                    # stack = tf.stack([tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)]*div)
 
-                    diff = tf.abs(stack - lookup_depth)
+                    # diff = tf.abs(stack - lookup_depth)
 
-                    lookup_err = tf.reduce_mean(diff, (1,2,3)) *- tf.math.reduce_std(diff, (1,2,3))
+                    # lookup_err = tf.reduce_mean(diff, (1,2,3)) *- tf.math.reduce_std(diff, (1,2,3))
 
-                    # lookup_err = tf.reduce_mean(diff, (2,3)) *- tf.math.reduce_std(diff, (2,3))
-                    # lookup_err = tf.reduce_mean(lookup_err**2, (1,)) *- tf.math.reduce_std(lookup_err**2, (1,))
+                    # # lookup_err = tf.reduce_mean(diff, (2,3)) *- tf.math.reduce_std(diff, (2,3))
+                    # # lookup_err = tf.reduce_mean(lookup_err**2, (1,)) *- tf.math.reduce_std(lookup_err**2, (1,))
                     
 
-                    pose = space[tf.argmin(lookup_err).numpy()]
+                    # pose = space[tf.argmin(lookup_err).numpy()]
+
+                    errs = self._error(depths)
+                    pose = space[errs.argmin()]
 
                     if self.preview:
                         color, depth = self.do_renders_at_pose(pose)
@@ -315,6 +320,10 @@ class CameraPredictor():
             elif stage[0] == 'zp_sweep':
                 #stage[1] is div
                 #stage[2] is range
+                temp_low = pose.copy()
+                temp_high = pose.copy()
+
+                div = stage[1]
 
                 temp_pose = pose.copy()
 
@@ -331,15 +340,50 @@ class CameraPredictor():
                     depths[i] = depth
                     preview_if_applicable(color, depth)
 
-                lookup_depth = tf.pow(tf.constant(depths,tf.float32),0.5)
-                stack = tf.stack([tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)]*div)
+                # lookup_depth = tf.pow(tf.constant(depths,tf.float32),0.5)
+                # stack = tf.stack([tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)]*div)
 
-                diff = tf.abs(stack - lookup_depth)
-                lookup_err = tf.reduce_mean(diff, (1,2,3)) *- tf.math.reduce_std(diff, (1,2,3))
+                # diff = tf.abs(stack - lookup_depth)
+                # lookup_err = tf.reduce_mean(diff, (1,2,3)) *- tf.math.reduce_std(diff, (1,2,3))
 
-                pose = space[tf.argmin(lookup_err).numpy()]
+                # pose = space[tf.argmin(lookup_err).numpy()]
 
+                errs = self._error(depths)
+                pose = space[errs.argmin()]
 
+            elif stage[0] == 'xya_sweep':
+                #stage[1] is div
+                #stage[2] is range
+                temp_low = pose.copy()
+                temp_high = pose.copy()
+
+                div = stage[1]
+
+                temp_pose = pose.copy()
+
+                temp_low[0] = temp_pose[0]-stage[2]
+                temp_high[0] = temp_pose[0]+stage[2]
+
+                space = np.linspace(temp_low, temp_high, div)
+                space[:,5] = -np.arctan(((space[:,0] - pose[0] )/ pose[0]) * np.tan(pose[5]))
+
+                # Using Tensorflow
+                depths = np.zeros((div, self.number_of_poses, *self.renderer.resolution))
+                for temp_pose, i in zip(space, range(div)):
+                    color, depth = self.do_renders_at_pose(temp_pose)
+                    depths[i] = depth
+                    preview_if_applicable(color, depth)
+
+                # lookup_depth = tf.pow(tf.constant(depths,tf.float32),0.5)
+                # stack = tf.stack([tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)]*div)
+
+                # diff = tf.abs(stack - lookup_depth)
+                # lookup_err = tf.reduce_mean(diff, (1,2,3)) *- tf.math.reduce_std(diff, (1,2,3))
+
+                # pose = space[tf.argmin(lookup_err).numpy()]
+
+                errs = self._error(depths)
+                pose = space[errs.argmin()]
 
         return pose
 
@@ -358,20 +402,39 @@ class CameraPredictor():
 
 
     def _error(self, render_depth_frames: np.ndarray) -> float:
-        # Doesn't need to be batch-compatible?
 
-        # input_pose_num x height x width 
+        if len(render_depth_frames.shape) == 4:
 
-        rendered = tf.pow(tf.constant(render_depth_frames,tf.float32),0.5)
-        actual = tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)
+            # div, poses, height, width
+            div = render_depth_frames.shape[0]
 
-        # actual = actual * tf.cast((rendered != 0),float)
-        # rendered = rendered * tf.cast((actual != 0),float)
+            rendered = tf.pow(tf.constant(render_depth_frames,tf.float32),0.5)
+            actual = tf.stack([tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)]*div)
 
-        diff = tf.abs(actual - rendered)
-        err = tf.reduce_mean(diff, (1,2)) *- tf.math.reduce_std(diff, (1,2))
-        # err = tf.pow(err,2) / tf.reduce_sum(tf.cast((diff != 0) ,float), (1,2))
-        err = tf.reduce_sum(err).numpy()
+            # actual = actual * tf.cast((rendered != 0),float)
+            # rendered = rendered * tf.cast((actual != 0),float)
+
+            diff = tf.abs(actual - rendered)
+            err = tf.reduce_mean(diff, (2,3)) *- tf.math.reduce_std(diff, (2,3))
+            #err = tf.pow(err,2) * tf.abs(err) / err
+            err = tf.pow(1.1,err)
+            err = tf.reduce_mean(err,1).numpy()
+
+        else:
+
+            #poses, height, width
+
+            rendered = tf.pow(tf.constant(render_depth_frames,tf.float32),0.5)
+            actual = tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)
+
+            # actual = actual * tf.cast((rendered != 0),float)
+            # rendered = rendered * tf.cast((actual != 0),float)
+
+            diff = tf.abs(actual - rendered)
+            err = tf.reduce_mean(diff, (1,2)) *- tf.math.reduce_std(diff, (1,2))
+            #err = tf.pow(err,2) * tf.abs(err) / err
+            err = tf.pow(1.1,err)
+            err = tf.reduce_mean(err).numpy()
 
 
         return err

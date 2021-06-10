@@ -12,12 +12,18 @@ from robotpose.prediction.camera import CameraPredictor
 import numpy as np
 
 
+
 pred = CameraPredictor([0,-1.5,1,0,0,0],ds_factor=8, preview=False)#, save_to='output/projection_viz.avi')
 ds = Dataset('set10')
 
-idxs = [50,167,583,901,224]
+
+
+# idxs = [50,167,583,901,224]
 # idxs = [50,0,25,75,99]
-#idxs = [x for x in range(0,100,5)]
+# idxs = [x for x in range(0,100,5)]
+
+# 20 random chosen by numpy
+idxs = [205, 526, 263, 109, 774, 722, 151, 107, 485, 344, 679, 621, 694, 919, 110, 618, 367, 587, 352, 277]
 
 print("Copying Data...")
 idxs_sorted = idxs.copy()
@@ -33,7 +39,7 @@ og_img = og_img[idx_map]
 angles = angles[idx_map]
 
 predicted = pred.run(og_img, target_depth, angles)
-print("\nSecond Run\n")
-predicted = pred.run(og_img, target_depth, angles, predicted)
+#print("\nSecond Run\n")
+#predicted = pred.run(og_img, target_depth, angles, predicted)
 
 print(f"Actual: {ds.camera_pose[idxs[0]]}\t{pred.error_at(ds.camera_pose[idxs[0]])}\nPredicted: {predicted}\t{pred.error_at(predicted)}")
