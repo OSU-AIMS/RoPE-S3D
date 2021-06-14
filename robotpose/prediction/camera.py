@@ -18,14 +18,16 @@ from ..simulation.render import Renderer
 from ..turbo_colormap import color_array
 from ..urdf import URDFReader
 from ..utils import str_to_arr, get_gpu_memory
+from tqdm import tqdm
 
+import matplotlib.pyplot as plt
 
 tf.compat.v1.enable_eager_execution()
 
 # DEFAULT_CAMERA_POSE = [.042,-1.425,.75, -.01,1.553,-.057]
 DEFAULT_CAMERA_POSE = [0, -1.5, .75, 0, 0, 0]
 
-class CameraPredictor():
+class ModellessCameraPredictor():
     def __init__(self,
         base_pose = DEFAULT_CAMERA_POSE,
         ds_factor: int = 8,
@@ -40,7 +42,7 @@ class CameraPredictor():
         self.ds_factor = ds_factor
         self.preview = preview
         if preview:
-            self.viz = ProjectionViz(save_to)
+            self.viz = ModellessProjectionViz(save_to)
         self.min_ang_inc = min_angle_inc
         self.history_length = history_length
 
@@ -110,6 +112,7 @@ class CameraPredictor():
         #self.stages = [coarse_descent, wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, zp_sweep, p_fix, xyya_narrow, quick_descent]
         #self.stages = [coarse_descent, wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, *combo, quick_descent]
         self.stages = [*(coarse_replacement), wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, *combo, quick_descent,*combo_2,quick_descent]
+        #self.stages = [['spiral']]
 
 
 
@@ -167,15 +170,21 @@ class CameraPredictor():
         for stage in self.stages:
             print(pose, f"starting {stage[0]}")
 
-            # if stage[0] == 'lookup':
+            if stage[0] == 'spiral':
 
-            #     diff = self._tgt_depth_stack_half - self.lookup_depth
-            #     diff = tf.abs(diff) 
-            #     lookup_err = tf.reduce_mean(diff, (1,2)) *- tf.math.reduce_std(diff, (1,2))
+                sp = SpiralRenderer(self.renderer, self._error, self.do_renders_at_pose)
+                if self.preview:
+                    sp.loadVisualizer(self.viz)
 
-            #     pose = self.lookup_angles[tf.argmin(lookup_err).numpy()]
-            # elif stage[0] == 'descent':
-            if stage[0] == 'descent':
+                pose = sp.run()
+                print(pose)
+
+                # diff = self._tgt_depth_stack_half - self.lookup_depth
+                # diff = tf.abs(diff) 
+                # lookup_err = tf.reduce_mean(diff, (1,2)) *- tf.math.reduce_std(diff, (1,2))
+
+                # pose = self.lookup_angles[tf.argmin(lookup_err).numpy()]
+            elif stage[0] == 'descent':
 
                 for i in range(6):
                     if stage[5][i] is not None:
@@ -297,18 +306,6 @@ class CameraPredictor():
                         depths[i] = depth
                         preview_if_applicable(color, depth)
 
-                    # lookup_depth = tf.pow(tf.constant(depths,tf.float32),0.5)
-                    # stack = tf.stack([tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)]*div)
-
-                    # diff = tf.abs(stack - lookup_depth)
-
-                    # lookup_err = tf.reduce_mean(diff, (1,2,3)) *- tf.math.reduce_std(diff, (1,2,3))
-
-                    # # lookup_err = tf.reduce_mean(diff, (2,3)) *- tf.math.reduce_std(diff, (2,3))
-                    # # lookup_err = tf.reduce_mean(lookup_err**2, (1,)) *- tf.math.reduce_std(lookup_err**2, (1,))
-                    
-
-                    # pose = space[tf.argmin(lookup_err).numpy()]
 
                     errs = self._error(depths)
                     pose = space[errs.argmin()]
@@ -340,14 +337,6 @@ class CameraPredictor():
                     depths[i] = depth
                     preview_if_applicable(color, depth)
 
-                # lookup_depth = tf.pow(tf.constant(depths,tf.float32),0.5)
-                # stack = tf.stack([tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)]*div)
-
-                # diff = tf.abs(stack - lookup_depth)
-                # lookup_err = tf.reduce_mean(diff, (1,2,3)) *- tf.math.reduce_std(diff, (1,2,3))
-
-                # pose = space[tf.argmin(lookup_err).numpy()]
-
                 errs = self._error(depths)
                 pose = space[errs.argmin()]
 
@@ -373,14 +362,6 @@ class CameraPredictor():
                     color, depth = self.do_renders_at_pose(temp_pose)
                     depths[i] = depth
                     preview_if_applicable(color, depth)
-
-                # lookup_depth = tf.pow(tf.constant(depths,tf.float32),0.5)
-                # stack = tf.stack([tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)]*div)
-
-                # diff = tf.abs(stack - lookup_depth)
-                # lookup_err = tf.reduce_mean(diff, (1,2,3)) *- tf.math.reduce_std(diff, (1,2,3))
-
-                # pose = space[tf.argmin(lookup_err).numpy()]
 
                 errs = self._error(depths)
                 pose = space[errs.argmin()]
@@ -444,8 +425,83 @@ class CameraPredictor():
         return self._error(depth)
 
 
+class SpiralRenderer():
+    def __init__(self, renderer, error_func, render_func, batch = 10000, r_limits = [1,3], shells = 25, per_round = 75, z_limits = [0,1], turns = 10) -> None:
+        self.renderer = renderer
+        self.error = error_func
+        self.batch = batch
+        self.r_min = min(r_limits)
+        self.r_max = max(r_limits)
+        self.shells = shells
+        self.per_round = per_round
+        self.z_min = min(z_limits)
+        self.z_max = max(z_limits)
+        self.turns = turns
+        self.visualization = False
+        self.render_func = render_func
 
-class ProjectionViz():
+    def loadVisualizer(self, viz):
+        self.viz = viz
+        self.visualization = True
+
+    def run(self):
+
+        # Make the base spiral
+        num_per_spiral = self.turns * self.per_round
+        base_spiral = np.zeros((num_per_spiral,6))
+        angles_partial = np.linspace(0, 2*np.pi, self.per_round)
+        angles_full = np.tile(angles_partial, self.turns)
+        base_spiral[:,5] = 2*np.pi - angles_full
+        base_spiral[:,0] = -np.sin(angles_full)
+        base_spiral[:,1] = -np.cos(angles_full)
+        base_spiral[:,2] = np.linspace(self.z_min, self.z_max, num_per_spiral)
+
+        # Convert to shells
+        full_space = np.tile(base_spiral,(self.shells,1))
+        r_partial = np.linspace(self.r_min, self.r_max, self.shells)
+        r_full = np.repeat(r_partial, num_per_spiral)
+        full_space[:,0] *= r_full
+        full_space[:,1] *= r_full
+
+        end_pts = np.arange(0, full_space.shape[0], self.batch)
+        if end_pts[-1] != full_space.shape[0]:
+            end_pts = np.append(end_pts, full_space.shape[0])
+
+        errors = np.zeros(full_space.shape[0])
+
+        # print(full_space[-1])
+        # full_space[:,:] = [3424,234423,3424]
+        
+        for batch in range(end_pts.shape[0]-1):
+            start_idx = end_pts[batch]
+            end_idx = end_pts[batch + 1]
+
+            for pose,idx in tqdm(zip(full_space[start_idx:end_idx],range(start_idx,end_idx)), total = end_idx - start_idx):
+                self.render_func(pose)
+                color, depths = self.renderer.render()
+                errors[idx] = self.error(depths)
+                if self.visualization:
+                    self.viz.loadRenderedColor(color)
+                    self.viz.loadRenderedDepth(depths)
+                    self.viz.show()
+
+        plt.plot(errors)
+        plt.show()
+
+        return full_space[errors.argmin()]
+
+
+
+
+
+
+
+
+
+
+
+
+class ModellessProjectionViz():
 
     def __init__(self, video_path = None, fps = 45, resolution = (1280, 720)) -> None:
         self.write_to_file = video_path is not None

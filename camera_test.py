@@ -8,12 +8,12 @@
 # Author: Adam Exley
 
 from robotpose import Dataset
-from robotpose.prediction.camera import CameraPredictor
+from robotpose.prediction.camera import ModellessCameraPredictor
 import numpy as np
 
 
 
-pred = CameraPredictor([0,-1.5,1,0,0,0],ds_factor=8, preview=False)#, save_to='output/projection_viz.avi')
+pred = ModellessCameraPredictor([-1.25112051,1.10112454,0.93724967,0.,0.,3.99067175],ds_factor=8, preview=True)#, save_to='output/projection_viz.avi')
 ds = Dataset('set10')
 
 
@@ -23,7 +23,8 @@ ds = Dataset('set10')
 # idxs = [x for x in range(0,100,5)]
 
 # 20 random chosen by numpy
-idxs = [205, 526, 263, 109, 774, 722, 151, 107, 485, 344, 679, 621, 694, 919, 110, 618, 367, 587, 352, 277]
+#idxs = [205, 526, 263, 109, 774, 722, 151, 107, 485, 344, 679, 621, 694, 919, 110, 618, 367, 587, 352, 277]
+idxs = [50]
 
 print("Copying Data...")
 idxs_sorted = idxs.copy()
