@@ -13,7 +13,11 @@ import numpy as np
 
 
 
+
 pred = ModellessCameraPredictor([0,-1.5,.75,0,0,0],ds_factor=8, preview=False)#, save_to='output/projection_viz.avi')
+
+pred_model = CameraPredictor([0,-1.5,1,0,0,0],ds_factor=8, preview=False)#, save_to='output/projection_viz.avi')
+
 ds = Dataset('set10')
 
 
@@ -39,7 +43,6 @@ og_img = og_img[idx_map]
 angles = angles[idx_map]
 
 predicted = pred.run(og_img, target_depth, angles)
-#print("\nSecond Run\n")
-#predicted = pred.run(og_img, target_depth, angles, predicted)
+
 
 print(f"Actual: {ds.camera_pose[idxs[0]]}\t{pred.error_at(ds.camera_pose[idxs[0]])}\nPredicted: {predicted}\t{pred.error_at(predicted)}")

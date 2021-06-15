@@ -326,6 +326,9 @@ class ModellessCameraPredictor():
 
                 div = stage[1]
 
+                temp_low = pose.copy()
+                temp_high = pose.copy()
+
                 temp_pose = pose.copy()
 
                 temp_low[2] = temp_pose[2]-stage[2]
