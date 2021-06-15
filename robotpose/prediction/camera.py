@@ -75,12 +75,12 @@ class ModellessCameraPredictor():
         # Stages in form:
         # Sweep/Smartsweep:
         #   Divisions, offset to render, angles_to_edit
-        # Descent: 
+        # Descent:
         #   Iterations, rate reduction, early_stop_thresh, angles_to_edit, inital_learning_rate
         # zp_sweep:
         #   Divisions, range (one-sided)
 
-        
+
         coarse_descent = ['descent', 50, 0.5, .01, [True]*6, [0.1,0.1,0.1,0.05,0.05,0.05]]
         wide_tensorsweep_xyz = ['tensorsweep', 20, .2, [True,True,True,False,False,False]]
         wide_tensorsweep_rpy = ['tensorsweep', 20, .1, [False,False,False,True,True,True]]
@@ -94,7 +94,7 @@ class ModellessCameraPredictor():
         p_fix = ['smartsweep', 20, .03, [False,False,False,False,True,False]]
         xyya_narrow = ['smartsweep', 20, .15, [True,True,False,False,False,True]]*10
         quick_descent = ['descent', 15, 0.5, .001, [True]*6, [0]*6]
-        
+
         xya_sweep = ['xya_sweep', 20, 0.1]
         ya_fix = p_fix = ['smartsweep', 20, .03, [False,False,False,False,False,True]]
 
@@ -108,7 +108,7 @@ class ModellessCameraPredictor():
 
         # rb_fine_tune = ['descent', 5, 0.4, .015, [False,False,False,True,True,False], [None,None,None,.005,.005,None]]
         # full_tune = ['descent', 10, 0.4, .015, [True,True,True,True,True,False], [None,None,None,None,None,None]]
-        
+
         #self.stages = [coarse_descent, wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, zp_sweep, p_fix, xyya_narrow, quick_descent]
         #self.stages = [coarse_descent, wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, *combo, quick_descent]
         self.stages = [*(coarse_replacement), wide_tensorsweep_xyz, wide_tensorsweep_rpy, fine_descent, *combo, quick_descent,*combo_2,quick_descent]
@@ -133,7 +133,11 @@ class ModellessCameraPredictor():
             robot_poses = np.array([robot_poses])
         self.robot_poses = np.array(robot_poses)
         assert og_images.shape[0] == target_depths.shape[0] == self.robot_poses.shape[0]
-        
+
+        # # Filter Depths
+        # target_depths[target_depths > 3] = 0
+        # target_depths[target_depths < 0.5] = 0
+
         self.number_of_poses = og_images.shape[0]
 
         if self.preview:
@@ -147,7 +151,7 @@ class ModellessCameraPredictor():
 
         history = np.zeros((self.history_length, 6))
         err_history = np.zeros(self.history_length)
-        
+
         if starting_camera_pose is None:
             pose = np.copy(self.base_pose)
         else:
@@ -180,7 +184,7 @@ class ModellessCameraPredictor():
                 print(pose)
 
                 # diff = self._tgt_depth_stack_half - self.lookup_depth
-                # diff = tf.abs(diff) 
+                # diff = tf.abs(diff)
                 # lookup_err = tf.reduce_mean(diff, (1,2)) *- tf.math.reduce_std(diff, (1,2))
 
                 # pose = self.lookup_angles[tf.argmin(lookup_err).numpy()]
@@ -269,8 +273,8 @@ class ModellessCameraPredictor():
 
                     errs = [base_err, min(space_err), pred_min_err]
                     min_type = errs.index(min(errs))
-                    
-                    if min_type == 1: 
+
+                    if min_type == 1:
                         pose = space[space_err.index(min(space_err))]
                         err_history[1:] = err_history[:-1]
                         err_history[0] = min(space_err)
@@ -384,13 +388,15 @@ class ModellessCameraPredictor():
 
     def _error(self, render_depth_frames: np.ndarray) -> float:
 
+        power = 0.5
+
         if len(render_depth_frames.shape) == 4:
 
             # div, poses, height, width
             div = render_depth_frames.shape[0]
 
-            rendered = tf.pow(tf.constant(render_depth_frames,tf.float32),0.5)
-            actual = tf.stack([tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)]*div)
+            rendered = tf.pow(tf.constant(render_depth_frames,tf.float32),power)
+            actual = tf.stack([tf.pow(tf.constant(self._tgt_depths, tf.float32),power)]*div)
 
             # actual = actual * tf.cast((rendered != 0),float)
             # rendered = rendered * tf.cast((actual != 0),float)
@@ -405,8 +411,8 @@ class ModellessCameraPredictor():
 
             #poses, height, width
 
-            rendered = tf.pow(tf.constant(render_depth_frames,tf.float32),0.5)
-            actual = tf.pow(tf.constant(self._tgt_depths, tf.float32),0.5)
+            rendered = tf.pow(tf.constant(render_depth_frames,tf.float32),power)
+            actual = tf.pow(tf.constant(self._tgt_depths, tf.float32),power)
 
             # actual = actual * tf.cast((rendered != 0),float)
             # rendered = rendered * tf.cast((actual != 0),float)
@@ -471,7 +477,7 @@ class SpiralRenderer():
 
         # print(full_space[-1])
         # full_space[:,:] = [3424,234423,3424]
-        
+
         for batch in range(end_pts.shape[0]-1):
             start_idx = end_pts[batch]
             end_idx = end_pts[batch + 1]
@@ -489,14 +495,6 @@ class SpiralRenderer():
         plt.show()
 
         return full_space[errors.argmin()]
-
-
-
-
-
-
-
-
 
 
 
@@ -551,7 +549,7 @@ class ModellessProjectionViz():
         self.frame = cv2.line(self.frame, (0,self.res[0]//2), (self.res[1],self.res[0]//2), color, thickness=3)
         self.frame = cv2.line(self.frame, (self.res[1]//2,0), (self.res[1]//2,self.res[0]), color, thickness=3)
         self.frame = cv2.putText(self.frame, "Render", (self.res[1]//2 + 10, 30), font, 1, color, 2, cv2.LINE_AA, False)
-        self.frame = cv2.putText(self.frame, "Render Depth vs. Input Depth", (self.res[1]//2 + 10,self.res[0]//2 + 30), font, 1, color, 2, cv2.LINE_AA, False) 
+        self.frame = cv2.putText(self.frame, "Render Depth vs. Input Depth", (self.res[1]//2 + 10,self.res[0]//2 + 30), font, 1, color, 2, cv2.LINE_AA, False)
 
         cv2.imshow("Projection Matcher", self.frame)
         cv2.waitKey(1)
