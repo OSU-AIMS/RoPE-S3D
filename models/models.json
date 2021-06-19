@@ -26,6 +26,19 @@
             "date_trained": "2021-05-25 21:49:53.610095",
             "benchmarks": [],
             "train_ratio": 0.7
+        },
+        "RDZG": {
+            "type": "link",
+            "id": "RDZG",
+            "dataset": "set20",
+            "dataset_size": 1100,
+            "train_size": 440,
+            "valid_size": 110,
+            "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+            "epochs_trained": 9,
+            "date_trained": "2021-06-19 18:54:04.553724",
+            "benchmarks": [],
+            "train_ratio": 0.4
         }
     },
     "untyped": []

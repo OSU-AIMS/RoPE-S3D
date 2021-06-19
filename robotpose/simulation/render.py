@@ -44,13 +44,13 @@ class Renderer():
         if camera_pose is not None:
             c_pose = camera_pose
         else:
-            c_pose = [.087,-1.425,.73, 0,1.551,-.025]
+            c_pose = [0.04, -1.425, 0.75, 0, -0.02, -0.05]
 
         self.scene = pyrender.Scene(bg_color=[0.0,0.0,0.0])  # Make scene
 
         camera = self.intrinsics.pyrender_camera
-        cam_pose = makePose(*c_pose)
-        self.camera_node = self.scene.add(camera, pose=cam_pose)
+        self.camera_node = self.scene.add(camera)
+        self.setCameraPose(c_pose)
 
         dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=10.0)
         self.scene.add(dl, parent_node=self.camera_node) # Add light at camera pose

@@ -113,13 +113,13 @@ class Intrinsics():
             if preset == base:
                 self.resolution, self.pp, self.f = get_details(preset)
                 return
-
             elif (base + '_') in preset:
                 ds_factor = int(preset.replace((base + '_'),''))
                 self.resolution, self.pp, self.f = get_details(base)
                 self.downscale(ds_factor)
+                return
 
-        raise ValueError(f"Preset must be one of: {self.bases}\nDownscaling a preset can be done by appending '_x' to a preset where x is a valid number.")
+        raise ValueError(f"Input {preset} not valid.\nPreset must be one of: {self.bases}\nDownscaling a preset can be done by appending '_x' to a preset where x is a valid number.")
 
 
     def downscale(self, ds_factor):

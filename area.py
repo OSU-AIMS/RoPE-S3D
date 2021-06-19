@@ -13,8 +13,10 @@ from tqdm import tqdm
 from robotpose import Dataset, Predictor
 from robotpose.utils import Grapher
 
-ds = Dataset('set10')
-am = Predictor(ds_factor=8, preview=False, base_intrin = ds.attrs['color_intrinsics'])
+angs = 'SLUB'
+
+ds = Dataset('set20')
+am = Predictor(ds_factor=4, camera_pose=ds.camera_pose[0], preview=True, base_intrin = ds.attrs['color_intrinsics'], do_angles=angs)
 
 starting_points = True
 
@@ -38,7 +40,7 @@ for start in range(0,1000,div_size):
 
 out = np.array(out)
 
-g = Grapher('SLU',out,np.copy(ds.angles))
+g = Grapher(angs,out,np.copy(ds.angles))
 g.plot()
 g.plot(20)
 g.plot(10)

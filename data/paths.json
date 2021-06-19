@@ -1,10 +1,8 @@
 {
     "DATASETS": "data/",
     "RAW_DATA": "data/raw/",
-    "ROBOT_LOOKUPS": "lookup/robot/",
-    "ROBOT_LOOKUP_INFO": "lookup/robot/lookup_info.json",
-    "CAMERA_LOOKUPS": "lookup/camera/",
-    "CAMERA_LOOKUP_INFO": "lookup/camera/lookup_info.json",
+    "ROBOT_LOOKUPS": "lookup/",
+    "ROBOT_LOOKUP_INFO": "lookup/lookups.json",
     "MODELS": "models/",
     "MODELS_BODY": "models/body/",
     "MODELS_LINK": "models/link/",
@@ -13,6 +11,5 @@
     "BASE_MODEL": "models/mask_rcnn_coco.h5",
     "VIDEO": "output/video.avi",
     "URDFS": "urdfs/",
-    "URDF": "urdfs/motoman_mh5_support/urdf/mh5l.urdf",
-    "DH_PARAMS": "data/DH_params.json"
+    "URDF": "urdfs/motoman_mh5_support/urdf/mh5l.urdf"
 }

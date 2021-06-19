@@ -33,11 +33,14 @@ class RobotLookupCreator(Renderer):
         self.u_reader = URDFReader()
         super().__init__('seg', camera_pose=camera_pose, camera_intrin=intrinsics)
 
-    def load_config(self, joints_to_render: int, angles_to_do: str, divisions:np.ndarray):
+    def load_config(self, joints_to_render: int, angles_to_do: Union[str,np.ndarray], divisions:np.ndarray):
         self.num_rendered = joints_to_render
         self.setMaxParts(joints_to_render)
         self.divisions = np.array(divisions)
-        self.angles_to_do = str_to_arr(angles_to_do)
+        if type(angles_to_do) is str:
+            self.angles_to_do = str_to_arr(angles_to_do)
+        else:
+            self.angles_to_do = angles_to_do
 
         self.divisions[~self.angles_to_do] = 1
         self.num = int(np.prod(self.divisions))
@@ -159,19 +162,24 @@ class RobotLookupManager(RobotLookupInfo):
         intrinsics: Union[str, Intrinsics], 
         camera_pose: np.ndarray, 
         num_rendered_links: int, 
-        varying_angles: str, 
+        varying_angles: Union[str,np.ndarray], 
         max_elements: int = None,
         max_poses: int = None,
         divisions: np.ndarray = None,
         create_optimal: bool = True
         ):
 
+        self.update()
+
         assert sum([x is not None for x in [max_elements, max_poses, divisions]]) > 0,\
              "Some specifying critera must be given in order to limit the size of the lookup requested"
         assert sum([x is not None for x in [max_elements, max_poses, divisions]]) == 1,\
              "Only one specifiying criterion can be used from [max_elements, max_poses, divisons]"
 
-        varying_angles_arr = str_to_arr(varying_angles)
+        if type(varying_angles) is str:
+            varying_angles_arr = str_to_arr(varying_angles)
+        else:
+            varying_angles_arr = varying_angles
 
         if type(intrinsics) is str: intrinsics = Intrinsics(intrinsics)
         intrinsics = str(intrinsics)
@@ -216,7 +224,7 @@ class RobotLookupManager(RobotLookupInfo):
                 divisions[varying_angles_arr] = int(max_poses ** (1 / sum(varying_angles_arr)))
 
             name = self.create(intrinsics, camera_pose, num_rendered_links, varying_angles, divisions)
-
+            self.update()
         else:
             # Return one with highest pose count
             mx = max([x['pose_number'] for x in acceptable.values()])

@@ -154,10 +154,22 @@ class Grapher():
         self.joints = [x for x in joints_to_plot.upper()]
         self.predictions = np.degrees(predictions)
         self.true = np.degrees(ds_angles)
+        self._b_correction()
         self._cropComparison()
     
     def plot(self,ylim=None):
         self._plotWithComparison(ylim)
+
+    def _b_correction(self):
+        if 'B' not in self.joints:
+            return
+
+        offsets = [-360, -180, 0, 180, 360]
+        
+        for idx in range(len(self.predictions)):
+            err = [abs((self.predictions[idx,4] + x) - self.true[idx,4]) for x in offsets]
+            self.predictions[idx,4] += offsets[err.index(min(err))]
+
 
     def _cropComparison(self):
         ang = ['S','L','U','R','B','T']
@@ -173,7 +185,6 @@ class Grapher():
     def _plotWithComparison(self, y_lim = None):
 
         fig, axs = plt.subplots(len(self.joints),2)
-
                 
         # Plot Raw Angles
         for joint, idx in zip(self.joints,range(len(self.joints))):
@@ -195,7 +206,6 @@ class Grapher():
         err = np.abs(err)
 
         avg_err = np.mean(err,0)
-        avg_err_std = np.std(err,0)
 
         err_std = np.std(err,0)
         err_med = np.median(err,0)

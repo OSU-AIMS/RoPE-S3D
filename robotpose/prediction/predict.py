@@ -7,6 +7,7 @@
 #
 # Author: Adam Exley
 
+from robotpose.projection import Intrinsics
 from robotpose.training.models import ModelManager
 import cv2
 
@@ -45,7 +46,8 @@ class Predictor():
         self.min_ang_inc = min_angle_inc
         self.history_length = history_length
 
-        self.intrinsics = f'{base_intrin}_{self.ds_factor}'
+        self.intrinsics = Intrinsics(base_intrin)
+        self.intrinsics.downscale(ds_factor)
 
         self.u_reader = URDFReader()
         self.renderer = Renderer('seg',camera_pose,self.intrinsics)
@@ -59,10 +61,9 @@ class Predictor():
         self.seg = custom_segmentation()
         self.seg.inferConfig(num_classes=6, class_names=self.classes)
         self.seg.load_model("models/segmentation/multi/B.h5")
-        #self.seg.load_model(mm.dynamicLoad('link'))
+        self.seg.load_model(mm.dynamicLoad('link', dataset='set20'))
 
         self.changeCameraPose(camera_pose)
-
 
 
     def changeCameraPose(self, camera_pose):
@@ -75,8 +76,7 @@ class Predictor():
         max_elements = int(get_gpu_memory()[0] / (3 * 32))
 
         lm = RobotLookupManager()
-        ang, depth = lm.get(self.intrinsics, self.camera_pose, 4,
-            np.array([True,True,False,False,False,False]), max_elements)
+        ang, depth = lm.get(self.intrinsics, self.camera_pose, 4, 'SL', max_elements)
 
         self.lookup_angles = ang
         self.lookup_depth = tf.pow(tf.constant(depth,tf.float32),0.5)
@@ -107,6 +107,23 @@ class Predictor():
             
             self.stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune]
 
+        elif np.all(self.do_angles == str_to_arr('SLUB'),-1):
+
+            lookup = ['lookup']
+            u_sweep_wide = ['tensorsweep', 50, 6, None, [False,False,True,False,False,False]]
+            u_sweep_gen = ['tensorsweep', 50, 6, .3, [False,False,True,False,False,False]]
+            u_sweep_narrow = ['smartsweep', 10, 6, .1, [False,False,True,False,False,False]]
+            u_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.4,0.5,0.5,0.5]]
+            s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
+            slu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+            b_sweep_full = ['tensorsweep', 40, 6, None, [False,False,False,False,True,False]]
+            b_sweep = ['tensorsweep', 5, 6, .1, [False,False,False,False,True,False]]
+            b_fine_tune = ['descent',5,6,0.4,.015,[False,False,False,False,True,False],[None,None,None,.005,.005,None]]
+            full_tune = ['descent',10,6,0.4,.015,[True,True,True,False,True,False],[None,None,None,None,None,None]]
+            
+            self.stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune,
+                b_sweep_full, b_sweep, b_fine_tune, full_tune]
+
         elif np.all(self.do_angles == str_to_arr('SLURB'),-1):
 
             lookup = ['lookup']
@@ -123,7 +140,6 @@ class Predictor():
             
             self.stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune,
                 rb_sweep_full, rb_sweep, rb_fine_tune, full_tune]
-
 
 
     def run(self, og_image, target_depth, camera_pose = None):
@@ -370,9 +386,9 @@ class Predictor():
             else:
                 out[self.classes[id]]['mask'] += data['masks'][...,idx]
                 out[self.classes[id]]['confidence'] = max(out[self.classes[id]]['confidence'], data['scores'][idx])
-                out[self.classes[id]]['roi'] = [ #TODO: Test this functionality
-                    np.min([out[self.classes[id]]['roi'][:2],data['rois'][idx][:2]]),
-                    np.max([out[self.classes[id]]['roi'][2:],data['rois'][idx][2:]])]
+                # out[self.classes[id]]['roi'] = [ #TODO: Test this functionality
+                #     np.min([out[self.classes[id]]['roi'][:2],data['rois'][idx][:2]]),
+                #     np.max([out[self.classes[id]]['roi'][2:],data['rois'][idx][2:]])]
         return out
 
     def _load_target(self, seg_data: dict, tgt_depth: np.ndarray) -> None:
