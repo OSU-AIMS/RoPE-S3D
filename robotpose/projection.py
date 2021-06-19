@@ -117,18 +117,20 @@ class Intrinsics():
             elif (base + '_') in preset:
                 ds_factor = int(preset.replace((base + '_'),''))
                 self.resolution, self.pp, self.f = get_details(base)
-                downscale_res = [x/ds_factor for x in self.resolution]
-                res_is_valid = [int(x) == round(x) for x in downscale_res]
-                if sum(res_is_valid) != 2:
-                    raise ValueError(f"Downscaling by a factor of {ds_factor} is not valid for this resolution.")
-                else:
-                    self.resolution = tuple([x//ds_factor for x in self.resolution])
-                    self.pp = tuple([x/ds_factor for x in self.pp])
-                    self.f = tuple([x/ds_factor for x in self.f])
-                    return
-
+                self.downscale(ds_factor)
 
         raise ValueError(f"Preset must be one of: {self.bases}\nDownscaling a preset can be done by appending '_x' to a preset where x is a valid number.")
+
+
+    def downscale(self, ds_factor):
+        downscale_res = [x/ds_factor for x in self.resolution]
+        res_is_valid = [int(x) == round(x) for x in downscale_res]
+        if sum(res_is_valid) != 2:
+            raise ValueError(f"Downscaling by a factor of {ds_factor} is not valid for this resolution.")
+        else:
+            self.resolution = tuple([x//ds_factor for x in self.resolution])
+            self.pp = tuple([x/ds_factor for x in self.pp])
+            self.f = tuple([x/ds_factor for x in self.f])
 
 
     @property
@@ -375,41 +377,3 @@ def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale = 0):
 #             cvt_pointmap[pixel_map[r,c,0],pixel_map[r,c,1]] = point_map[r,c]
     
 #     return cvt_pointmap
-
-
-
-
-def fill_hole(arr, r, c, rad):
-    """
-    expects n x n x 3 array
-    """
-
-    rc_dist = np.zeros((arr.shape[0], arr.shape[1],2))
-    rc_dist[...,0] = np.hstack([np.arange(r,r-rc_dist.shape[0], -1).reshape(rc_dist.shape[0],1)] * rc_dist.shape[1])
-    rc_dist[...,1] = np.vstack([np.arange(c,c-rc_dist.shape[1], -1)] * rc_dist.shape[0])
-
-    rc_dist[r,c] = 100
-
-    weight = np.power((np.square(rc_dist[...,0]) + np.square(rc_dist[...,1])), -1.5)
-    
-    include = np.zeros((arr.shape[0], arr.shape[1]),bool)
-    include[r-rad:r+rad,c-rad:c+rad] = True
-    
-    is_val = np.any(arr, -1)
-    is_val *= include
-
-    pred = np.zeros(3)
-
-    for idx in range(3):
-        r_grad, c_grad = np.gradient(arr[...,idx])
-        preds = arr[...,idx] + rc_dist[...,0]*r_grad + rc_dist[...,1]*c_grad
-
-        preds_weighted = preds*weight
-
-        weight_sum = np.sum(weight[np.where(is_val)])
-        pred_sum = np.sum(preds_weighted[np.where(is_val)])
-
-        pred[idx] = pred_sum / weight_sum
-        
-    return pred
-

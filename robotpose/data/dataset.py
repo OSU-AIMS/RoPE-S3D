@@ -257,11 +257,21 @@ class Dataset():
             elif np.sum(matches) > 1:
                 raise ValueError(f"The requested dataset name is ambiguous\n{info}")
             else:
+                if name in d['compiled'][ds_type]['names']:
+                    burner = Dataset(name)
+                    burner.exportCameraPose()
+                    del burner
+                    
                 self.dataset_path = self.build_from_zip(d['uncompiled']['paths'][matches.index(True)])
                 self.dataset_dir = os.path.dirname(self.dataset_path)
+                
+                if name in d['compiled'][ds_type]['names']:
+                    self.importCameraPose()
 
         if recompile and not building:
+            self.exportCameraPose()
             self.recompile()
+            self.importCameraPose()
 
         self.load()
 

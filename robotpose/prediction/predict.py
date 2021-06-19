@@ -7,6 +7,7 @@
 #
 # Author: Adam Exley
 
+from robotpose.training.models import ModelManager
 import cv2
 
 import numpy as np
@@ -32,7 +33,8 @@ class Predictor():
         save_to: str = None,
         do_angles: str = 'SLU',
         min_angle_inc = np.array([.005]*6),
-        history_length = 5
+        history_length = 5,
+        base_intrin = "1280_720_color"
         ):
 
         self.ds_factor = ds_factor
@@ -43,7 +45,7 @@ class Predictor():
         self.min_ang_inc = min_angle_inc
         self.history_length = history_length
 
-        self.intrinsics = f'1280_720_color_{self.ds_factor}'
+        self.intrinsics = f'{base_intrin}_{self.ds_factor}'
 
         self.u_reader = URDFReader()
         self.renderer = Renderer('seg',camera_pose,self.intrinsics)
@@ -52,9 +54,12 @@ class Predictor():
         self.classes.extend(self.u_reader.mesh_names[:6])
         self.link_names = self.classes[1:]
 
+        mm = ModelManager()
+
         self.seg = custom_segmentation()
         self.seg.inferConfig(num_classes=6, class_names=self.classes)
         self.seg.load_model("models/segmentation/multi/B.h5")
+        #self.seg.load_model(mm.dynamicLoad('link'))
 
         self.changeCameraPose(camera_pose)
 
