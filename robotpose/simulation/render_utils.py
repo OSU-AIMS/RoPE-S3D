@@ -32,11 +32,15 @@ DEFAULT_COLORS = default_color_maker(7)
 
 class MeshLoader():
 
-    def __init__(self):
+    def __init__(self, include_t = False):
 
         self.ureader = URDFReader()
-        self.name_list = self.ureader.mesh_names
-        self.mesh_list = self.ureader.mesh_paths
+        if include_t:
+            self.name_list = self.ureader.mesh_names
+            self.mesh_list = self.ureader.mesh_paths
+        else:
+            self.name_list = self.ureader.mesh_names[:-1]
+            self.mesh_list = self.ureader.mesh_paths[:-1]
 
         self.load()
 

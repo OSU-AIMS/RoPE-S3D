@@ -13,8 +13,8 @@ from tqdm import tqdm
 from robotpose import Dataset, Predictor
 from robotpose.utils import Grapher
 
-am = Predictor(ds_factor=8, preview=False)
 ds = Dataset('set10')
+am = Predictor(ds_factor=8, preview=False, base_intrin = ds.attrs['color_intrinsics'])
 
 starting_points = True
 

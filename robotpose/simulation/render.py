@@ -27,12 +27,15 @@ class Renderer():
             mode = 'seg',
             camera_pose = None,
             camera_intrin = '1280_720_color',
-            suppress_warnings = False
+            suppress_warnings = False,
+            intrinsic_ds_factor = None
             ):
 
         self.kine = ForwardKinematics()
 
         self.intrinsics = Intrinsics(camera_intrin)
+        if intrinsic_ds_factor is not None:
+            self.intrinsics.downscale(intrinsic_ds_factor)
 
         self.mode = mode
         self.suppress_warnings = suppress_warnings
@@ -91,7 +94,9 @@ class Renderer():
         self.mode = mode
         self._updateMode()
 
-    def setCameraPose(self, pose):
+    def setCameraPose(self, pose_in):
+        pose = np.copy(pose_in)
+        pose[4] += np.pi/2
         setPoses(self.scene, [self.camera_node], [makePose(*pose)])
 
     def _setNodeColor(self, node_name, color):
@@ -102,8 +107,11 @@ class Renderer():
             pass
 
     def setMaxParts(self, number_of_parts):
-        self.limit_parts = True
-        self.limit_number = number_of_parts
+        if number_of_parts is not None:
+            self.limit_parts = True
+            self.limit_number = number_of_parts
+        else:
+            self.limit_parts = False
         self._updateMode()
 
     def _updateMode(self):
@@ -149,19 +157,19 @@ class DatasetRenderer(Renderer):
             ds_type = 'full',
             mode = 'seg',
             camera_pose = None,
-            camera_intrin = '1280_720_color',
             robot_name="mh5"
             ):
 
-        super().__init__(mode, camera_pose, camera_intrin)
         self.ds = Dataset(dataset, ds_type = ds_type)
+        super().__init__(mode, camera_pose, self.ds.attrs['color_intrinsics'])
+        
 
     def setObjectPoses(self, poses):
         setPoses(self.scene, self.joint_nodes, poses)
 
     def setPosesFromDS(self, idx):
         self.setObjectPoses(self.kine.calc(self.ds.angles[idx]))
-        setPoses(self.scene, [self.camera_node], [makePose(*self.ds.camera_pose[idx])])
+        self.setCameraPose(self.ds.camera_pose[idx])
 
 
 
@@ -214,6 +222,7 @@ class Aligner():
 
         print("Copying Image Array...")
         self.real_arr = np.copy(self.ds.og_img)
+        self.zoom = 1
 
         self.gui = AlignerGUI()
 
@@ -234,6 +243,12 @@ class Aligner():
                 if 0 <= self.idx and self.idx < self.ds.length:
                     self.idx = values
                     move = True
+            elif event == 'pose_entry':
+                if np.any(values != self.c_pose):
+                    self.c_pose = values
+                    self.saveCameraPose()
+            elif event == 'zoom':
+                self.zoom = values
 
             self._getSection()
             self.readCameraPose()
@@ -243,6 +258,7 @@ class Aligner():
                 self.renderer.setPosesFromDS(self.idx)
                 render, depth = self.renderer.render()
                 image = self.combineImages(real, render)
+                image = self.applyZoom(image)
                 move = False
             image = self.addOverlay(image)
             cv2.imshow("Aligner", image)
@@ -306,6 +322,14 @@ class Aligner():
         return True, True
 
 
+    def applyZoom(self, image):
+        dim = list(image.shape[:2])
+        dim.reverse()
+        dim = [x* self.zoom for x in dim]
+        dim = [int(x) for x in dim]
+        image = cv2.resize(image, tuple(dim))
+        return image
+
     def addOverlay(self, image):
         pose_str = "["
         for num in self.c_pose:
@@ -364,11 +388,14 @@ class AlignerGUI():
             "R/F - Tilt down/up\nG/H - Pan left/right\n+/- - Increase/Decrease Step size\nK/L - Last/Next image"
         self.layout = [[sg.Text("Currently Editing:"), sg.Text(size=(40,1), key='editing')],
                         [sg.Input(size=(5,1),key='num_input'),sg.Button('Go To',key='num_goto'), sg.Button('New Section',key='new_section')],
+                        [sg.Text("Manual Pose:"), sg.Input(size=(20,1),key='pose_entry')],
+                        [sg.Text("Zoom:"),sg.Slider((.5,4),1,key='zoom',orientation='h', resolution=0.1)],
                         [sg.Text("",key='warn',text_color="red", size=(22,1))],
                         [sg.Table([[["Sections:"]],[[1,1]]], key='sections'),sg.Text(control_str)],
                         [sg.Button('Quit',key='quit')]]
 
         self.window = sg.Window('Aligner Controls', self.layout, return_keyboard_events = True, use_default_focus=False)
+        self.past_zoom = 1
 
     def update(self, section_starts, section_idx):
         event, values = self.window.read(timeout=1, timeout_key='tm')
@@ -378,6 +405,10 @@ class AlignerGUI():
 
         self.window['editing'].update(f"{section_starts[section_idx]} - {section_starts[section_idx+1]-1}")
         self.window['sections'].update(section_table)
+
+        if values['zoom'] != self.past_zoom:
+            self.past_zoom = values['zoom']
+            return ['zoom',values['zoom']]
 
         try:
             if event == 'new_section':
@@ -393,6 +424,15 @@ class AlignerGUI():
         if event == 'quit':
             self.close()
             return ['quit',None]
+
+        try:
+            entry = values['pose_entry'].replace('[','').replace(']','').replace(',',' ')
+            entry = np.fromstring(entry,np.float,sep=' ')
+            if entry.shape == (6,):
+                return ['pose_entry',entry]
+
+        except ValueError:
+            pass
 
         return [None,None]
 
