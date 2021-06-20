@@ -13,7 +13,7 @@ from tqdm import tqdm
 from robotpose import Dataset, Predictor
 from robotpose.utils import Grapher
 
-angs = 'SLUB'
+angs = 'SLU'
 
 ds = Dataset('set20')
 am = Predictor(ds_factor=4, camera_pose=ds.camera_pose[0], preview=True, base_intrin = ds.attrs['color_intrinsics'], do_angles=angs)

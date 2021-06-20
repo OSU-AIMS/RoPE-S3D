@@ -104,8 +104,11 @@ class Predictor():
             u_stage = ['descent',30,6,0.5,.1,[False,False,True,False,False,False],[0.1,0.1,0.4,0.5,0.5,0.5]]
             s_flip_check_6 = ['flip', 6, [True,False,False,False,False,False]]
             slu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
+
+            u_sweep_coarse = ['smartsweep', 15, 6, None, [False,False,True,False,False,False]]
             
-            self.stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune]
+            self.stages = [lookup, u_sweep_wide, u_sweep_gen, s_flip_check_6, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune]
+            self.stages = [lookup, u_sweep_coarse, u_sweep_narrow, s_flip_check_6, u_stage, s_flip_check_6, slu_fine_tune]
 
         elif np.all(self.do_angles == str_to_arr('SLUB'),-1):
 
@@ -146,13 +149,32 @@ class Predictor():
         if camera_pose is not None and np.any(camera_pose != self.camera_pose):
             self.changeCameraPose(camera_pose)
 
-        if self.preview:
-            self.viz.loadTargetColor(og_image)
-            self.viz.loadTargetDepth(target_depth)
+
 
         target_depth = self._downsample(target_depth, self.ds_factor)
         r, output = self.seg.segmentImage(self._downsample(og_image, self.ds_factor), process_frame=True)
         segmentation_data = self._reorganize_by_link(r)
+
+        # Isolate depth to be only where robot body is
+        new = np.zeros((target_depth.shape))
+        for k in segmentation_data:
+            new += segmentation_data[k]['mask']
+        new = cv2.erode(cv2.dilate(new,np.ones((10,10))),np.ones((7,7)))
+        target_depth *= new.astype(bool).astype(int)
+
+        lookup_depth = target_depth.copy()
+        new = np.zeros((target_depth.shape))
+        for k in segmentation_data:
+            if k in self.u_reader.mesh_names[:4]:
+                new += segmentation_data[k]['mask']
+        new = cv2.erode(cv2.dilate(new,np.ones((10,10))),np.ones((7,7)))
+        lookup_depth *= new.astype(bool).astype(int)
+
+
+
+        if self.preview:
+            self.viz.loadTargetColor(og_image)
+            self.viz.loadTargetDepth(target_depth)
 
         if self.preview:
             self.viz.loadSegmentedLinks(output)
@@ -166,7 +188,7 @@ class Predictor():
         self._setStages()
 
         self.renderer.setJointAngles(angles)
-        self._load_target(segmentation_data, target_depth)
+        self._load_target(segmentation_data, target_depth, lookup_depth)
 
         def preview_if_applicable(color, depth):
             if self.preview:
@@ -182,9 +204,14 @@ class Predictor():
 
             if stage[0] == 'lookup':
 
-                diff = self._tgt_depth_stack_half - self.lookup_depth
-                diff = tf.abs(diff) 
-                lookup_err = tf.reduce_mean(diff, (1,2)) *- tf.math.reduce_std(diff, (1,2))
+                # diff = self._tgt_depth_stack_half - self.lookup_depth
+                # diff = tf.abs(diff) 
+                # lookup_err = tf.reduce_mean(diff, (1,2)) *- tf.math.reduce_std(diff, (1,2))
+
+                diff = self._tgt_depth_stack_full - tf.constant(self.lookup_depth,tf.float32)
+                diff = tf.abs(diff)
+                lookup_err = (tf.reduce_mean(diff, (1,2)) * tf.math.reduce_std(diff, (1,2))).numpy()
+
 
                 angles = self.lookup_angles[tf.argmin(lookup_err).numpy()]
 
@@ -391,11 +418,17 @@ class Predictor():
                 #     np.max([out[self.classes[id]]['roi'][2:],data['rois'][idx][2:]])]
         return out
 
-    def _load_target(self, seg_data: dict, tgt_depth: np.ndarray) -> None:
+    def _load_target(self, seg_data: dict, tgt_depth: np.ndarray, opt_depth = None) -> None:
         self._masked_targets = {}
         self._target_masks = {}
         self._tgt_depth = tgt_depth
-        self._tgt_depth_stack_half = tf.stack([tf.pow(tf.constant(tgt_depth, tf.float32),0.5)]*len(self.lookup_angles))
+        if opt_depth is not None:
+            d = opt_depth
+        else:
+            d = tgt_depth
+
+        # self._tgt_depth_stack_half = tf.stack([tf.pow(tf.constant(tgt_depth, tf.float32),0.5)]*len(self.lookup_angles))
+        self._tgt_depth_stack_full = tf.stack([tf.constant(d, tf.float32)]*len(self.lookup_angles))
         for link in self.link_names:
             if link in seg_data.keys():
                 link_mask = seg_data[self.link_names[self.link_names.index(link)]]['mask']
@@ -420,7 +453,7 @@ class Predictor():
 
                 # Mask
                 diff = joint_mask != render_mask
-                err += np.mean(diff)
+                err += np.mean(diff) * 5
 
                 # Only do if enough depth data present (>5% of required pixels have depth data)
                 if np.sum(target_masked != 0) > (.05 * np.sum(joint_mask)):
@@ -430,11 +463,17 @@ class Predictor():
                     if diff[diff!=0].size > 0:
                         err += np.mean(diff[diff!=0])
 
+        # # Unmatched Error
+        # diff = self._tgt_depth - render_depth
+        # diff = np.abs(diff) ** 0.5
+        # #err += np.mean(diff[diff!=0])
+        # err += np.mean(diff[diff!=0]) *- np.std(diff[diff!=0])
+
         # Unmatched Error
         diff = self._tgt_depth - render_depth
-        diff = np.abs(diff) ** 0.5
+        diff = np.abs(diff)
         #err += np.mean(diff[diff!=0])
-        err += np.mean(diff[diff!=0]) *- np.std(diff[diff!=0])
+        err += np.mean(diff[diff!=0]) * np.std(diff)
 
         return err
 

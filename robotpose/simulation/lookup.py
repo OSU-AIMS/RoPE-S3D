@@ -103,7 +103,7 @@ class RobotLookupInfo():
 
     def __init__(self) -> None:
         self.update()
-    
+
     def update(self):
         self.data = {}
 
@@ -125,7 +125,7 @@ class RobotLookupInfo():
             raw_tables[key]['pose'] = tuple(raw_tables[key]['pose'])
             for attr in ['angles_changed', 'divisions']:
                 raw_tables[key][attr] = list(raw_tables[key][attr])
-            
+
         camera_poses = {x['pose'] for x in raw_tables.values()}
         pose_shortnames = {('P_'+k):v for k,v in zip(string.ascii_uppercase[:len(camera_poses)], camera_poses)}
         self.data['camera_poses'] = pose_shortnames
@@ -135,8 +135,7 @@ class RobotLookupInfo():
         self.data['intrinsics'] = intrin_shortnames
 
         # Create structure for lookup organization (intrin -> pose -> table)
-        pose_dict = {pose:{} for pose in pose_shortnames}
-        self.data['lookups'] = {intrin:pose_dict for intrin in intrin_shortnames}
+        self.data['lookups'] = {intrin:{pose:dict() for pose in pose_shortnames} for intrin in intrin_shortnames}
 
         for table in raw_tables:
             intrin = get_key(intrin_shortnames, raw_tables[table]['intrinsics'])
@@ -158,15 +157,14 @@ class RobotLookupManager(RobotLookupInfo):
         self.element_bits = element_bits
         super().__init__()
 
-    def get(self, 
-        intrinsics: Union[str, Intrinsics], 
-        camera_pose: np.ndarray, 
-        num_rendered_links: int, 
-        varying_angles: Union[str,np.ndarray], 
+    def get(self,
+        intrinsics: Union[str, Intrinsics],
+        camera_pose: np.ndarray,
+        num_rendered_links: int,
+        varying_angles: Union[str,np.ndarray],
         max_elements: int = None,
         max_poses: int = None,
-        divisions: np.ndarray = None,
-        create_optimal: bool = True
+        divisions: np.ndarray = None
         ):
 
         self.update()
@@ -211,9 +209,6 @@ class RobotLookupManager(RobotLookupInfo):
 
             if len(acceptable) == 0:
                 create = True
-            else:
-                if create_optimal:
-                    pass
 
         if create:
             if divisions is None:
