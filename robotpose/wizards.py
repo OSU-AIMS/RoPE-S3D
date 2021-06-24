@@ -232,7 +232,7 @@ class MeshViewer():
         self.c_pose = np.copy(self.base_pose)
         self.c_pose[1] *= np.cos(self.rotation_h)
         self.c_pose[0] *= np.sin(self.rotation_h)
-        self.c_pose[4] = np.pi/2
+        self.c_pose[4] = 0
         self.c_pose[5] = self.rotation_h
         self.rend.setCameraPose(self.c_pose)
 
@@ -289,7 +289,7 @@ class MeshViewer():
         self.rend.setJointAngles([0,0,np.pi/2,0,0,0])
 
         def set_render_and_process(r,z):
-            self.base_pose = [0,-r,z, 0,np.pi/2,0]
+            self.base_pose = [0,-r,z, 0,0,0]
             self.rend.setCameraPose(self.base_pose)
             self.base_pose[0] = r
             frame = self.render()

@@ -25,20 +25,26 @@ import tensorflow as tf
 tf.compat.v1.disable_eager_execution()
 
 
-def train(dataset, mode, batch):
+def train(dataset, mode, batch, cont):
     ds = Dataset(dataset)
 
     # Get names of classes for modeldata
     class_names = [x for x in DatasetRenderer(dataset, mode = {'body':'seg_full','link':'seg'}.get(mode)).color_dict]
 
-    # Create a new model location
     mm = ModelManager()
+
+    base_model_path = None
+    if cont:
+        base_model_path = mm.dynamicLoad(mode,dataset=dataset)
+    if base_model_path is None:
+        base_model_path = p().BASE_MODEL
+
     dest = mm.allocateNew(mode, dataset, class_names)
 
     # Configure training
     train_maskrcnn = instance_custom_training()
     train_maskrcnn.modelConfig(network_backbone = "resnet101", num_classes = len(class_names), batch_size = batch)
-    train_maskrcnn.load_pretrained_model(p().BASE_MODEL)
+    train_maskrcnn.load_pretrained_model(base_model_path)
 
     # Train
     train_maskrcnn.load_dataset({'body':ds.body_anno_path,'link':ds.link_anno_path}.get(mode))
@@ -53,6 +59,7 @@ if __name__ == "__main__":
     parser.add_argument('dataset', type=str, default="set6", help="The dataset to load to annotate. Can be a partial name.")
     parser.add_argument('mode', type=str, default="link", choices=['link','body'], help="The type of model to train.")
     parser.add_argument('-batch',type=int, choices=[1,2,4,8,12,16], default=2, help="Batch size for training")
+    parser.add_argument('-cont',action='store_true', help="Continue latest trained model.")
     args = parser.parse_args()
 
-    train(args.dataset, args.mode, args.batch)
+    train(args.dataset, args.mode, args.batch, args.cont)

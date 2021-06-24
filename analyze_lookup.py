@@ -153,8 +153,8 @@ class LookupErrorViewer():
         self._tgt_depth_stack_full = tf.stack([tf.constant(tgt_depth, tf.float32)]*len(self.lookup_angles))
 
 
-a = LookupErrorViewer('set20',4)
-a.visualize(236)
+a = LookupErrorViewer('set10',4)
+a.visualize(181)
 #a.distance()
 
 

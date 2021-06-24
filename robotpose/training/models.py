@@ -267,8 +267,10 @@ class ModelManager(ModelInfo):
             min_idx = deltas_sec.index(min(deltas_sec))
             datas = [x for x in remaining.values()]
             id = datas[min_idx].id
-        else:
+        elif len(remaining) == 1:
             id = [x.id for x in remaining.values()][0]
-            
+        else:
+            return None
+
         return self.loadByID(model_type, id)
 

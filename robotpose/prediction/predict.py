@@ -61,7 +61,7 @@ class Predictor():
         self.seg = custom_segmentation()
         self.seg.inferConfig(num_classes=6, class_names=self.classes)
         self.seg.load_model("models/segmentation/multi/B.h5")
-        self.seg.load_model(mm.dynamicLoad('link', dataset='set20'))
+        self.seg.load_model(mm.dynamicLoad('link', dataset='set10'))
 
         self.changeCameraPose(camera_pose)
 
@@ -280,25 +280,30 @@ class Predictor():
                 do_ang = np.array(stage[2])
                 self.renderer.setMaxParts(stage[1])
 
+                color, depth = self.renderer.render()
+                base_err = self._error(stage[1], color, depth)
+
                 for idx in np.where(do_ang)[0]:
                     temp = angles.copy()
-                    temp[idx] *= -1
+
+                    temp[idx] = -1 * (temp[idx] + np.arctan(self.camera_pose[0]/self.camera_pose[1]))
+
                     if temp[idx] >= self.u_reader.joint_limits[idx,0] and temp[idx] <= self.u_reader.joint_limits[idx,1]:
                         self.renderer.setJointAngles(temp)
                         color, depth = self.renderer.render()
                         err = self._error(stage[1], color, depth)
 
-                        if err < err_history[0]:
-                            angles[idx] *= -1
+                        if err < base_err:
+                            angles[idx] = temp[idx]
 
                             if self.preview:
                                 color, depth = render_at_pos(angles)
                                 preview_if_applicable(color, depth)
 
-                            history[1:] = history[:-1]
-                            history[0] = angles
-                            err_history[1:] = err_history[:-1]
-                            err_history[0] = err
+                            # history[1:] = history[:-1]
+                            # history[0] = angles
+                            # err_history[1:] = err_history[:-1]
+                            # err_history[0] = err
 
             elif stage[0] == 'smartsweep':
 

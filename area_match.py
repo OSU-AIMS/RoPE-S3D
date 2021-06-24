@@ -8,12 +8,12 @@
 # Author: Adam Exley
 
 from robotpose import Dataset, Predictor
-from robotpose.prediction.predict import TimePredictor
 import numpy as np
 from tqdm import tqdm
 
-am = Predictor(ds_factor=8, preview=True)#, save_to='output/projection_viz.avi')
 ds = Dataset('set10')
+am = Predictor(ds_factor=8, camera_pose=ds.camera_pose[0], preview=True, base_intrin = ds.attrs['color_intrinsics'], do_angles='SLU')
+
 
 start = 180
 end = 200
