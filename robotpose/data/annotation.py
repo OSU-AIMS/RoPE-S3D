@@ -10,6 +10,7 @@
 import multiprocessing as mp
 import os
 import random
+from ..CompactJSONEncoder import CompactJSONEncoder
 import shutil
 import tempfile
 
@@ -21,7 +22,7 @@ from tqdm import tqdm
 from ..simulation.render import DatasetRenderer
 from ..utils import expandRegion, workerCount
 from .dataset import Dataset
-
+import json
 
 def makeMask(image):
     mask = np.zeros(image.shape[0:2], dtype=np.uint8)
@@ -202,47 +203,151 @@ class AutomaticAnnotator():
             pbar.set_description("Packing Pool")
             pbar.update(19)
 
-            with tempfile.TemporaryDirectory() as tempdir:
+            # Clear out old annotations
+            shutil.rmtree(self.dest_path)
+            os.mkdir(self.dest_path)
 
-                for frame in tqdm(range(self.ds.length),desc="Packing",position=1, leave=False, colour='red'):
-                    inputs.append((og_img[frame],color_imgs[frame],os.path.join(tempdir,f"{frame:05d}")))
-                
-                pbar.update(1)
-                pbar.set_description("Running Pool", refresh=True)
+            for frame in tqdm(range(self.ds.length),desc="Packing",position=1, leave=False, colour='red'):
+                inputs.append((og_img[frame],color_imgs[frame],os.path.join(self.dest_path,f"{frame:05d}")))
+            
+            pbar.update(1)
+            pbar.set_description("Running Pool", refresh=True)
 
-                with mp.Pool(workerCount()) as pool:
-                    pool.starmap(self.anno.annotate, inputs)
+            with mp.Pool(workerCount()) as pool:
+                pool.starmap(self.anno.annotate, inputs)
 
-                pbar.set_description("Organizing Data")
-                pbar.update(59)
+            pbar.set_description("Organizing Data")
+            pbar.update(59)
 
-                # Split set into validation and train
-                jsons = [x for x in os.listdir(tempdir) if x.endswith('.json')]
-                random.shuffle(jsons)
+            # # Split set into validation and train
+            # jsons = [x for x in os.listdir(tempdir) if x.endswith('.json')]
+            # random.shuffle(jsons)
 
-                valid_proportion = .1
-                test_proportion = .5
+            # valid_proportion = .1
+            # test_proportion = .5
 
-                valid_size = int(len(jsons) * valid_proportion)
-                test_size = int(len(jsons) * test_proportion)
-                valid_list = jsons[:valid_size]
-                test_list = jsons[valid_size:valid_size + test_size]
-                train_list = jsons[valid_size + test_size:]
+            # valid_size = int(len(jsons) * valid_proportion)
+            # test_size = int(len(jsons) * test_proportion)
+            # valid_list = jsons[:valid_size]
+            # test_list = jsons[valid_size:valid_size + test_size]
+            # train_list = jsons[valid_size + test_size:]
 
-                folders = ['train', 'test','ignore']
-                lists = [train_list, valid_list, test_list]
+            # folders = ['train', 'test','ignore']
+            # lists = [train_list, valid_list, test_list]
 
-                # Clear out / create folders
-                for folder in folders:
-                    path = os.path.join(self.dest_path, folder)
-                    if os.path.isdir(path): shutil.rmtree(path)
-                    os.mkdir(path)
+            # # Clear out / create folders
+            # for folder in folders:
+            #     path = os.path.join(self.dest_path, folder)
+            #     if os.path.isdir(path): shutil.rmtree(path)
+            #     os.mkdir(path)
 
-                for lst, folder in zip(lists,folders):
-                    path = os.path.join(self.dest_path, folder)
-                    for file in lst:
-                        shutil.copy2(os.path.join(tempdir, file), os.path.join(path, file))
-                        shutil.copy2(os.path.join(tempdir, file.replace('.json','.png')), os.path.join(path, file.replace('.json','.png')))
+            # for lst, folder in zip(lists,folders):
+            #     path = os.path.join(self.dest_path, folder)
+            #     for file in lst:
+            #         shutil.copy2(os.path.join(tempdir, file), os.path.join(path, file))
+            #         shutil.copy2(os.path.join(tempdir, file.replace('.json','.png')), os.path.join(path, file.replace('.json','.png')))
 
-                pbar.set_description("Annotation")
-                pbar.update(11)
+            splitter = Splitter(self.dest_path)
+            splitter.split(.4,.1)
+
+            pbar.set_description("Annotation")
+            pbar.update(11)
+
+
+class Splitter():
+    def __init__(self, folder):
+        self.folder = folder
+
+        self.all = []
+        self.train = []
+        self.test = []
+        self.ignore = []
+        self.past_split = True
+
+        for fold in ['test', 'train', 'ignore']:
+            if not os.path.isdir(os.path.join(self.folder,fold)):
+                os.mkdir(os.path.join(self.folder,fold))
+
+        self.load()
+
+    def load(self):
+
+        if os.path.isfile(os.path.join(self.folder,'split.json')):
+            # Has been split before
+            self.past_split = True
+
+            with open(os.path.join(self.folder,'split.json'),'r') as f:
+                split_data = json.load(f)
+
+            def read_in(subfolder,validation):
+                json = [x.replace('.json','') for x in os.listdir(os.path.join(self.folder,subfolder)) if x.endswith('.json')]
+                png = [x.replace('.png','') for x in os.listdir(os.path.join(self.folder,subfolder)) if x.endswith('.png')]
+                lst = [x for x in json if x in png]
+                valid = [x in validation for x in lst]
+                assert np.all(valid), f"Data error found for {subfolder} when loading data to split. Please re-annotate data."
+                return lst
+
+            self.train = read_in('train',split_data['train'])
+            self.test = read_in('test',split_data['test'])
+            self.ignore = read_in('ignore',split_data['ignore'])
+
+        else:
+            # New data
+            self.past_split = False
+
+            jsons_p = [os.path.join(r,x) for r,d,y in os.walk(self.folder) for x in y if x.endswith('.json')]
+            png_p = [os.path.join(r,x) for r,d,y in os.walk(self.folder) for x in y if x.endswith('.png')]
+
+            assert len(jsons_p) == len(png_p), "Error encountered in data split: unequal number of png's and json's"
+
+            # Consolidate
+            for file in [*jsons_p, *png_p]:
+                shutil.move(file, os.path.join(self.folder, 'ignore', os.path.basename(file)))
+
+            self.train = []
+            self.test = []
+            self.ignore = [x.replace('.json','') for x in os.listdir(os.path.join(self.folder,'ignore')) if x.endswith('.json')]
+
+    
+    def split(self, train_prop, test_prop):
+        tot = len(self.train) + len(self.test) + len(self.ignore)
+        num_train = int(tot * train_prop)
+        num_test = int(tot * test_prop)
+
+        print(len(self.train),len(self.test),len(self.ignore))
+
+        # Move to ignore if too large
+        for num, lst, name in zip((num_train,num_test),(self.train, self.test),('train','test')):
+            if len(lst) > num:
+                random.shuffle(lst)
+
+                num_transfer = len(lst) - num
+
+                for idx in range(num_transfer):
+                    f = lst[idx]
+                    self.ignore.append(f)
+                    for e in ['.json','.png']:
+                        shutil.move(os.path.join(self.folder, name, f"{f}{e}"),os.path.join(self.folder, 'ignore', f"{f}{e}"))
+
+                del lst[:num_transfer]
+
+        # Move into other lists
+        for num, lst, name in zip((num_train,num_test),(self.train, self.test),('train','test')):
+            if len(lst) < num:
+                random.shuffle(self.ignore)
+
+                num_transfer = num - len(lst)
+
+                for idx in range(num_transfer):
+                    f = self.ignore[idx]
+                    lst.append(f)
+                    for e in ['.json','.png']:
+                        shutil.move(os.path.join(self.folder, 'ignore', f"{f}{e}"),os.path.join(self.folder, name, f"{f}{e}"))
+
+                del self.ignore[:num_transfer]
+
+        self.write()
+            
+    def write(self):
+        with open(os.path.join(self.folder,'split.json'),'w') as f:
+            f.write(CompactJSONEncoder(indent=4).encode({'train':self.train,'test':self.test,'ignore':self.ignore}))

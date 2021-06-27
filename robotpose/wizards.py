@@ -27,21 +27,36 @@ class Wizard(DatasetInfo):
         self.urdf_reader = URDFReader()
         self.valid_urdf = self.urdf_reader.internal_path != None
 
-        urdf_menu = [
+        data_tab_layout = [
+            [sg.Txt("Dataset:"),sg.Combo(self.compiled_sets(),key='-dataset-', size=(20, 1))],
+            [sg.Button("View Details",key='-details-',tooltip='View dataset details'),
+                sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')]
+        ]
+
+        training_tab_layout = [
+            [sg.Txt('Tab2')]
+        ]
+
+        prediction_tab_layout = [
+            []
+        ]
+
+        urdf_tab_layout = [
             [sg.Txt("URDF:"),
                 sg.Combo(self.urdf_reader.available_names,self.urdf_reader.name,key='-urdf-', size=(10, 1))],
             [sg.Txt("Active:"), sg.Txt(self.urdf_reader.name,key='-active_urdf-')],
             [sg.Button("View Robot",key='-view-',tooltip='View robot in MeshViewer')]
         ]
 
-        dataset_menu = [
-            [sg.Txt("Dataset:"),sg.Combo(self.compiled_sets(),key='-dataset-', size=(20, 1))],
-            [sg.Button("View Details",key='-details-',tooltip='View dataset details'),
-                sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')]]
+        data_tab = sg.Tab('Data', data_tab_layout)
+        training_tab = sg.Tab('Training', training_tab_layout)
+        prediction_tab = sg.Tab('Prediction', prediction_tab_layout)
+        urdf_tab = sg.Tab('URDF', urdf_tab_layout)
+
+        tabgroup = sg.TabGroup([[data_tab,training_tab,prediction_tab,urdf_tab]])
 
         self.layout = [
-            [sg.Frame("URDF Options", urdf_menu)],
-            [sg.Frame("Dataset Options", dataset_menu)],
+            [tabgroup],
             [sg.Button("Quit",key='-quit-',tooltip='Quit Wizard')]
             ]
 

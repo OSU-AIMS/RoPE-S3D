@@ -11,13 +11,14 @@ import pixellib
 from pixellib.instance import custom_segmentation
 from robotpose.training import ModelManager
 
+ds = 'set10'
+
 classes = ["BG","base_link","link_s", "link_l", "link_u","link_r","link_b"]
 
 mm = ModelManager()
-print("\n\n",mm.dynamicLoad('link', train_ratio = 0))
 
 test_video = custom_segmentation()
 test_video.inferConfig(num_classes=6, class_names=classes)
-test_video.load_model(mm.dynamicLoad('link', train_ratio = 0))
-test_video.process_video("data/set20/og_vid.avi", show_bboxes = False,  output_video_name="output/multiseg_test.avi", frames_per_second=15)
+test_video.load_model(mm.dynamicLoad('link', dataset = ds))
+test_video.process_video(f"data/{ds}/og_vid.avi", show_bboxes = False,  output_video_name="output/multiseg_test.avi", frames_per_second=15)
 
