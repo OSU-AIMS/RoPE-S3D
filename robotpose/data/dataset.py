@@ -22,72 +22,8 @@ from ..CompactJSONEncoder import CompactJSONEncoder
 
 
 INFO_JSON = os.path.join(p().DATASETS, 'datasets.json')
-CONFIG_JSON = os.path.join(p().DATASETS, 'dataset_config.json')
-
 DATASET_VERSION = 6.0
                 
-
-def get_config():
-    """Get dataset splits from config JSON"""
-
-    if not os.path.isfile(CONFIG_JSON):
-        config = {
-            'split_ratios':{
-                'train': .70,
-                'validate': .20,
-                'test': .10
-            }
-        }
-        with open(CONFIG_JSON,'w') as f:
-            json.dump(config, f, indent=4)
-
-    with open(CONFIG_JSON, 'r') as f:
-        d = json.load(f)
-
-    assert np.round(np.sum(list(d['split_ratios'].values())),5) == 1, f"Dataset Splits Must Sum To 1"
-
-    return d
-
-
-def dataset_split(joint_angles):
-
-    config = get_config()
-    valid_size = int(config['split_ratios']['validate'] * len(joint_angles))
-    test_size = int(config['split_ratios']['test'] * len(joint_angles))
-
-    def sample(size, used):
-        selected = []
-        unused = [x for x in range(joint_angles.shape[0]) if x not in used]
-        intervals = np.linspace(min(unused),max(unused), int(len(unused)/size))
-        for idx in range(len(intervals) - 1):
-            unused = np.array([x for x in range(joint_angles.shape[0]) if x not in used])
-            pool = unused[unused >= intervals[idx]]
-            pool = pool[pool <= intervals[idx + 1]]
-            c = np.random.choice(pool)
-            used.append(c)
-            selected.append(c)
-
-        if len(selected) < size:
-            unused = [x for x in range(joint_angles.shape[0]) if x not in used]
-            extra = np.random.choice(unused, size - len(selected), replace=False)
-            selected.extend(extra)
-            used.extend(extra)
-
-        return selected
-
-    used = []
-    test_idxs = sample(test_size, used)
-    valid_idxs = sample(valid_size, used)
-    train_idxs = [x for x in range(joint_angles.shape[0]) if x not in used]
-
-    valid_idxs.sort()
-    test_idxs.sort()
-
-    return train_idxs, valid_idxs, test_idxs
-
-
-
-
 
 class DatasetInfo():
     def __init__(self):
@@ -282,13 +218,6 @@ class Dataset():
     def importCameraPose(self):
         camera_pose = np.load(os.path.join(self.dataset_dir,'camera_pose.npy'))
         self.camera_pose[:] = camera_pose
-
-    def makeNewSubsets(self):
-        print("Writing Subsets...")
-        idxs = dataset_split(self.angles)
-        sub_types = ['train','validate','test']
-        bob = Builder()
-        bob.build_subsets(self.dataset_path, sub_types, idxs)
 
     def load(self):
         file = h5py.File(self.dataset_path,self.permissions)

@@ -184,6 +184,7 @@ class AutomaticAnnotator():
 
             pbar.set_description("Rendering Segmentation Masks", refresh=True)
 
+            # Render robot throughout entire dataset
             for frame in tqdm(range(self.ds.length),desc="Rendering",position=1,colour='red',leave=False):
                 self.rend.setPosesFromDS(frame)
                 color, depth = self.rend.render()
@@ -196,8 +197,8 @@ class AutomaticAnnotator():
 
             cv2.destroyAllWindows()
             pbar.set_description("Copying Image Array", refresh=True)
-
-            inputs = []
+            
+            # Copy the input image array to be allocated to parallel workers
             og_img = np.copy(self.ds.og_img)
 
             pbar.set_description("Packing Pool")
@@ -207,49 +208,26 @@ class AutomaticAnnotator():
             shutil.rmtree(self.dest_path)
             os.mkdir(self.dest_path)
 
+            # Allocate data to workers
+            inputs = []
             for frame in tqdm(range(self.ds.length),desc="Packing",position=1, leave=False, colour='red'):
                 inputs.append((og_img[frame],color_imgs[frame],os.path.join(self.dest_path,f"{frame:05d}")))
             
             pbar.update(1)
             pbar.set_description("Running Pool", refresh=True)
 
+            # Run parallel pool of annotators
             with mp.Pool(workerCount()) as pool:
                 pool.starmap(self.anno.annotate, inputs)
 
             pbar.set_description("Organizing Data")
             pbar.update(59)
 
-            # # Split set into validation and train
-            # jsons = [x for x in os.listdir(tempdir) if x.endswith('.json')]
-            # random.shuffle(jsons)
-
-            # valid_proportion = .1
-            # test_proportion = .5
-
-            # valid_size = int(len(jsons) * valid_proportion)
-            # test_size = int(len(jsons) * test_proportion)
-            # valid_list = jsons[:valid_size]
-            # test_list = jsons[valid_size:valid_size + test_size]
-            # train_list = jsons[valid_size + test_size:]
-
-            # folders = ['train', 'test','ignore']
-            # lists = [train_list, valid_list, test_list]
-
-            # # Clear out / create folders
-            # for folder in folders:
-            #     path = os.path.join(self.dest_path, folder)
-            #     if os.path.isdir(path): shutil.rmtree(path)
-            #     os.mkdir(path)
-
-            # for lst, folder in zip(lists,folders):
-            #     path = os.path.join(self.dest_path, folder)
-            #     for file in lst:
-            #         shutil.copy2(os.path.join(tempdir, file), os.path.join(path, file))
-            #         shutil.copy2(os.path.join(tempdir, file.replace('.json','.png')), os.path.join(path, file.replace('.json','.png')))
-
+            # Split data into train, validate, and test sections
             splitter = Splitter(self.dest_path)
             splitter.split(.4,.1)
 
+            # Clean up progress bar
             pbar.set_description("Annotation")
             pbar.update(11)
 
@@ -271,6 +249,9 @@ class Splitter():
         self.load()
 
     def load(self):
+        """
+        Read in the annotations present in the current folder, reorganizing if needed
+        """
 
         if os.path.isfile(os.path.join(self.folder,'split.json')):
             # Has been split before
@@ -309,10 +290,21 @@ class Splitter():
             self.ignore = [x.replace('.json','') for x in os.listdir(os.path.join(self.folder,'ignore')) if x.endswith('.json')]
 
     
-    def split(self, train_prop, test_prop):
+    def split(self, train_prop, valid_prop):
+        """Given data and proportions, split into training, validation, and testing groups.
+
+        This is conservative. Adding to a field will add files, keeping the same original files.
+
+        Parameters
+        ----------
+        train_prop : float
+            Proportion 0-1 of data to be allocated as training data
+        valid_prop : float
+            Proportion 0-1 of data to be allocated as validation data
+        """
         tot = len(self.train) + len(self.test) + len(self.ignore)
         num_train = int(tot * train_prop)
-        num_test = int(tot * test_prop)
+        num_test = int(tot * valid_prop)
 
         print(len(self.train),len(self.test),len(self.ignore))
 
@@ -349,16 +341,24 @@ class Splitter():
         self.write()
             
     def write(self):
+        """Write split.json data file"""
         with open(os.path.join(self.folder,'split.json'),'w') as f:
             f.write(CompactJSONEncoder(indent=4).encode({'train':self.train,'test':self.test,'ignore':self.ignore}))
 
     @property
     def ratios(self):
+        """Current folder's proportions of train, validate, and testing data respectively"""
         tot = len(self.train) + len(self.test) + len(self.ignore)
         return len(self.train) / tot, len(self.test) / tot,len(self.ignore) / tot
 
-    def ratios_equal(self, train_prop, test_prop):
+    def ratios_equal(self, train_prop, valid_prop):
+        """Returns bool of if, given the dataset size, the given ratios are reflected in the current split"""
         tot = len(self.train) + len(self.test) + len(self.ignore)
         num_train = int(tot * train_prop)
-        num_test = int(tot * test_prop)
+        num_test = int(tot * valid_prop)
         return num_train == len(self.train) and num_test == len(self.test)
+
+    def resplit(self, train_prop, valid_prop):
+        """Alias for split(), but skips checking anything if the requested proportions are already present"""
+        if not self.ratios_equal(train_prop, valid_prop):
+            self.split(train_prop, valid_prop)

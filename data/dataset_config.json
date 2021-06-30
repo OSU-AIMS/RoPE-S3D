@@ -1,7 +1,0 @@
-{
-    "split_ratios": {
-        "train": 0.4,
-        "validate": 0.15,
-        "ignore": 0.45
-    }
-}

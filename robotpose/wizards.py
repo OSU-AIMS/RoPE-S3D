@@ -7,9 +7,8 @@
 #
 # Author: Adam Exley
 
-from logging import disable
 import os
-from robotpose.CompactJSONEncoder import CompactJSONEncoder
+from .CompactJSONEncoder import CompactJSONEncoder
 
 import cv2
 import numpy as np
@@ -21,6 +20,7 @@ from .urdf import URDFReader
 from .utils import expandRegion
 from .paths import Paths as p
 import json
+from .data.annotation import Splitter
 
 
 class Wizard(DatasetInfo):
@@ -71,6 +71,7 @@ class Wizard(DatasetInfo):
             [RightText('Current:'), sg.Graph((200,20),(0,0),(1,1),background_color='white',k='-current_split_graph-')]]
 
         training_tab_layout = [
+            [sg.Txt('Current Dataset:',tooltip='Synced with "Data" Tab'),sg.Txt(self.current_dataset,size=(20,1),k='-split_screen_ds-',tooltip='Synced with "Data" Tab')],
             [sg.Frame('Data Split', ds_split_menu)]
         ]
 
@@ -159,11 +160,22 @@ class Wizard(DatasetInfo):
 
 
     def _writeDatasetSplit(self,train,validate):
+        # Write new split config
         with open(p().SPLIT_CONFIG,'r') as f:
             data = json.load(f)
         data[self.current_dataset] = {'train':train,'validate':validate,'ignore':1-train-validate}
         with open(p().SPLIT_CONFIG,'w') as f:
             f.write(CompactJSONEncoder(indent=4).encode(data))
+
+        # Actually split if data is present
+        expected_anno_dir = os.path.join(Dataset(self.current_dataset).dataset_dir,"link_annotations")
+        if os.path.isdir(expected_anno_dir):
+            self.window.set_cursor('wait')
+            self.window.read(1)
+            s = Splitter(expected_anno_dir)
+            s.resplit(train,validate)
+            self.window.set_cursor('arrow')
+            self.window.read(1)
 
 
     def _updateSplitGraph(self,train,validate,key):
@@ -194,8 +206,8 @@ class Wizard(DatasetInfo):
         if values['-dataset-'] in self.unique_sets():
             if values['-dataset-'] != self.current_dataset:
                 self.current_dataset = values['-dataset-']
-                self._datasetChange(values)
                 self.updateDatasetSplit(values)
+                self.window['-split_screen_ds-'].update(self.current_dataset)
             for button in ['-details-','-align-']:
                 self.window[button].update(disabled = False)
         else:
