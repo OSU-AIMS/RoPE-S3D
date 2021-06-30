@@ -11,5 +11,6 @@
     "BASE_MODEL": "models/mask_rcnn_coco.h5",
     "VIDEO": "output/video.avi",
     "URDFS": "urdfs/",
-    "URDF": "urdfs/motoman_mh5_support/urdf/mh5l.urdf"
+    "URDF": "urdfs/motoman_mh5_support/urdf/mh5l.urdf",
+    "SPLIT_CONFIG": "data/split_config.json"
 }

@@ -351,3 +351,14 @@ class Splitter():
     def write(self):
         with open(os.path.join(self.folder,'split.json'),'w') as f:
             f.write(CompactJSONEncoder(indent=4).encode({'train':self.train,'test':self.test,'ignore':self.ignore}))
+
+    @property
+    def ratios(self):
+        tot = len(self.train) + len(self.test) + len(self.ignore)
+        return len(self.train) / tot, len(self.test) / tot,len(self.ignore) / tot
+
+    def ratios_equal(self, train_prop, test_prop):
+        tot = len(self.train) + len(self.test) + len(self.ignore)
+        num_train = int(tot * train_prop)
+        num_test = int(tot * test_prop)
+        return num_train == len(self.train) and num_test == len(self.test)

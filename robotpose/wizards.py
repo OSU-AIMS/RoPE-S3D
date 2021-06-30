@@ -7,7 +7,9 @@
 #
 # Author: Adam Exley
 
+from logging import disable
 import os
+from robotpose.CompactJSONEncoder import CompactJSONEncoder
 
 import cv2
 import numpy as np
@@ -17,6 +19,8 @@ from .data import Dataset, DatasetInfo
 from .simulation import Aligner, Renderer
 from .urdf import URDFReader
 from .utils import expandRegion
+from .paths import Paths as p
+import json
 
 
 class Wizard(DatasetInfo):
@@ -26,21 +30,56 @@ class Wizard(DatasetInfo):
 
         self.urdf_reader = URDFReader()
         self.valid_urdf = self.urdf_reader.internal_path != None
+        self.last_split_data = {}
+        self.last_applied_split_data = {}
+        self.applied_split_data = {}
+        self.current_dataset = self.compiled_sets()[0]
+        self._getNewSplitData()
 
+
+        ########################################################################################
+        # Tab responsible for Dataset selection and viewing
         data_tab_layout = [
             [sg.Txt("Dataset:"),sg.Combo(self.compiled_sets(),key='-dataset-', size=(20, 1))],
             [sg.Button("View Details",key='-details-',tooltip='View dataset details'),
                 sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')]
         ]
 
-        training_tab_layout = [
-            [sg.Txt('Tab2')]
+        ########################################################################################
+        ds_split_left_pad = 7
+
+        # Slider config for dataset split selection
+        def SplitSlider(key,**kwargs):
+            return sg.Slider((0,1),self.applied_split_data[key],orientation='h',resolution=.05,k=f'-{key}_prop-',**kwargs)
+
+        # Base right-justified text for dataset split selection
+        def RightText(text,**kwargs):
+            return sg.Txt(text,size=(ds_split_left_pad,1),justification='right',**kwargs)
+
+        split_inputs = [
+            [RightText('Train:'), SplitSlider('train'),sg.Button('Update',k='-update_split-')],
+            [RightText('Validate:'), SplitSlider('validate')],
+            [RightText('Ignore:'), SplitSlider('ignore',disabled=True,trough_color='dim gray')],
         ]
 
+        ds_split_menu = [
+            *split_inputs,
+            [RightText(''),sg.Txt('Training',text_color='green',background_color='white'),
+                sg.Txt('Validation',text_color='blue',background_color='white'),
+                sg.Txt('Ignored',text_color='red',background_color='white')],
+            [RightText('New:'), sg.Graph((200,20),(0,0),(1,1),background_color='white',k='-new_split_graph-')],
+            [RightText('Current:'), sg.Graph((200,20),(0,0),(1,1),background_color='white',k='-current_split_graph-')]]
+
+        training_tab_layout = [
+            [sg.Frame('Data Split', ds_split_menu)]
+        ]
+
+        ########################################################################################
         prediction_tab_layout = [
             []
         ]
 
+        ########################################################################################
         urdf_tab_layout = [
             [sg.Txt("URDF:"),
                 sg.Combo(self.urdf_reader.available_names,self.urdf_reader.name,key='-urdf-', size=(10, 1))],
@@ -48,6 +87,7 @@ class Wizard(DatasetInfo):
             [sg.Button("View Robot",key='-view-',tooltip='View robot in MeshViewer')]
         ]
 
+        ########################################################################################
         data_tab = sg.Tab('Data', data_tab_layout)
         training_tab = sg.Tab('Training', training_tab_layout)
         prediction_tab = sg.Tab('Prediction', prediction_tab_layout)
@@ -59,6 +99,78 @@ class Wizard(DatasetInfo):
             [tabgroup],
             [sg.Button("Quit",key='-quit-',tooltip='Quit Wizard')]
             ]
+
+
+    def updateDatasetSplit(self,values):
+
+        try:
+            train = float(values['-train_prop-'])
+            valid = float(values['-validate_prop-'])
+        except ValueError:
+            return
+        if train > 1:
+            self.window['-train_prop-'].update(value=1)
+            train = 1
+            self.window['-validate_prop-'].update(value=0)
+            valid = 0
+        
+        if train + valid > 1:
+            self.window['-validate_prop-'].update(value=(1-train))
+            valid = 1 - train
+
+        self.window['-ignore_prop-'].update(value=f'{1-train-valid:0.2f}')
+
+        current = {'train':train,'valid':valid}
+        if current != self.last_split_data:
+            self._updateSplitGraph(train, valid, '-new_split_graph-')
+            self.last_split_data = current
+        
+        self._getNewSplitData()
+
+        if self.last_applied_split_data != self.applied_split_data:
+            self.last_applied_split_data = self.applied_split_data
+            self._updateSplitGraph(self.applied_split_data['train'],self.applied_split_data['validate'],'-current_split_graph-')
+
+        return train, valid
+
+
+    def _getNewSplitData(self):
+
+        def writeData(data):
+            with open(p().SPLIT_CONFIG,'w') as f:
+                f.write(CompactJSONEncoder(indent=4).encode(data))
+
+        if not os.path.isfile(p().SPLIT_CONFIG):
+            data = {}
+            writeData(data)
+        else:
+            with open(p().SPLIT_CONFIG,'r') as f:
+                data = json.load(f)
+
+        if self.current_dataset not in data:
+            data[self.current_dataset] = {
+                'train':0.7,
+                'validate':0.2,
+                'ignore':0.1
+            }
+            writeData(data)
+
+        self.applied_split_data = data[self.current_dataset]
+
+
+    def _writeDatasetSplit(self,train,validate):
+        with open(p().SPLIT_CONFIG,'r') as f:
+            data = json.load(f)
+        data[self.current_dataset] = {'train':train,'validate':validate,'ignore':1-train-validate}
+        with open(p().SPLIT_CONFIG,'w') as f:
+            f.write(CompactJSONEncoder(indent=4).encode(data))
+
+
+    def _updateSplitGraph(self,train,validate,key):
+        self.window[key].erase()
+        self.window[key].draw_rectangle((0,1),(train,0),fill_color='green')
+        self.window[key].draw_rectangle((train,1),(train+validate,0),fill_color='blue')
+        self.window[key].draw_rectangle((train+validate,1),(1,0),fill_color='red')
 
 
     def run(self):
@@ -77,7 +189,13 @@ class Wizard(DatasetInfo):
 
     def _updateValues(self,values):
 
+        self.updateDatasetSplit(values)
+
         if values['-dataset-'] in self.unique_sets():
+            if values['-dataset-'] != self.current_dataset:
+                self.current_dataset = values['-dataset-']
+                self._datasetChange(values)
+                self.updateDatasetSplit(values)
             for button in ['-details-','-align-']:
                 self.window[button].update(disabled = False)
         else:
@@ -100,6 +218,10 @@ class Wizard(DatasetInfo):
             self._showDetails(values['-dataset-'])
         elif event == '-view-':
             self._runMeshViewer()
+        elif event == '-update_split-':
+            t,v = self.updateDatasetSplit(values)
+            self._writeDatasetSplit(t,v)
+            
 
 
     def _showDetails(self, dataset):
