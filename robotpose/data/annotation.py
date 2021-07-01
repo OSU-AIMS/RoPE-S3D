@@ -276,7 +276,7 @@ class Splitter():
             # New data
             self.past_split = False
 
-            jsons_p = [os.path.join(r,x) for r,d,y in os.walk(self.folder) for x in y if x.endswith('.json')]
+            jsons_p = [os.path.join(r,x) for r,d,y in os.walk(self.folder) for x in y if x.endswith('.json') and x not in ['test.json','train.json']]
             png_p = [os.path.join(r,x) for r,d,y in os.walk(self.folder) for x in y if x.endswith('.png')]
 
             assert len(jsons_p) == len(png_p), "Error encountered in data split: unequal number of png's and json's"
@@ -305,8 +305,6 @@ class Splitter():
         tot = len(self.train) + len(self.test) + len(self.ignore)
         num_train = int(tot * train_prop)
         num_test = int(tot * valid_prop)
-
-        print(len(self.train),len(self.test),len(self.ignore))
 
         # Move to ignore if too large
         for num, lst, name in zip((num_train,num_test),(self.train, self.test),('train','test')):

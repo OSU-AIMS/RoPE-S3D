@@ -154,13 +154,12 @@ class DatasetRenderer(Renderer):
     def __init__(
             self,
             dataset,
-            ds_type = 'full',
             mode = 'seg',
             camera_pose = None,
             robot_name="mh5"
             ):
 
-        self.ds = Dataset(dataset, ds_type = ds_type)
+        self.ds = Dataset(dataset)
         super().__init__(mode, camera_pose, self.ds.attrs['color_intrinsics'])
         
 

@@ -1,21 +1,7 @@
 {
     "compiled": {
-        "full": {
-            "names": ["set0", "set10", "set20"],
-            "paths": ["data/set0/set0.h5", "data/set10/set10.h5", "data/set20/set20.h5"]
-        },
-        "train": {
-            "names": [],
-            "paths": []
-        },
-        "validate": {
-            "names": [],
-            "paths": []
-        },
-        "test": {
-            "names": [],
-            "paths": []
-        }
+        "names": ["set0", "set10", "set20"],
+        "paths": ["data/set0/set0.h5", "data/set10/set10.h5", "data/set20/set20.h5"]
     },
     "uncompiled": {
         "names": ["set0", "set10", "set20"],

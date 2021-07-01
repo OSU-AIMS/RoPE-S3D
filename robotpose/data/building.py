@@ -209,7 +209,6 @@ class Builder():
                 file.attrs['build_date'] = str(datetime.datetime.now())
                 file.attrs['compile_date'] = str(datetime.datetime.now())
                 file.attrs['compile_time'] = time.time() - self.build_start_time
-                file.attrs['type'] = 'full'
                 file.attrs['resolution'] = self.orig_img_arr[0].shape[:-1]
                 file.attrs['depth_intrinsics'] = self.intrin_depth
                 file.attrs['color_intrinsics'] = self.intrin_color

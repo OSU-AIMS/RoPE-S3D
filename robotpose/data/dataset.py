@@ -54,11 +54,7 @@ class DatasetInfo():
         return datasets
 
     def compiled_sets(self):
-        datasets = set()
-        for t in ['full','train','validate','test']:
-            datasets.update(self.data['compiled'][t]['names'])
-
-        datasets = list(datasets)
+        datasets = list(set(self.data['compiled']['names']))
         datasets.sort()
         return datasets
         
@@ -68,22 +64,16 @@ class DatasetInfo():
         datasets = self.unique_sets()
 
         full = []
-        train = []
-        validate = []
-        test = []
         raw = []
         for ds in datasets:
-            full.append(ds in self.data['compiled']['full']['names'])
-            train.append(ds in self.data['compiled']['train']['names'])
-            validate.append(ds in self.data['compiled']['validate']['names'])
-            test.append(ds in self.data['compiled']['test']['names'])
+            full.append(ds in self.data['compiled']['names'])
             raw.append(ds in self.data['uncompiled']['names'])
 
 
         out = "\nAvailable Datasets:\n"
         for idx in range(len(datasets)):
             out += f"\t{datasets[idx]}:\t"
-            for ls, tag in zip([full,train,validate,test,raw],['Full','Train','Validate','Test','Raw']):
+            for ls, tag in zip([full,raw],['Full','Raw']):
                 if ls[idx]:
                     out += f"[{tag}] "
             out += '\n'
@@ -97,43 +87,17 @@ class DatasetInfo():
         uncompiled_paths = [ f.path for f in os.scandir(os.path.join(p().DATASETS,'raw')) if str(f.path).endswith('.zip') ]
         uncompiled_names = [ os.path.basename(os.path.normpath(x)).replace('.zip','') for x in uncompiled_paths ]
 
-        compiled_full_paths, compiled_full_names, compiled_train_paths, compiled_train_names, \
-        compiled_validate_paths, compiled_validate_names, compiled_test_paths, compiled_test_names = ([] for i in range(8))
+        compiled_paths, compiled_names = ([] for i in range(2))
 
         for dirpath, subdirs, files in os.walk(p().DATASETS):
             for file in files:
 
-                def full():
-                    compiled_full_names.append(file.replace('.h5',''))
-                    compiled_full_paths.append(os.path.join(dirpath, file))
-                def train():
-                    compiled_train_names.append(file.replace('.h5','').replace('_train',''))
-                    compiled_train_paths.append(os.path.join(dirpath, file))
-                def validate():
-                    compiled_validate_names.append(file.replace('.h5','').replace('_validate',''))
-                    compiled_validate_paths.append(os.path.join(dirpath, file))
-                def test():
-                    compiled_test_names.append(file.replace('.h5','').replace('_test',''))
-                    compiled_test_paths.append(os.path.join(dirpath, file))
-                switch = {
-                    'full': full,
-                    'train': train,
-                    'validate': validate,
-                    'test': test
-                }
-
                 if file.endswith('.h5'):
-                    with h5py.File(os.path.join(dirpath, file),'r') as f:
-                        if 'type' in f.attrs:
-                            switch[f.attrs['type']]()
+                    compiled_names.append(file.replace('.h5',''))
+                    compiled_paths.append(os.path.join(dirpath, file))
                     
         info = {
-            'compiled':{
-                'full':{'names': compiled_full_names, 'paths': compiled_full_paths},
-                'train':{'names': compiled_train_names, 'paths': compiled_train_paths},
-                'validate':{'names': compiled_validate_names, 'paths': compiled_validate_paths},
-                'test':{'names': compiled_test_names, 'paths': compiled_test_paths}
-            },
+            'compiled':{'names': compiled_names, 'paths': compiled_paths},
             'uncompiled':{'names': uncompiled_names, 'paths': uncompiled_paths}
         }
         while True:
@@ -155,7 +119,6 @@ class Dataset():
     def __init__(
             self, 
             name,
-            ds_type = 'full',
             recompile = False,
             rebuild = False,
             permissions = 'r'
@@ -164,22 +127,17 @@ class Dataset():
         self.permissions = permissions
         self.name = name
 
-        valid_types = ['full', 'train', 'validate', 'test']
-        assert ds_type in valid_types, f"Invalid Type. Must be one of: {valid_types}"
 
         info = DatasetInfo()
 
         d = info.get()
 
-        if name in d['compiled'][ds_type]['names']:
-            self.dataset_path = d['compiled'][ds_type]['paths'][d['compiled'][ds_type]['names'].index(name)]
+        if name in d['compiled']['names']:
+            self.dataset_path = d['compiled']['paths'][d['compiled']['names'].index(name)]
             self.dataset_dir = os.path.dirname(self.dataset_path)
         
-        if name in d['compiled'][ds_type]['names'] and not rebuild:
-            building = False
-            # Good job, it's here, load it
-            self.type = ds_type
-        else:
+        building = False
+        if name not in d['compiled']['names'] or rebuild:
             building = True
             # Not here, rebuild
             available = d['uncompiled']['names']
@@ -190,7 +148,7 @@ class Dataset():
                 raise ValueError(f"The requested dataset name is ambiguous\n{info}")
             else:
                 camera_pose_conserved = False
-                if name in d['compiled'][ds_type]['names']:
+                if name in d['compiled']['names']:
 
                     # Can't just export pose using burner dataset; error if new attributes added
                     with h5py.File(self.dataset_path,'r') as f:
@@ -281,7 +239,6 @@ class Dataset():
     def __str__(self):
         out = ''
         out += f"Name: {self.attrs['name']}\n"
-        out += f"Type: {self.attrs['type']}\n"
         out += f"Length: {self.attrs['length']} Poses\n"
         out += f"Dataset Version: {self.attrs['version']}\n\n"
         out += f"Build Date: {self.attrs['build_date']}\n"
