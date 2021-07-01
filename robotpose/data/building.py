@@ -41,6 +41,7 @@ class Builder():
         self._get_filepaths_from_data_dir(data_path)
         self._load_json_data()
         self._load_imgs_and_depthmaps()
+        self._make_preview()
 
         if ModelInfo().num_types['body'] > 0:
             self._segment_images_and_maps()
@@ -149,6 +150,14 @@ class Builder():
 
         self.depthmap_arr *= self.depth_scale
 
+    def _make_preview(self):
+        # Make Preview Images
+        ds_factor = 6
+        self.thumbnails = np.zeros((self.length, self.img_height // ds_factor, self.img_width // ds_factor, 3), dtype=np.uint8)
+
+        for idx in tqdm(range(self.length),desc="Creating Thumbnails"):
+            self.thumbnails[idx] = cv2.resize(self.orig_img_arr[idx], (self.img_width // ds_factor, self.img_height // ds_factor))
+
 
     def _load_raw_data_from_ds(self):
         with tqdm(total=2, desc="Reading Dataset") as pbar:
@@ -164,7 +173,8 @@ class Builder():
         self.segmented_img_arr = self.orig_img_arr
 
     def _segment_images_and_maps(self):
-        segmenter = RobotSegmenter(os.path.join(p().SEG_MODELS,'D.h5'))
+        mm = ModelManager()
+        segmenter = RobotSegmenter(mm.dynamicLoad('body'))
         self.segmented_img_arr = np.zeros(self.orig_img_arr.shape, dtype=np.uint8)
 
         padding = 10
@@ -187,7 +197,11 @@ class Builder():
 
     def _save_full(self, ver):
         dest = os.path.join(self.dest_path, self.name + '.h5')
-        with tqdm(total=9, desc="Writing Dataset") as pbar:
+
+        # Delete file if already present
+        if os.path.isfile(dest): os.remove(dest)
+
+        with tqdm(total=10, desc="Writing Dataset") as pbar:
             with h5py.File(dest,'a') as file:
                 file.attrs['name'] = self.name
                 file.attrs['version'] = ver
@@ -210,6 +224,8 @@ class Builder():
                 dm.attrs['depth_scale'] = self.depth_scale
                 img_grp = file.create_group('images')
                 img_grp.create_dataset('original', data = self.orig_img_arr, compression="gzip",compression_opts=self.compression_level)
+                pbar.update(1)
+                img_grp.create_dataset('preview', data = self.thumbnails)
                 pbar.update(1)
                 img_grp.create_dataset('segmented', data = self.segmented_img_arr, compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
@@ -237,9 +253,8 @@ class Builder():
                 pbar.update(1)
 
 
-
     def _read_full(self, path):
-        with tqdm(total=9, desc="Reading Full Dataset") as pbar:
+        with tqdm(total=10, desc="Reading Full Dataset") as pbar:
             with h5py.File(path,'r') as file:
                 self.attrs = dict(file.attrs)
                 self.name = file.attrs['name']
@@ -256,6 +271,8 @@ class Builder():
                 pbar.update(1)
 
                 self.orig_img_arr = np.array(file['images/original'])
+                pbar.update(1)
+                self.thumbnails = np.array(file['images/preview'])
                 pbar.update(1)
                 self.segmented_img_arr = np.array(file['images/segmented'])
                 pbar.update(1)
@@ -303,31 +320,31 @@ class Builder():
                 pbar.update(1)
 
         
-    def weld(self, path_a, path_b, dst_dir, name):
-        a = h5py.File(path_a,'r')
-        b = h5py.File(path_b,'r')
-        dst = h5py.File(path_a,'r')
+    # def weld(self, path_a, path_b, dst_dir, name):
+    #     a = h5py.File(path_a,'r')
+    #     b = h5py.File(path_b,'r')
+    #     dst = h5py.File(path_a,'r')
 
-        a_attrs = a.attrs
-        b_attrs = b.attrs
+    #     a_attrs = a.attrs
+    #     b_attrs = b.attrs
 
-        for attribute in ['version','resolution','depth_intrinsics','color_intrinsics','depth_scale']:
-            assert a_attrs[attribute] == b_attrs[attribute], f"{attribute} must be equal to join datasets"
+    #     for attribute in ['version','resolution','depth_intrinsics','color_intrinsics','depth_scale']:
+    #         assert a_attrs[attribute] == b_attrs[attribute], f"{attribute} must be equal to join datasets"
 
-        a_len = a.attrs['length']
-        b_len = b.attrs['length']
-        self.length = a_len + b_len
+    #     a_len = a.attrs['length']
+    #     b_len = b.attrs['length']
+    #     self.length = a_len + b_len
 
-        self.name = name
-        self.dest_path = dst_dir
+    #     self.name = name
+    #     self.dest_path = dst_dir
 
-        self.ang_arr = np.vstack((a['angles'],b['angles']))
-        self.pos_arr = np.vstack((a['positions'],b['positions']))
-        self.depthmap_arr = np.vstack((a['coordinates/depthmaps'],b['coordinates/depthmaps']))
-        self.orig_img_arr = np.vstack((a['images/original'],b['images/original']))
-        self.segmented_img_arr = np.vstack((a['images/segmented'],b['images/segmented']))
-        self.jsons = np.vstack((a['paths/jsons'],b['paths/jsons']))
-        self.maps = np.vstack((a['paths/depthmaps'],b['paths/depthmaps']))
-        self.imgs = np.vstack((a['paths/images'],b['paths/images']))
+    #     self.ang_arr = np.vstack((a['angles'],b['angles']))
+    #     self.pos_arr = np.vstack((a['positions'],b['positions']))
+    #     self.depthmap_arr = np.vstack((a['coordinates/depthmaps'],b['coordinates/depthmaps']))
+    #     self.orig_img_arr = np.vstack((a['images/original'],b['images/original']))
+    #     self.segmented_img_arr = np.vstack((a['images/segmented'],b['images/segmented']))
+    #     self.jsons = np.vstack((a['paths/jsons'],b['paths/jsons']))
+    #     self.maps = np.vstack((a['paths/depthmaps'],b['paths/depthmaps']))
+    #     self.imgs = np.vstack((a['paths/images'],b['paths/images']))
 
-        self._save_full()
+    #     self._save_full()

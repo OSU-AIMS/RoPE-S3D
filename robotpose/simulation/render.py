@@ -188,7 +188,7 @@ class Aligner():
 
     def __init__(self, dataset, start_idx = None, end_idx = None):
         # Load dataset
-        self.ds = Dataset(dataset, permissions='a')
+        self.ds = Dataset(dataset, permissions='r+')
 
         self.renderer = DatasetRenderer(dataset, mode='seg_full')
 

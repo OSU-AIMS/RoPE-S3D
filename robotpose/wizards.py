@@ -34,7 +34,9 @@ class Wizard(DatasetInfo):
         self.last_applied_split_data = {}
         self.applied_split_data = {}
         self.current_dataset = self.compiled_sets()[0]
+        self._changeThumbnails()
         self._getNewSplitData()
+        self.preview_idx = 0
 
 
         ########################################################################################
@@ -42,7 +44,8 @@ class Wizard(DatasetInfo):
         data_tab_layout = [
             [sg.Txt("Dataset:"),sg.Combo(self.compiled_sets(),key='-dataset-', size=(20, 1))],
             [sg.Button("View Details",key='-details-',tooltip='View dataset details'),
-                sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')]
+                sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')],
+            [sg.Image(k='-preview-')]
         ]
 
         ########################################################################################
@@ -94,7 +97,7 @@ class Wizard(DatasetInfo):
         prediction_tab = sg.Tab('Prediction', prediction_tab_layout)
         urdf_tab = sg.Tab('URDF', urdf_tab_layout)
 
-        tabgroup = sg.TabGroup([[data_tab,training_tab,prediction_tab,urdf_tab]])
+        tabgroup = sg.TabGroup([[data_tab,training_tab,prediction_tab,urdf_tab]],k='-tabgroup-')
 
         self.layout = [
             [tabgroup],
@@ -103,7 +106,6 @@ class Wizard(DatasetInfo):
 
 
     def updateDatasetSplit(self,values):
-
         try:
             train = float(values['-train_prop-'])
             valid = float(values['-validate_prop-'])
@@ -204,10 +206,13 @@ class Wizard(DatasetInfo):
         self.updateDatasetSplit(values)
 
         if values['-dataset-'] in self.unique_sets():
+            if values['-tabgroup-'] == "Data":
+                self._showPreview()
             if values['-dataset-'] != self.current_dataset:
                 self.current_dataset = values['-dataset-']
                 self.updateDatasetSplit(values)
                 self.window['-split_screen_ds-'].update(self.current_dataset)
+                self._changeThumbnails()
             for button in ['-details-','-align-']:
                 self.window[button].update(disabled = False)
         else:
@@ -221,6 +226,8 @@ class Wizard(DatasetInfo):
         if values['-urdf-'] in self.urdf_reader.available_names and values['-urdf-'] != self.urdf_reader.name:
             self.urdf_reader.path = self.urdf_reader.available_paths[self.urdf_reader.available_names.index(values['-urdf-'] )]
             self.window['-active_urdf-'].update(self.urdf_reader.name)
+
+
                 
 
     def _runEvent(self,event,values):
@@ -234,7 +241,22 @@ class Wizard(DatasetInfo):
             t,v = self.updateDatasetSplit(values)
             self._writeDatasetSplit(t,v)
             
+    def _showPreview(self):
+        self.preview_idx += 1
+        if self.preview_idx >= self.thumbnails.shape[0]:
+            self.preview_idx = 0
 
+        dims = [x * 2 for x in self.thumbnails.shape[1:3]]
+        dims.reverse()
+
+        image = cv2.resize(self.thumbnails[self.preview_idx],tuple(dims))
+        imgbytes = cv2.imencode('.png', image)[1].tobytes()
+        self.window['-preview-'].update(data=imgbytes)
+
+    def _changeThumbnails(self):
+        ds = Dataset(self.current_dataset)
+        self.thumbnails = np.copy(ds.preview_img)
+        self.preview_idx = 0
 
     def _showDetails(self, dataset):
         ds = Dataset(dataset)

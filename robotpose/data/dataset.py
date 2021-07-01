@@ -13,8 +13,10 @@ import numpy as np
 import os
 import tempfile
 import zipfile
+import shutil
 
 import h5py
+from numpy.core.numeric import False_
 
 from ..paths import Paths as p
 from .building import Builder
@@ -22,7 +24,7 @@ from ..CompactJSONEncoder import CompactJSONEncoder
 
 
 INFO_JSON = os.path.join(p().DATASETS, 'datasets.json')
-DATASET_VERSION = 6.0
+DATASET_VERSION = 7.0
                 
 
 class DatasetInfo():
@@ -156,17 +158,9 @@ class Dataset():
             ds_type = 'full',
             recompile = False,
             rebuild = False,
-            permissions = 'r',
+            permissions = 'r'
             ):
-        """
-        Create a dataset instance, loading/building/compiling it if needed.
 
-        Arguments:
-        name: A string corresponding to the entire, or the start of, a dataset name.
-        ds_type: The type of dataset to load. Full, train, validate, or test.
-        recompile: Using the same raw files, generate intermediate data again.
-        rebuild: Recreate entirely usng different allocations of files
-        """
         self.permissions = permissions
         self.name = name
 
@@ -176,13 +170,15 @@ class Dataset():
         info = DatasetInfo()
 
         d = info.get()
+
+        if name in d['compiled'][ds_type]['names']:
+            self.dataset_path = d['compiled'][ds_type]['paths'][d['compiled'][ds_type]['names'].index(name)]
+            self.dataset_dir = os.path.dirname(self.dataset_path)
         
         if name in d['compiled'][ds_type]['names'] and not rebuild:
             building = False
             # Good job, it's here, load it
             self.type = ds_type
-            self.dataset_path = d['compiled'][ds_type]['paths'][d['compiled'][ds_type]['names'].index(name)]
-            self.dataset_dir = os.path.dirname(self.dataset_path)
         else:
             building = True
             # Not here, rebuild
@@ -193,23 +189,35 @@ class Dataset():
             elif np.sum(matches) > 1:
                 raise ValueError(f"The requested dataset name is ambiguous\n{info}")
             else:
+                camera_pose_conserved = False
                 if name in d['compiled'][ds_type]['names']:
-                    burner = Dataset(name)
-                    burner.exportCameraPose()
-                    del burner
+
+                    # Can't just export pose using burner dataset; error if new attributes added
+                    with h5py.File(self.dataset_path,'r') as f:
+                        if "images/camera_poses" in f:
+                            np.save(os.path.join(self.dataset_dir,'camera_pose.npy'), np.array(f['images/camera_poses']))
+                            camera_pose_conserved = True
+
+                    # Save old file just in case there's an error in building (don't wanna lose any data from in there)
+                    shutil.move(self.dataset_path,self.dataset_path.replace(".h5","_old.h5"),)
                     
                 self.dataset_path = self.build_from_zip(d['uncompiled']['paths'][matches.index(True)])
                 self.dataset_dir = os.path.dirname(self.dataset_path)
                 
-                if name in d['compiled'][ds_type]['names']:
+                if camera_pose_conserved:
+                    self.load()
                     self.importCameraPose()
 
         if recompile and not building:
             self.exportCameraPose()
             self.recompile()
+            self.load()
             self.importCameraPose()
 
         self.load()
+
+        # Delete temp backup if there still
+        if os.path.isfile(self.dataset_path.replace(".h5","_old.h5")): os.remove(self.dataset_path.replace(".h5","_old.h5"))
 
 
     def exportCameraPose(self):
@@ -230,6 +238,7 @@ class Dataset():
         self.og_img = file['images/original']
         self.seg_img = file['images/segmented']
         self.camera_pose = file['images/camera_poses']
+        self.preview_img = file['images/preview']
 
         # Set paths
         self.body_anno_path = os.path.join(self.dataset_dir,'body_annotations')
