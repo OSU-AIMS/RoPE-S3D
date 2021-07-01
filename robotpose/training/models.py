@@ -8,15 +8,16 @@
 # Author: Adam Exley
 
 import json
-from typing import Iterable
-import numpy as np
 import os
-import string
 import random
+import string
 from datetime import datetime
+from typing import Iterable
 
-from ..paths import Paths as p
+import numpy as np
+
 from ..CompactJSONEncoder import CompactJSONEncoder
+from ..paths import Paths as p
 
 NUM_TO_KEEP = 5
 INFO_JSON = os.path.join(p().MODELS, 'models.json')

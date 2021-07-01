@@ -10,7 +10,7 @@
 import os
 import random
 import string
-from typing import Union, Tuple
+from typing import Union
 
 import cv2
 import h5py
@@ -28,6 +28,8 @@ from .render import Renderer
 ROBOT
 """
 class RobotLookupCreator(Renderer):
+    """Creates a file that stores rendered depth data in a form that can be processed easily"""
+
     def __init__(self, camera_pose: np.ndarray, intrinsics: Union[str, Intrinsics]):
         self.inp_pose = camera_pose
         self.u_reader = URDFReader()
@@ -55,7 +57,7 @@ class RobotLookupCreator(Renderer):
 
             self.angles[:,idx] = np.tile(np.repeat(angle_range,repeat),tile)
 
-    def run(self, file_name, preview = True):
+    def run(self, file_name: str, preview: bool = True):
 
         self.setJointAngles([0,0,0,0,0,0])
         color, depth = self.render()
@@ -81,7 +83,7 @@ class RobotLookupCreator(Renderer):
             pbar.update(1)
 
 
-    def _show(self, color):
+    def _show(self, color: np.ndarray):
         size = color.shape[0:2]
         dim = [x*8 for x in size]
         dim.reverse()
@@ -91,15 +93,9 @@ class RobotLookupCreator(Renderer):
         cv2.waitKey(1)
 
 
-"""
-Camera intrin
-Camera pos
-Joints used
-    Joint max/min
-    Div / joint
-"""
 
 class RobotLookupInfo():
+    """Manages information about the currently-available lookups"""
 
     def __init__(self) -> None:
         self.update()
@@ -107,7 +103,6 @@ class RobotLookupInfo():
     def update(self):
         self.data = {}
 
-        #paths = [os.path.join(r,x) for r,d,y in os.walk(p().ROBOT_LOOKUPS) for x in y if x.endswith('.h5')]
         paths = [os.path.join(p().ROBOT_LOOKUPS,x) for x in os.listdir(p().ROBOT_LOOKUPS) if x.endswith('.h5')]
         raw_tables = {}
         for path in paths:
@@ -153,7 +148,7 @@ class RobotLookupInfo():
 
 class RobotLookupManager(RobotLookupInfo):
 
-    def __init__(self, element_bits = 32) -> None:
+    def __init__(self, element_bits: int = 32) -> None:
         self.element_bits = element_bits
         super().__init__()
 
@@ -235,7 +230,14 @@ class RobotLookupManager(RobotLookupInfo):
             return np.copy(f['angles']), np.copy(f['depth'])
 
 
-    def create(self, intrinsics: Union[str, Intrinsics], camera_pose: np.ndarray, num_rendered_links: int, varying_angles: str, divisions: np.ndarray):
+    def create(self, 
+        intrinsics: Union[str, Intrinsics], 
+        camera_pose: np.ndarray, 
+        num_rendered_links: int, 
+        varying_angles: str, 
+        divisions: np.ndarray
+        ):
+        
         creator = RobotLookupCreator(camera_pose, intrinsics)
         creator.load_config(num_rendered_links, varying_angles, divisions)
         letters = string.ascii_lowercase

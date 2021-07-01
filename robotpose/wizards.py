@@ -7,20 +7,20 @@
 #
 # Author: Adam Exley
 
+import json
 import os
-from .CompactJSONEncoder import CompactJSONEncoder
 
 import cv2
 import numpy as np
 import PySimpleGUI as sg
 
+from .CompactJSONEncoder import CompactJSONEncoder
 from .data import Dataset, DatasetInfo
+from .data.annotation import Splitter
+from .paths import Paths as p
 from .simulation import Aligner, Renderer
 from .urdf import URDFReader
 from .utils import expandRegion
-from .paths import Paths as p
-import json
-from .data.annotation import Splitter
 
 
 class Wizard(DatasetInfo):

@@ -155,8 +155,7 @@ class DatasetRenderer(Renderer):
             self,
             dataset,
             mode = 'seg',
-            camera_pose = None,
-            robot_name="mh5"
+            camera_pose = None
             ):
 
         self.ds = Dataset(dataset)
