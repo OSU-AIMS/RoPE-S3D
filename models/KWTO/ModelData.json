@@ -1,0 +1,12 @@
+{
+    "id": "KWTO",
+    "dataset": "set0",
+    "dataset_size": 100,
+    "train_size": 40,
+    "valid_size": 10,
+    "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+    "epochs_trained": 0,
+    "date_trained": "2021-07-05 20:32:16.425504",
+    "benchmarks": [],
+    "train_ratio": 0.4
+}

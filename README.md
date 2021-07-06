@@ -52,15 +52,13 @@ Before running any automatic annotation, first align the dataset with the render
 Then, use the automatic annotation script:
 
 ```bash
-python annotate.py dataset_name [-no_body] [-no_link] [-no_preview]
+python annotate.py dataset_name [-no_preview]
 ```
 
 ## Training
 
-Training must be done for both full-body and joint-specific models.
-
 ```bash
-python train_seg.py dataset_name [--batch] [--valid]
+python train.py dataset_name [--batch] [--valid]
 ```
 
 # Installation

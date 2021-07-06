@@ -24,7 +24,7 @@ INFO_JSON = os.path.join(p().MODELS, 'models.json')
 
 class ModelData():
     def __init__(self, input_dict = None, **kwargs):
-        self.__dict__ = {'type': '','id':'', 'dataset':'', 'dataset_size': 0, 'train_size':0,
+        self.__dict__ = {'id':'', 'dataset':'', 'dataset_size': 0, 'train_size':0,
         'valid_size': 0, 'classes':[], 'epochs_trained': 0, 'date_trained':'','benchmarks':[]}
         if input_dict is not None:
             assert type(input_dict) in [str, dict]
@@ -59,24 +59,16 @@ class ModelInfo():
     
     def update(self):
         data_files = [os.path.join(r,x) for r,d,y in os.walk(p().MODELS) for x in y if x.endswith('ModelData.json')]
-        valid_types = ['body','link']
-        not_info = {k:{} for k in valid_types}
-        not_info['untyped'] = []
-        self.info = {k:{} for k in valid_types}
-        self.info['untyped'] = []
+        not_info = {}
+        self.info = {}
 
         for datafile in data_files:
             data = ModelData(datafile)
             data.epochs_trained = self._getEpochs(datafile)
-            if data.type in valid_types:
-                not_info[data.type][data.id] = dict(data)
-                self.info[data.type][data.id] = data
-            else:
-                not_info['untyped'].append(dict(data))
-                self.info['untyped'].append(data)
+            not_info[data.id] = dict(data)
+            self.info[data.id] = data
 
-        self.num_total = sum([len(self.info[k]) for k in valid_types])
-        self.num_types = {k:len(self.info[k]) for k in valid_types}
+        self.num_total = len(self.info)
 
         with open(INFO_JSON,'w') as f:
             f.write(CompactJSONEncoder(indent=4).encode(not_info).replace('\\','/'))
@@ -113,24 +105,23 @@ class ModelManager(ModelInfo):
     def __init__(self):
         super().__init__()
 
-    def allocateNew(self, model_type, dataset, classes, name=None):
-        assert model_type in ['body','link'], "type must be either 'body' or 'link'"
+    def allocateNew(self, dataset, classes, name=None):
         if name is None:
             letters = string.ascii_uppercase
             pick = True
             while pick:
                 name = ''.join(random.choice(letters) for i in range(4))
-                if name not in self.info[model_type].keys(): pick = False
-        folder_path = os.path.join(p().MODELS, model_type, name)
+                if name not in self.info.keys(): pick = False
+        folder_path = os.path.join(p().MODELS, name)
         os.mkdir(folder_path)
 
         from ..data import Dataset
         ds = Dataset(dataset)
-        folder = ds.link_anno_path if model_type == 'link' else ds.body_anno_path
+        folder = ds.link_anno_path
         train_length = len(os.listdir(os.path.join(folder,'train'))) // 2
         valid_length = len(os.listdir(os.path.join(folder,'test'))) // 2
 
-        md = ModelData(type = model_type, id = name,
+        md = ModelData(id = name,
             dataset = dataset, dataset_size = int(ds.length),
             train_size = train_length, valid_size = valid_length,
             classes = classes, date_trained = str(datetime.now()))
@@ -138,26 +129,20 @@ class ModelManager(ModelInfo):
 
         return folder_path
 
-    def loadByID(self, model_type, id):
-        assert model_type in ['body','link'], "type must be either 'body' or 'link'"
-        assert id in self.info[model_type].keys(), f"id {id} not found in type {model_type}"
+    def loadByID(self, id):
+        assert id in self.info.keys(), f"id {id} not found"
 
-        folder = os.path.join(p().MODELS,model_type,id)
+        folder = os.path.join(p().MODELS,id)
         files = [file for file in os.listdir(folder) if file.endswith('.h5')]
         files.sort()
         
         return os.path.join(folder,files[-1])   # Always return best
 
-    def dynamicLoad(self, model_type, kwarg_dict = None,**kwargs):
+    def dynamicLoad(self, kwarg_dict = None,**kwargs):
         """Choose the 'best' model that satisfies certain criteria.
         Criterion are applied in the order that they are given as kwargs.
         If not all critera can be met, they will be avoided or best matched.
         See kwargs section for valid criteria.
-
-        Parameters
-        ----------
-        type : str, {'body','link'}
-            Type of model to attempt to load
 
         Valid Kwargs
         ----------
@@ -191,8 +176,6 @@ class ModelManager(ModelInfo):
         self.update()
         if kwarg_dict is not None:
             kwargs.update(kwarg_dict)
-
-        assert model_type in ['body','link'], "type must be either 'body' or 'link'"
         
         static_kwargs = {'dataset','classes','benchmark'}
         dynamic_kwargs = {'dataset_size', 'train_size', 'valid_size','train_ratio',
@@ -255,9 +238,7 @@ class ModelManager(ModelInfo):
 
             return remaining
 
-        remaining = self.info[model_type].copy()
-        # for key in remaining.keys():
-        #     remaining[key]['train_ratio'] = remaining[key]['train_size'] / remaining[key]['dataset_size']
+        remaining = self.info.copy()
 
         remaining = apply_kwargs(remaining)
         if len(remaining) > 1:
@@ -273,5 +254,5 @@ class ModelManager(ModelInfo):
         else:
             return None
 
-        return self.loadByID(model_type, id)
+        return self.loadByID(id)
 

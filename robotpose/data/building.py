@@ -43,10 +43,8 @@ class Builder():
         self._load_imgs_and_depthmaps()
         self._make_preview()
 
-        if ModelInfo().num_types['body'] > 0:
-            self._segment_images_and_maps()
-        else:
-            self._fake_segment_images_and_maps()
+
+        self._fake_segment_images_and_maps()
 
         self._save_reference_videos()
         self._make_camera_poses()
@@ -56,10 +54,8 @@ class Builder():
         self._set_dest_path_recompile(ds_path, name)
         self._load_raw_data_from_ds()
 
-        if ModelInfo().num_types['body'] >= 0:
-            self._segment_images_and_maps()
-        else:
-            self._fake_segment_images_and_maps()
+
+        self._fake_segment_images_and_maps()
 
         self._save_reference_videos()
         return self._save_recompile(dataset_ver)
@@ -174,7 +170,7 @@ class Builder():
 
     def _segment_images_and_maps(self):
         mm = ModelManager()
-        segmenter = RobotSegmenter(mm.dynamicLoad('body'))
+        segmenter = RobotSegmenter(mm.dynamicLoad())
         self.segmented_img_arr = np.zeros(self.orig_img_arr.shape, dtype=np.uint8)
 
         padding = 10

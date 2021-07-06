@@ -1,58 +1,62 @@
 {
-    "body": {},
-    "link": {
-        "BKSA": {
-            "type": "link",
-            "id": "BKSA",
-            "dataset": "set10",
-            "dataset_size": 1000,
-            "train_size": 400,
-            "valid_size": 100,
-            "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-            "epochs_trained": 7,
-            "date_trained": "2021-06-20 22:30:28.325558",
-            "benchmarks": [],
-            "train_ratio": 0.4
-        },
-        "JAGV": {
-            "type": "link",
-            "id": "JAGV",
-            "dataset": "set10",
-            "dataset_size": 1000,
-            "train_size": 400,
-            "valid_size": 100,
-            "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-            "epochs_trained": 4,
-            "date_trained": "2021-06-02 21:58:58.006319",
-            "benchmarks": [],
-            "train_ratio": 0.4
-        },
-        "OETZ": {
-            "type": "link",
-            "id": "OETZ",
-            "dataset": "set10",
-            "dataset_size": 1000,
-            "train_size": 700,
-            "valid_size": 200,
-            "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-            "epochs_trained": 4,
-            "date_trained": "2021-05-25 21:49:53.610095",
-            "benchmarks": [],
-            "train_ratio": 0.7
-        },
-        "RDZG": {
-            "type": "link",
-            "id": "RDZG",
-            "dataset": "set20",
-            "dataset_size": 1100,
-            "train_size": 440,
-            "valid_size": 110,
-            "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-            "epochs_trained": 9,
-            "date_trained": "2021-06-19 18:54:04.553724",
-            "benchmarks": [],
-            "train_ratio": 0.4
-        }
+    "KWTO": {
+        "id": "KWTO",
+        "dataset": "set0",
+        "dataset_size": 100,
+        "train_size": 40,
+        "valid_size": 10,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 4,
+        "date_trained": "2021-07-05 20:32:16.425504",
+        "benchmarks": [],
+        "train_ratio": 0.4
     },
-    "untyped": []
+    "BKSA": {
+        "id": "BKSA",
+        "dataset": "set10",
+        "dataset_size": 1000,
+        "train_size": 400,
+        "valid_size": 100,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 7,
+        "date_trained": "2021-06-20 22:30:28.325558",
+        "benchmarks": [],
+        "train_ratio": 0.4
+    },
+    "JAGV": {
+        "id": "JAGV",
+        "dataset": "set10",
+        "dataset_size": 1000,
+        "train_size": 400,
+        "valid_size": 100,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 4,
+        "date_trained": "2021-06-02 21:58:58.006319",
+        "benchmarks": [],
+        "train_ratio": 0.4
+    },
+    "OETZ": {
+        "id": "OETZ",
+        "dataset": "set10",
+        "dataset_size": 1000,
+        "train_size": 700,
+        "valid_size": 200,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 4,
+        "date_trained": "2021-05-25 21:49:53.610095",
+        "benchmarks": [],
+        "train_ratio": 0.7
+    },
+    "RDZG": {
+        "id": "RDZG",
+        "dataset": "set20",
+        "dataset_size": 1100,
+        "train_size": 440,
+        "valid_size": 110,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 9,
+        "date_trained": "2021-06-19 18:54:04.553724",
+        "benchmarks": [],
+        "train_ratio": 0.4
+    }
 }

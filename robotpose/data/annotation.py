@@ -7,10 +7,10 @@
 #
 # Author: Adam Exley
 
+import json
 import multiprocessing as mp
 import os
 import random
-from ..CompactJSONEncoder import CompactJSONEncoder
 import shutil
 import tempfile
 
@@ -19,10 +19,11 @@ import numpy as np
 from labelme.label_file import LabelFile
 from tqdm import tqdm
 
+from ..CompactJSONEncoder import CompactJSONEncoder
 from ..simulation.render import DatasetRenderer
 from ..utils import expandRegion, workerCount
 from .dataset import Dataset
-import json
+
 
 def makeMask(image):
     mask = np.zeros(image.shape[0:2], dtype=np.uint8)
@@ -145,7 +146,7 @@ class AutomaticAnnotator():
     """
     Given an aligned dataset, produce the full-body or per-joint segmentation annotations.
     """
-    def __init__(self, dataset: str, mode: str = 'body',
+    def __init__(self, dataset: str,
             ds_renderer = None, preview: bool = True):
         """Create annotator for segmentation.
 
@@ -153,8 +154,6 @@ class AutomaticAnnotator():
         ----------
         dataset : str
             Name of dataset to use.
-        mode : str, optional
-            Type of annotation to do; 'body' or 'link'., by default 'body'
         ds_renderer : robotpose.DatasetRenderer, optional
             Premade renderer class to use., by default None
         preview : bool, optional
@@ -162,18 +161,17 @@ class AutomaticAnnotator():
         """
 
         self.preview = preview
-        assert mode in ['body','link'], f"Mode must be one of: {['body','link']}"
 
         if ds_renderer is None:
-            self.rend = DatasetRenderer(dataset, mode = {'body':'seg_full','link':'seg'}.get(mode))
+            self.rend = DatasetRenderer(dataset, 'seg')
         else:
             self.rend = ds_renderer
-            self.rend.setMode({'body':'seg_full','link':'seg'}.get(mode))
+            self.rend.setMode('seg')
 
         self.anno = Annotator(color_dict = self.rend.color_dict, pad_size=3)
         self.ds = Dataset(dataset)
 
-        self.dest_path = {'body':self.ds.body_anno_path,'link':self.ds.link_anno_path}.get(mode)
+        self.dest_path = self.ds.link_anno_path
         if not os.path.isdir(self.dest_path): os.mkdir(self.dest_path)
 
 
