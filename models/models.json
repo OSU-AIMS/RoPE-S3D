@@ -1,4 +1,16 @@
 {
+    "GVGO": {
+        "id": "GVGO",
+        "dataset": "set21",
+        "dataset_size": 1035,
+        "train_size": 414,
+        "valid_size": 103,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 7,
+        "date_trained": "2021-07-05 22:46:55.548812",
+        "benchmarks": [],
+        "train_ratio": 0.4
+    },
     "KWTO": {
         "id": "KWTO",
         "dataset": "set0",
@@ -56,6 +68,30 @@
         "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
         "epochs_trained": 9,
         "date_trained": "2021-06-19 18:54:04.553724",
+        "benchmarks": [],
+        "train_ratio": 0.4
+    },
+    "XVCZ": {
+        "id": "XVCZ",
+        "dataset": "set20",
+        "dataset_size": 1100,
+        "train_size": 440,
+        "valid_size": 110,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 8,
+        "date_trained": "2021-07-05 20:59:13.781491",
+        "benchmarks": [],
+        "train_ratio": 0.4
+    },
+    "YWBU": {
+        "id": "YWBU",
+        "dataset": "set21",
+        "dataset_size": 1035,
+        "train_size": 414,
+        "valid_size": 103,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 10,
+        "date_trained": "2021-07-06 21:12:21.224375",
         "benchmarks": [],
         "train_ratio": 0.4
     }

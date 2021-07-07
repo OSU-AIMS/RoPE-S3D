@@ -35,7 +35,8 @@ class Predictor():
         do_angles: str = 'SLU',
         min_angle_inc = np.array([.005]*6),
         history_length = 5,
-        base_intrin = "1280_720_color"
+        base_intrin = "1280_720_color",
+        model_ds = 'set10'
         ):
 
         self.ds_factor = ds_factor
@@ -61,7 +62,7 @@ class Predictor():
         self.seg = custom_segmentation()
         self.seg.inferConfig(num_classes=6, class_names=self.classes)
         self.seg.load_model("models/segmentation/multi/B.h5")
-        self.seg.load_model(mm.dynamicLoad('link', dataset='set10'))
+        self.seg.load_model(mm.dynamicLoad(dataset=model_ds))
 
         self.changeCameraPose(camera_pose)
 
@@ -106,9 +107,11 @@ class Predictor():
             slu_fine_tune = ['descent',10,6,0.4,.015,[True,True,True,False,False,False],[None,None,None,None,None,None]]
 
             u_sweep_coarse = ['smartsweep', 15, 6, None, [False,False,True,False,False,False]]
+            s_sweep = ['smartsweep', 45, 6, 1, [True,False,False,False,False,False]]
             
             self.stages = [lookup, u_sweep_wide, u_sweep_gen, s_flip_check_6, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune]
             self.stages = [lookup, u_sweep_coarse, u_sweep_narrow, s_flip_check_6, u_stage, s_flip_check_6, slu_fine_tune]
+            self.stages = [lookup, u_sweep_coarse, s_flip_check_6, s_sweep, s_flip_check_6, u_sweep_narrow, s_flip_check_6, u_stage, s_flip_check_6, slu_fine_tune]
 
         elif np.all(self.do_angles == str_to_arr('SLUB'),-1):
 
@@ -322,7 +325,7 @@ class Predictor():
                         temp_high[idx] = self.u_reader.joint_limits[idx,1]
                     else:
                         temp_low[idx] = max(temp_low[idx]-stage[3], self.u_reader.joint_limits[idx,0])
-                        temp_high[idx] = min(temp_low[idx]+stage[3], self.u_reader.joint_limits[idx,1])
+                        temp_high[idx] = min(temp_high[idx]+stage[3], self.u_reader.joint_limits[idx,1])
 
                     space = np.linspace(temp_low, temp_high, div)
                     space_err = []

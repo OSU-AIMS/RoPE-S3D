@@ -199,7 +199,6 @@ class Dataset():
         self.preview_img = file['images/preview']
 
         # Set paths
-        self.body_anno_path = os.path.join(self.dataset_dir,'body_annotations')
         self.link_anno_path = os.path.join(self.dataset_dir,'link_annotations')
         self.og_vid_path = os.path.join(self.dataset_dir,'og_vid.avi')
         self.seg_vid_path = os.path.join(self.dataset_dir,'seg_vid.avi')

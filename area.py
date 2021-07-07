@@ -15,17 +15,28 @@ from robotpose.utils import Grapher
 
 angs = 'SLU'
 
-ds = Dataset('set10')
-am = Predictor(ds_factor=4, camera_pose=ds.camera_pose[0], preview=False, base_intrin = ds.attrs['color_intrinsics'], do_angles=angs)
+dataset = 'set21'
+
+
+ds = Dataset(dataset)
+am = Predictor(ds_factor=4, camera_pose=ds.camera_pose[0], preview=False, base_intrin = ds.attrs['color_intrinsics'], do_angles=angs, model_ds=dataset, save_to='output/set21_out.avi')
 
 starting_points = True
 
-div_size = 100
+from functools import reduce
+
+def factors(n):    
+    return set(reduce(list.__add__, 
+                ([i, n//i] for i in range(1, int(n**0.5) + 1) if n % i == 0)))
+
+div_size = factors(ds.length)
+diffs = [abs(x - 200) for x in div_size]
+div_size = [x for x in div_size if abs(x - 200) == min(diffs)][0]
 
 out = []
 
-with tqdm(total=ds.length) as pbar:
-    for start in range(0,1000,div_size):
+with tqdm(total=ds.length,desc=f"Div Size {div_size}") as pbar:
+    for start in range(0,ds.length,div_size):
         end = start+div_size
 
         target_depths = np.zeros((div_size,720,1280))
