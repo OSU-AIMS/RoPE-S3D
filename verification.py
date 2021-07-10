@@ -3,17 +3,15 @@ import cv2
 import numpy as np
 
 
-dataset = 'set20'
+dataset = 'set40'
 
-# alpha = .5
 
-# cont = True
+ds = Dataset(dataset)
+imgs = np.copy(ds.og_img).astype(int)
 
-# rend = DatasetRenderer(dataset)
-# ds = Dataset(dataset)
-# imgs = np.copy(ds.og_img)
+bad = []
+thresh = 200000
 
-# bad = set()
 
 # idx = 0
 
@@ -49,18 +47,20 @@ dataset = 'set20'
 # bad.sort()
 # print(bad)
 
-ds = Dataset(dataset)
-imgs = np.copy(ds.og_img).astype(int)
 
-bad = []
+while len(bad) < .001 * ds.length:
 
-for idx in range(1,ds.length):
-    if np.sum(np.abs(imgs[idx-1] - imgs[idx])) < 1500000:
-        bad.append(idx)
+    bad = []
+
+    for idx in range(1,ds.length):
+        if np.sum(np.abs(imgs[idx-1] - imgs[idx])) < thresh:
+            bad.append(idx)
+
+    print(len(bad))
+    thresh += 200000
+
 
 print(bad)
-print(len(bad))
-
 
 
 

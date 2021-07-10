@@ -8,20 +8,18 @@
 # Author: Adam Exley
 
 import json
-from json.decoder import JSONDecodeError
-import numpy as np
 import os
+import shutil
 import tempfile
 import zipfile
-import shutil
+from json.decoder import JSONDecodeError
 
 import h5py
-from numpy.core.numeric import False_
+import numpy as np
 
+from ..CompactJSONEncoder import CompactJSONEncoder
 from ..paths import Paths as p
 from .building import Builder
-from ..CompactJSONEncoder import CompactJSONEncoder
-
 
 INFO_JSON = os.path.join(p().DATASETS, 'datasets.json')
 DATASET_VERSION = 7.0

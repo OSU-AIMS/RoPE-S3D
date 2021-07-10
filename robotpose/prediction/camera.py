@@ -606,6 +606,7 @@ class CameraPredictor():
 
         self.seg = custom_segmentation()
         self.seg.inferConfig(num_classes=6, class_names=self.classes)
+        # TODO: Dynamic Model Loading
         self.seg.load_model("models/segmentation/multi/B.h5")
 
         self.renderer.setMaxParts(None)

@@ -1,0 +1,12 @@
+{
+    "id": "DKWK",
+    "dataset": "set21",
+    "dataset_size": 1035,
+    "train_size": 828,
+    "valid_size": 207,
+    "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+    "epochs_trained": 0,
+    "date_trained": "2021-07-07 15:39:08.450689",
+    "benchmarks": [],
+    "train_ratio": 0.8
+}

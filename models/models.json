@@ -1,28 +1,4 @@
 {
-    "GVGO": {
-        "id": "GVGO",
-        "dataset": "set21",
-        "dataset_size": 1035,
-        "train_size": 414,
-        "valid_size": 103,
-        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-        "epochs_trained": 7,
-        "date_trained": "2021-07-05 22:46:55.548812",
-        "benchmarks": [],
-        "train_ratio": 0.4
-    },
-    "KWTO": {
-        "id": "KWTO",
-        "dataset": "set0",
-        "dataset_size": 100,
-        "train_size": 40,
-        "valid_size": 10,
-        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-        "epochs_trained": 4,
-        "date_trained": "2021-07-05 20:32:16.425504",
-        "benchmarks": [],
-        "train_ratio": 0.4
-    },
     "BKSA": {
         "id": "BKSA",
         "dataset": "set10",
@@ -35,6 +11,30 @@
         "benchmarks": [],
         "train_ratio": 0.4
     },
+    "DKWK": {
+        "id": "DKWK",
+        "dataset": "set21",
+        "dataset_size": 1035,
+        "train_size": 828,
+        "valid_size": 207,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 15,
+        "date_trained": "2021-07-07 15:39:08.450689",
+        "benchmarks": [],
+        "train_ratio": 0.8
+    },
+    "GVGO": {
+        "id": "GVGO",
+        "dataset": "set21",
+        "dataset_size": 1035,
+        "train_size": 414,
+        "valid_size": 103,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 7,
+        "date_trained": "2021-07-05 22:46:55.548812",
+        "benchmarks": [],
+        "train_ratio": 0.4
+    },
     "JAGV": {
         "id": "JAGV",
         "dataset": "set10",
@@ -44,6 +44,18 @@
         "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
         "epochs_trained": 4,
         "date_trained": "2021-06-02 21:58:58.006319",
+        "benchmarks": [],
+        "train_ratio": 0.4
+    },
+    "KWTO": {
+        "id": "KWTO",
+        "dataset": "set0",
+        "dataset_size": 100,
+        "train_size": 40,
+        "valid_size": 10,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 4,
+        "date_trained": "2021-07-05 20:32:16.425504",
         "benchmarks": [],
         "train_ratio": 0.4
     },

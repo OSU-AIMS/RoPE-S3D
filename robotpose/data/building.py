@@ -189,7 +189,7 @@ class Builder():
         save_video(os.path.join(self.dest_path,"seg_vid.avi"), self.segmented_img_arr)
 
     def _make_camera_poses(self):
-        self.camera_poses = np.vstack([[.087,-1.425,.4, 0,1.551,-.025]] * self.length)
+        self.camera_poses = np.vstack([[.0,-1.5,.5, 0,0,0]] * self.length)
 
     def _save_full(self, ver):
         dest = os.path.join(self.dest_path, self.name + '.h5')
