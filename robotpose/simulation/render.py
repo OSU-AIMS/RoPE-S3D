@@ -169,6 +169,13 @@ class DatasetRenderer(Renderer):
         self.setObjectPoses(self.kine.calc(self.ds.angles[idx]))
         self.setCameraPose(self.ds.camera_pose[idx])
 
+    def render_at(self, idx):
+        self.setPosesFromDS(idx)
+        return self.render()
+
+    def __del__(self):
+        del self.ds
+
 
 
 class Aligner():

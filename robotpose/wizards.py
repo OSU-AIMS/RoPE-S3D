@@ -15,8 +15,7 @@ import numpy as np
 import PySimpleGUI as sg
 
 from .CompactJSONEncoder import CompactJSONEncoder
-from .data import Dataset, DatasetInfo
-from .data.annotation import Splitter
+from .data import Dataset, DatasetInfo, Verifier, Splitter
 from .paths import Paths as p
 from .simulation import Aligner, Renderer
 from .urdf import URDFReader
@@ -44,8 +43,10 @@ class Wizard(DatasetInfo):
         data_tab_layout = [
             [sg.Txt("Dataset:"),sg.Combo(self.compiled_sets(),key='-dataset-', size=(20, 1))],
             [sg.Button("View Details",key='-details-',tooltip='View dataset details'),
-                sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer')],
-            [sg.Image(k='-preview-')]
+                sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer'),
+                sg.Button("Verify",key='-verify-',tooltip='Remove images of incorrect poses from dataset')],
+            [sg.Image(k='-preview-')],
+            
         ]
 
         ########################################################################################
@@ -213,10 +214,10 @@ class Wizard(DatasetInfo):
                 self.updateDatasetSplit(values)
                 self.window['-split_screen_ds-'].update(self.current_dataset)
                 self._changeThumbnails()
-            for button in ['-details-','-align-']:
+            for button in ['-details-','-align-','-verify-']:
                 self.window[button].update(disabled = False)
         else:
-            for button in ['-details-','-align-']:
+            for button in ['-details-','-align-','-verify-']:
                 self.window[button].update(disabled = True)
 
         if not self.valid_urdf:
@@ -233,6 +234,8 @@ class Wizard(DatasetInfo):
     def _runEvent(self,event,values):
         if event =='-align-':
             self._runAligner(values['-dataset-'])
+        elif event == '-verify-':
+            self._runVerifier(values['-dataset-'])
         elif event == '-details-':
             self._showDetails(values['-dataset-'])
         elif event == '-view-':
@@ -262,21 +265,37 @@ class Wizard(DatasetInfo):
         ds = Dataset(dataset)
         sg.popup_ok(str(ds), title=f"{dataset} Details")
 
+    def _runVerifier(self, dataset):
+        self._hideWindow()
+        v = Verifier(dataset)
+        v.run()
+        self._showWindow()
+
     def _runAligner(self, dataset):
-        print(f'Aligning {dataset}')
+        self._hideWindow()
         align = Aligner(dataset)
         align.run()
-        print(f'Alignment Complete')
+        self._showWindow()
 
     def _runMeshViewer(self):
-        self.window.disable()
-        self.window.disappear()
+        self._hideWindow()
         wiz = MeshViewer()
         wiz.run()
         cv2.destroyAllWindows()
+        self._showWindow()
+
+    def _hideWindow(self):
+        self.window.disable()
+        self.window.disappear()
+    
+    def _showWindow(self):
         self.window.enable()
         self.window.reappear()
         self.window.bring_to_front()
+
+
+
+
 
 
 

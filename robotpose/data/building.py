@@ -18,6 +18,7 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 
+from ..constants import THUMBNAIL_DS_FACTOR, VIDEO_FPS
 from ..paths import Paths as p
 from ..training import ModelInfo, ModelManager
 from .segmentation import RobotSegmenter
@@ -25,7 +26,7 @@ from .segmentation import RobotSegmenter
 
 def save_video(path, img_arr):
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    out = cv2.VideoWriter(path,fourcc, 15, (img_arr.shape[2],img_arr.shape[1]))
+    out = cv2.VideoWriter(path,fourcc, VIDEO_FPS, (img_arr.shape[2],img_arr.shape[1]))
     for img in img_arr:
         out.write(img)
     out.release()
@@ -36,29 +37,35 @@ class Builder():
         self.compression_level = compression_level
         self.build_start_time = time.time()
 
-    def build_full(self, data_path, dataset_ver, name = None):
+    def build_full(self, data_path, name = None):
         self._set_dest_path(data_path, name)
         self._get_filepaths_from_data_dir(data_path)
         self._load_json_data()
         self._load_imgs_and_depthmaps()
         self._make_preview()
 
-
         self._fake_segment_images_and_maps()
 
         self._save_reference_videos()
         self._make_camera_poses()
-        return self._save_full(dataset_ver)
+        return self._save_full()
 
-    def recompile(self, ds_path, dataset_ver, name = None):
+    def recompile(self, ds_path, name = None):
         self._set_dest_path_recompile(ds_path, name)
         self._load_raw_data_from_ds()
-
 
         self._fake_segment_images_and_maps()
 
         self._save_reference_videos()
-        return self._save_recompile(dataset_ver)
+        return self._save_recompile()
+
+
+    def remove_idxs(self, src, rm_idxs):
+        self._read_full(src)
+        self.dest_path = os.path.dirname(src)
+        keep_idxs = np.array([x for x in range(self.length) if x not in rm_idxs])
+        self._filter(keep_idxs)
+        self._save_full()
 
 
     def build_subset(self, src, sub_type, idxs):
@@ -148,11 +155,9 @@ class Builder():
 
     def _make_preview(self):
         # Make Preview Images
-        ds_factor = 6
-        self.thumbnails = np.zeros((self.length, self.img_height // ds_factor, self.img_width // ds_factor, 3), dtype=np.uint8)
-
+        self.thumbnails = np.zeros((self.length, self.img_height // THUMBNAIL_DS_FACTOR, self.img_width // THUMBNAIL_DS_FACTOR, 3), dtype=np.uint8)
         for idx in tqdm(range(self.length),desc="Creating Thumbnails"):
-            self.thumbnails[idx] = cv2.resize(self.orig_img_arr[idx], (self.img_width // ds_factor, self.img_height // ds_factor))
+            self.thumbnails[idx] = cv2.resize(self.orig_img_arr[idx], (self.img_width // THUMBNAIL_DS_FACTOR, self.img_height // THUMBNAIL_DS_FACTOR))
 
 
     def _load_raw_data_from_ds(self):
@@ -191,7 +196,7 @@ class Builder():
     def _make_camera_poses(self):
         self.camera_poses = np.vstack([[.0,-1.5,.5, 0,0,0]] * self.length)
 
-    def _save_full(self, ver):
+    def _save_full(self):
         dest = os.path.join(self.dest_path, self.name + '.h5')
 
         # Delete file if already present
@@ -200,7 +205,6 @@ class Builder():
         with tqdm(total=10, desc="Writing Dataset") as pbar:
             with h5py.File(dest,'a') as file:
                 file.attrs['name'] = self.name
-                file.attrs['version'] = ver
                 file.attrs['length'] = self.length
                 file.attrs['build_date'] = str(datetime.datetime.now())
                 file.attrs['compile_date'] = str(datetime.datetime.now())
@@ -237,11 +241,10 @@ class Builder():
         return dest
 
 
-    def _save_recompile(self, ver):
+    def _save_recompile(self):
         dest = os.path.join(self.dest_path, self.name + '.h5')
         with tqdm(total=1, desc="Writing Dataset") as pbar:
             with h5py.File(dest,'a') as file:
-                file.attrs['version'] = ver
                 file.attrs['compile_date'] = str(datetime.datetime.now())
                 file.attrs['compile_time'] = time.time() - self.build_start_time
                 file['images/segmented'][...] = self.segmented_img_arr
@@ -258,28 +261,43 @@ class Builder():
                 self.intrin_depth = file.attrs['depth_intrinsics']
                 self.intrin_color = file.attrs['color_intrinsics']
                 self.depth_scale = file.attrs['depth_scale']
-                self.ang_arr = np.array(file['angles'])
+                self.ang_arr = np.copy(file['angles'])
                 pbar.update(1)
-                self.pos_arr = np.array(file['positions'])
+                self.pos_arr = np.copy(file['positions'])
                 pbar.update(1)
-                self.depthmap_arr = np.array(file['coordinates/depthmaps'])
-                pbar.update(1)
-
-                self.orig_img_arr = np.array(file['images/original'])
-                pbar.update(1)
-                self.thumbnails = np.array(file['images/preview'])
-                pbar.update(1)
-                self.segmented_img_arr = np.array(file['images/segmented'])
-                pbar.update(1)
-                self.camera_poses = np.array(file['images/camera_poses'])
+                self.depthmap_arr = np.copy(file['coordinates/depthmaps'])
                 pbar.update(1)
 
-                self.jsons = np.array(file['paths/jsons'])
+                self.orig_img_arr = np.copy(file['images/original'])
                 pbar.update(1)
-                self.maps = np.array(file['paths/depthmaps'])
+                self.thumbnails = np.copy(file['images/preview'])
                 pbar.update(1)
-                self.imgs = np.array(file['paths/images'])
+                self.segmented_img_arr = np.copy(file['images/segmented'])
                 pbar.update(1)
+                self.camera_poses = np.copy(file['images/camera_poses'])
+                pbar.update(1)
+
+                self.jsons = np.copy(file['paths/jsons'])
+                pbar.update(1)
+                self.maps = np.copy(file['paths/depthmaps'])
+                pbar.update(1)
+                self.imgs = np.copy(file['paths/images'])
+                pbar.update(1)
+
+
+    def _filter(self, idxs):
+        self.length = len(idxs)
+        self.ang_arr = self.ang_arr[idxs]
+        self.pos_arr = self.pos_arr[idxs]
+        self.depthmap_arr = self.depthmap_arr[idxs]
+        self.orig_img_arr = self.orig_img_arr[idxs]
+        self.thumbnails = self.thumbnails[idxs]
+        self.segmented_img_arr = self.segmented_img_arr[idxs]
+        self.camera_poses = self.camera_poses[idxs]
+        self.jsons = self.jsons[idxs]
+        self.maps = self.maps[idxs]
+        self.imgs = self.imgs[idxs]
+
 
     def _write_subset(self,path,sub_type,idxs):
         """Create a derivative dataset from a full dataset, using a subset of the data."""

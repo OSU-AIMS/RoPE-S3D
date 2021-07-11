@@ -7,6 +7,7 @@
 #
 # Author: Adam Exley
 
+from robotpose.constants import VIDEO_FPS
 from robotpose.projection import Intrinsics
 from robotpose.training.models import ModelManager
 import cv2
@@ -526,7 +527,7 @@ class Predictor():
 
 class ProjectionViz():
 
-    def __init__(self, video_path = None, fps = 45, resolution = (1280, 720)) -> None:
+    def __init__(self, video_path = None, fps = VIDEO_FPS, resolution = (1280, 720)) -> None:
         self.write_to_file = video_path is not None
         self.resolution = resolution
         if video_path is not None:

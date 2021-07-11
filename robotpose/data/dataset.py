@@ -184,17 +184,17 @@ class Dataset():
         self.camera_pose[:] = camera_pose
 
     def load(self):
-        file = h5py.File(self.dataset_path,self.permissions)
-        self.attrs = dict(file.attrs)
+        self.file = h5py.File(self.dataset_path,self.permissions)
+        self.attrs = dict(self.file.attrs)
         self.og_resolution = self.attrs['resolution']
         self.length = self.attrs['length']
-        self.angles = file['angles']
-        self.positions = file['positions']
-        self.depthmaps = file['coordinates/depthmaps']
-        self.og_img = file['images/original']
-        self.seg_img = file['images/segmented']
-        self.camera_pose = file['images/camera_poses']
-        self.preview_img = file['images/preview']
+        self.angles = self.file['angles']
+        self.positions = self.file['positions']
+        self.depthmaps = self.file['coordinates/depthmaps']
+        self.og_img = self.file['images/original']
+        self.seg_img = self.file['images/segmented']
+        self.camera_pose = self.file['images/camera_poses']
+        self.preview_img = self.file['images/preview']
 
         # Set paths
         self.link_anno_path = os.path.join(self.dataset_dir,'link_annotations')
@@ -203,7 +203,7 @@ class Dataset():
 
     def recompile(self):
         bob = Builder()
-        bob.recompile(self.dataset_dir, DATASET_VERSION, self.name)
+        bob.recompile(self.dataset_dir, self.name)
 
     def build_from_zip(self, zip_path):
         """
@@ -222,7 +222,7 @@ class Dataset():
 
             print("Attempting dataset build...\n\n")
             bob = Builder()
-            return bob.build_full(src_dir, DATASET_VERSION, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
+            return bob.build_full(src_dir, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
 
     def __len__(self):
         if self.length is None:
@@ -237,7 +237,6 @@ class Dataset():
         out = ''
         out += f"Name: {self.attrs['name']}\n"
         out += f"Length: {self.attrs['length']} Poses\n"
-        out += f"Dataset Version: {self.attrs['version']}\n\n"
         out += f"Build Date: {self.attrs['build_date']}\n"
         out += f"Compile Date: {self.attrs['compile_date']}\n"
         out += f"Compile Time: {self.attrs['compile_time']}\n\n"
@@ -247,6 +246,11 @@ class Dataset():
         out += f"Depth Scale: {self.attrs['depth_scale']}\n"
         return out
 
+    def close_file(self):
+        self.file.close()
+
+    def __del__(self):
+        self.close_file()
 
 
 
