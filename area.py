@@ -15,7 +15,7 @@ from robotpose.utils import Grapher
 
 angs = 'SLU'
 
-dataset = 'set21'
+dataset = 'set30'
 
 
 ds = Dataset(dataset)

@@ -25,7 +25,7 @@ import tensorflow as tf
 tf.compat.v1.disable_eager_execution()
 
 
-def train(dataset, batch, cont):
+def train(dataset, batch, cont, cont_from):
     ds = Dataset(dataset)
 
     # Get names of classes for modeldata
@@ -34,8 +34,8 @@ def train(dataset, batch, cont):
     mm = ModelManager()
 
     base_model_path = None
-    if cont:
-        base_model_path = mm.dynamicLoad(dataset=dataset)
+    if cont or cont_from is not None:
+        base_model_path = mm.dynamicLoad(dataset=(cont_from if cont_from is not None else dataset))
     if base_model_path is None:
         base_model_path = p().BASE_MODEL
 
@@ -56,9 +56,11 @@ def train(dataset, batch, cont):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset', type=str, default="set6", help="The dataset to load to annotate. Can be a partial name.")
+    parser.add_argument('dataset', type=str, help="The dataset to load to annotate. Can be a partial name.")
     parser.add_argument('-batch',type=int, choices=[1,2,4,8,12,16], default=2, help="Batch size for training")
     parser.add_argument('-cont',action='store_true', help="Continue latest trained model.")
+    parser.add_argument('-cont_from', type=str, default=None, help="Last model to build from.")
+
     args = parser.parse_args()
 
-    train(args.dataset, args.batch, args.cont)
+    train(args.dataset, args.batch, args.cont, args.cont_from)

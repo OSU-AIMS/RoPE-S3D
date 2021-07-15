@@ -18,9 +18,9 @@ import h5py
 import numpy as np
 from tqdm import tqdm
 
-from ..constants import THUMBNAIL_DS_FACTOR, VIDEO_FPS
+from ..constants import DEFAULT_CAMERA_POSE, THUMBNAIL_DS_FACTOR, VIDEO_FPS
 from ..paths import Paths as p
-from ..training import ModelInfo, ModelManager
+from ..training import ModelManager
 from .segmentation import RobotSegmenter
 
 
@@ -194,7 +194,7 @@ class Builder():
         save_video(os.path.join(self.dest_path,"seg_vid.avi"), self.segmented_img_arr)
 
     def _make_camera_poses(self):
-        self.camera_poses = np.vstack([[.0,-1.5,.5, 0,0,0]] * self.length)
+        self.camera_poses = np.vstack([DEFAULT_CAMERA_POSE] * self.length)
 
     def _save_full(self):
         dest = os.path.join(self.dest_path, self.name + '.h5')

@@ -295,10 +295,6 @@ class Wizard(DatasetInfo):
 
 
 
-
-
-
-
 class MeshViewer():
 
     def __init__(self):

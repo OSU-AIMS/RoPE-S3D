@@ -7,27 +7,27 @@
 #
 # Author: Adam Exley
 
-from robotpose.constants import VIDEO_FPS
-from robotpose.projection import Intrinsics
-from robotpose.training.models import ModelManager
-import cv2
+import time
 
+import cv2
 import numpy as np
 import tensorflow as tf
 from pixellib.instance import custom_segmentation
+from robotpose.constants import VIDEO_FPS
+from robotpose.projection import Intrinsics
+from robotpose.training.models import ModelManager
 from scipy.interpolate import interp1d
 
+from ..constants import DEFAULT_CAMERA_POSE
 from ..simulation.lookup import RobotLookupManager
 from ..simulation.render import Renderer
 from ..turbo_colormap import color_array
 from ..urdf import URDFReader
-from ..utils import str_to_arr, get_gpu_memory
-
-import time
+from ..utils import get_gpu_memory, str_to_arr
 
 tf.compat.v1.enable_eager_execution()
 
-DEFAULT_CAMERA_POSE = [.042,-1.425,.399, -.01,1.553,-.057]
+
 
 class Predictor():
     def __init__(self,

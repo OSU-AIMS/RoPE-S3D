@@ -13,25 +13,20 @@ import cv2
 import numpy as np
 import PySimpleGUI as sg
 
+from ..constants import (VERIFIER_ALPHA, VERIFIER_COLUMNS, VERIFIER_ROWS,
+                         VERIFIER_SCALER, VERIFIER_SELECTED_GAMMA)
 from ..simulation import DatasetRenderer
 from .building import Builder
 from .dataset import Dataset
-
-ALPHA = .7
-SELECTED_GAMMA = -50
-SCALER = 2
-ROWS = 5
-COLUMNS = 7
 
 
 class Verifier():
     def __init__(self, dataset, selected = None, thumbnails = None, overlays = None):
         self.ds = Dataset(dataset)
-        self.length = self.ds.length
         self.name = dataset
         self.ds_path = self.ds.dataset_path
         
-        img_size = [int(x * SCALER) for x in self.ds.preview_img.shape[1:3]]
+        img_size = [int(x * VERIFIER_SCALER) for x in self.ds.preview_img.shape[1:3]]
         dims = tuple(img_size[::-1])
 
         self.mode = 'parent' if selected is None else 'child'
@@ -39,6 +34,7 @@ class Verifier():
         if selected is not None: assert thumbnails is not None and overlays is not None
 
         if selected is None:
+            self.length = self.ds.length
             self.ds_renderer = DatasetRenderer(dataset, 'seg_full')
             self.selected = set()
             og_thumbnails = np.copy(self.ds.preview_img)
@@ -52,13 +48,14 @@ class Verifier():
 
             del self.ds_renderer
         else:
+            self.length = len(thumbnails)
             self.selected = set([x for x in range(len(selected))])
             self.thumbnails = np.copy(thumbnails)
             self.overlays = np.copy(overlays)
             self.parent_selected = selected
 
-        self.num_rows = ROWS
-        self.num_columns = COLUMNS
+        self.num_rows = VERIFIER_ROWS
+        self.num_columns = VERIFIER_COLUMNS
 
         def img_frame(row,column):
             return sg.Image(size=dims,k=f'-img_{row}_{column}-',enable_events=True)
@@ -200,11 +197,11 @@ class Verifier():
 
         if idx < self.length:
             if idx in self.selected:
-                g = SELECTED_GAMMA
+                g = VERIFIER_SELECTED_GAMMA
             else:
                 g = 0
 
-            img = cv2.addWeighted(self.thumbnails[idx], ALPHA, self.overlays[idx],1-ALPHA,g)
+            img = cv2.addWeighted(self.thumbnails[idx], VERIFIER_ALPHA, self.overlays[idx],1-VERIFIER_ALPHA,g)
 
             imgbytes = cv2.imencode('.png', img)[1].tobytes()
             self.window[f'-img_{row}_{column}-'].update(data=imgbytes)

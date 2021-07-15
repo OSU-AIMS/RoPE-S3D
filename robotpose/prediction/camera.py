@@ -8,26 +8,23 @@
 # Author: Adam Exley
 
 import cv2
-
+import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
+from pixellib.instance import custom_segmentation
 from scipy.interpolate import interp1d
+from tqdm import tqdm
 
-from ..simulation.lookup import RobotLookupManager
+from ..constants import DEFAULT_CAMERA_POSE
 from ..simulation.render import Renderer
 from ..turbo_colormap import color_array
 from ..urdf import URDFReader
-from ..utils import str_to_arr, get_gpu_memory
-from tqdm import tqdm
-from pixellib.instance import custom_segmentation
-import matplotlib.pyplot as plt
+from ..utils import get_gpu_memory, str_to_arr
 
 tf.compat.v1.enable_eager_execution()
 
 from typing import List
 
-# DEFAULT_CAMERA_POSE = [.042,-1.425,.75, -.01,1.553,-.057]
-DEFAULT_CAMERA_POSE = [0, -1.5, .75, 0, 0, 0]
 
 class ModellessCameraPredictor():
     def __init__(self,

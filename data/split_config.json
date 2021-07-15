@@ -4,6 +4,6 @@
     "set20": { "train": 0.3, "validate": 0.1, "ignore": 0.6 },
     "set10_old_": { "train": 0.7, "validate": 0.2, "ignore": 0.1 },
     "set21": { "train": 0.8, "validate": 0.2, "ignore": -5.55112e-17 },
-    "set30": { "train": 0.7, "validate": 0.2, "ignore": 0.1 },
+    "set30": { "train": 0.4, "validate": 0.1, "ignore": 0.5 },
     "set40": { "train": 0.7, "validate": 0.2, "ignore": 0.1 }
 }

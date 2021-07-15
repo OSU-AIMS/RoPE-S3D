@@ -13,21 +13,8 @@ import numpy as np
 import pyrender
 import trimesh
 
+from ..constants import DEFAULT_RENDER_COLORS as DEFAULT_COLORS
 from ..urdf import URDFReader
-
-
-def default_color_maker(num):
-    b = np.linspace(0,255,num).astype(int) # Blue values are always unique
-
-    g = [0] * b.size
-    r = np.abs(255 - 2*b)
-
-    colors = []
-    for idx in range(num):
-        colors.append([b[idx],g[idx],r[idx]])
-    return colors
-
-DEFAULT_COLORS = default_color_maker(7)
 
 
 class MeshLoader():

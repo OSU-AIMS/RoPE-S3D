@@ -1,0 +1,12 @@
+{
+    "id": "DULF",
+    "dataset": "set30",
+    "dataset_size": 1027,
+    "train_size": 410,
+    "valid_size": 102,
+    "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+    "epochs_trained": 0,
+    "date_trained": "2021-07-14 20:14:52.426914",
+    "benchmarks": [],
+    "train_ratio": 0.399221
+}
