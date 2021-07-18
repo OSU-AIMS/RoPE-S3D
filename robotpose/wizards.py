@@ -15,28 +15,37 @@ import numpy as np
 import PySimpleGUI as sg
 
 from .CompactJSONEncoder import CompactJSONEncoder
-from .data import Dataset, DatasetInfo, Verifier, Splitter
+from .constants import WIZARD_DATASET_PREVIEW as PREVIEW
+from .data import Dataset, DatasetInfo, Splitter, Verifier
 from .paths import Paths as p
 from .simulation import Aligner, Renderer
 from .urdf import URDFReader
-from .utils import expandRegion
 
 
 class Wizard(DatasetInfo):
+    """A GUI that allows for easy interaction with data and settings."""
+
     def __init__(self):
         super().__init__()
         self.get()
 
+        # URDF Reading 
         self.urdf_reader = URDFReader()
         self.valid_urdf = self.urdf_reader.internal_path != None
+
+        # Dataset Splitting
         self.last_split_data = {}
         self.last_applied_split_data = {}
         self.applied_split_data = {}
         self.current_dataset = self.compiled_sets()[0]
-        self._changeThumbnails()
         self._getNewSplitData()
-        self.preview_idx = 0
 
+        if PREVIEW:
+            # Dataset Previewing
+            self._changeThumbnails()
+            self.preview_idx = 0
+
+        # GUI Layout Setup 
 
         ########################################################################################
         # Tab responsible for Dataset selection and viewing
@@ -106,31 +115,102 @@ class Wizard(DatasetInfo):
             ]
 
 
-    def updateDatasetSplit(self,values):
+    def run(self):
+        """Run Wizard"""
+        # Create window
+        self.window = sg.Window('Dataset Wizard', self.layout.copy(), finalize=True)
+        self.window.bring_to_front()
+
+        event = ''
+        while event not in (sg.WIN_CLOSED,'-quit-'):
+            event, values = self.window.read(10)
+            if event not in (sg.WIN_CLOSED,'-quit-'):
+                self._updateValues(values)
+                self._runEvent(event, values)
+
+        self.window.close()
+
+
+    def _updateValues(self, values:dict):
+        """Update app behavior based on the values present on inputs"""
+
+        self.updateDatasetSplit(values)
+
+        if values['-dataset-'] in self.unique_sets():
+            # If dataset is valid, show preview, enable buttons
+            if values['-tabgroup-'] == "Data":
+                if PREVIEW:
+                    self._showPreview()
+            if values['-dataset-'] != self.current_dataset:
+                self.current_dataset = values['-dataset-']
+                self.updateDatasetSplit(values)
+                self.window['-split_screen_ds-'].update(self.current_dataset)
+                if PREVIEW:
+                    self._changeThumbnails()
+            for button in ['-details-','-align-','-verify-']:
+                self.window[button].update(disabled = False)
+        else:
+            for button in ['-details-','-align-','-verify-']:
+                self.window[button].update(disabled = True)
+
+        if not self.valid_urdf:
+            # Only allow alignment of dataset if valid URDF is loaded
+            for button in ['-align-']:
+                self.window[button].update(disabled = True)
+
+        # Update URDF if changed
+        if values['-urdf-'] in self.urdf_reader.available_names and values['-urdf-'] != self.urdf_reader.name:
+            self.urdf_reader.path = self.urdf_reader.available_paths[self.urdf_reader.available_names.index(values['-urdf-'] )]
+            self.window['-active_urdf-'].update(self.urdf_reader.name)
+
+
+    def _runEvent(self, event:str, values:dict):
+        """Run a specific subprocess based on user input"""
+        if event =='-align-':
+            self._runAligner(values['-dataset-'])
+        elif event == '-verify-':
+            self._runVerifier(values['-dataset-'])
+        elif event == '-details-':
+            self._showDetails(values['-dataset-'])
+        elif event == '-view-':
+            self._runMeshViewer()
+        elif event == '-update_split-':
+            t,v = self.updateDatasetSplit(values)
+            self._writeDatasetSplit(t,v)
+
+
+    def updateDatasetSplit(self, values:dict):
+        """Update dataset split sliders and graphics"""
+        
         try:
             train = float(values['-train_prop-'])
             valid = float(values['-validate_prop-'])
         except ValueError:
             return
+
+        # If train prop is over 1, set it to 1 and everything else to 0
         if train > 1:
             self.window['-train_prop-'].update(value=1)
             train = 1
             self.window['-validate_prop-'].update(value=0)
             valid = 0
         
+        # If total prop is over 1, bring down validation to conform with training
         if train + valid > 1:
             self.window['-validate_prop-'].update(value=(1-train))
             valid = 1 - train
 
+        # Update ignore prop
         self.window['-ignore_prop-'].update(value=f'{1-train-valid:0.2f}')
 
+        # Update current graphics if values have changed
         current = {'train':train,'valid':valid}
         if current != self.last_split_data:
             self._updateSplitGraph(train, valid, '-new_split_graph-')
             self.last_split_data = current
         
+        # Get actual applied data and update graphics if it has changed
         self._getNewSplitData()
-
         if self.last_applied_split_data != self.applied_split_data:
             self.last_applied_split_data = self.applied_split_data
             self._updateSplitGraph(self.applied_split_data['train'],self.applied_split_data['validate'],'-current_split_graph-')
@@ -139,6 +219,7 @@ class Wizard(DatasetInfo):
 
 
     def _getNewSplitData(self):
+        """Retrive the current dataset split applied"""
 
         def writeData(data):
             with open(p().SPLIT_CONFIG,'w') as f:
@@ -162,7 +243,7 @@ class Wizard(DatasetInfo):
         self.applied_split_data = data[self.current_dataset]
 
 
-    def _writeDatasetSplit(self,train,validate):
+    def _writeDatasetSplit(self, train:float, validate:float):
         # Write new split config
         with open(p().SPLIT_CONFIG,'r') as f:
             data = json.load(f)
@@ -181,103 +262,66 @@ class Wizard(DatasetInfo):
             self.window.read(1)
 
 
-    def _updateSplitGraph(self,train,validate,key):
-        self.window[key].erase()
+    def _updateSplitGraph(self, train:float, validate:float, key:str):
+        """Update split graphics
+
+        Parameters
+        ----------
+        train, validate : floats
+            Ratio of type
+        key : str
+            Window key of the graphic item to change
+        """
+        self.window[key].erase()    # Clear old drawing
+
+        # Update with new
         self.window[key].draw_rectangle((0,1),(train,0),fill_color='green')
         self.window[key].draw_rectangle((train,1),(train+validate,0),fill_color='blue')
         self.window[key].draw_rectangle((train+validate,1),(1,0),fill_color='red')
 
-
-    def run(self):
-        self.window = sg.Window('Dataset Wizard', self.layout.copy(), finalize=True)
-        self.window.bring_to_front()
-
-        event = ''
-        while event not in (sg.WIN_CLOSED,'-quit-'):
-            event, values = self.window.read(10)
-            if event not in (sg.WIN_CLOSED,'-quit-'):
-                self._updateValues(values)
-                self._runEvent(event, values)
-
-        self.window.close()
-
-
-    def _updateValues(self,values):
-
-        self.updateDatasetSplit(values)
-
-        if values['-dataset-'] in self.unique_sets():
-            if values['-tabgroup-'] == "Data":
-                self._showPreview()
-            if values['-dataset-'] != self.current_dataset:
-                self.current_dataset = values['-dataset-']
-                self.updateDatasetSplit(values)
-                self.window['-split_screen_ds-'].update(self.current_dataset)
-                self._changeThumbnails()
-            for button in ['-details-','-align-','-verify-']:
-                self.window[button].update(disabled = False)
-        else:
-            for button in ['-details-','-align-','-verify-']:
-                self.window[button].update(disabled = True)
-
-        if not self.valid_urdf:
-            for button in ['-align-']:
-                self.window[button].update(disabled = True)
-
-        if values['-urdf-'] in self.urdf_reader.available_names and values['-urdf-'] != self.urdf_reader.name:
-            self.urdf_reader.path = self.urdf_reader.available_paths[self.urdf_reader.available_names.index(values['-urdf-'] )]
-            self.window['-active_urdf-'].update(self.urdf_reader.name)
-
-
-                
-
-    def _runEvent(self,event,values):
-        if event =='-align-':
-            self._runAligner(values['-dataset-'])
-        elif event == '-verify-':
-            self._runVerifier(values['-dataset-'])
-        elif event == '-details-':
-            self._showDetails(values['-dataset-'])
-        elif event == '-view-':
-            self._runMeshViewer()
-        elif event == '-update_split-':
-            t,v = self.updateDatasetSplit(values)
-            self._writeDatasetSplit(t,v)
-            
     def _showPreview(self):
+        """Show thumbnail preview of dataset"""
+        # Go to next thumbnail
         self.preview_idx += 1
         if self.preview_idx >= self.thumbnails.shape[0]:
             self.preview_idx = 0
 
+        # Set dimensions for thumbnail
         dims = [x * 2 for x in self.thumbnails.shape[1:3]]
         dims.reverse()
 
+        # Resize and show
         image = cv2.resize(self.thumbnails[self.preview_idx],tuple(dims))
         imgbytes = cv2.imencode('.png', image)[1].tobytes()
         self.window['-preview-'].update(data=imgbytes)
 
     def _changeThumbnails(self):
+        """Load new set of thumbnails into memory"""
         ds = Dataset(self.current_dataset)
         self.thumbnails = np.copy(ds.preview_img)
         self.preview_idx = 0
 
-    def _showDetails(self, dataset):
+    def _showDetails(self, dataset:str):
+        """Show dataset attributes"""
         ds = Dataset(dataset)
         sg.popup_ok(str(ds), title=f"{dataset} Details")
 
-    def _runVerifier(self, dataset):
+    def _runVerifier(self, dataset:str):
+        """Run the dataset Verifier Tool"""
         self._hideWindow()
         v = Verifier(dataset)
         v.run()
         self._showWindow()
 
-    def _runAligner(self, dataset):
+    def _runAligner(self, dataset:str):
+        """Run the dataset Aligner Tool"""
         self._hideWindow()
         align = Aligner(dataset)
         align.run()
         self._showWindow()
 
     def _runMeshViewer(self):
+        """Run the MeshViewer tool"""
         self._hideWindow()
         wiz = MeshViewer()
         wiz.run()
@@ -285,17 +329,24 @@ class Wizard(DatasetInfo):
         self._showWindow()
 
     def _hideWindow(self):
+        """Hide main window during subprocess"""
         self.window.disable()
         self.window.disappear()
     
     def _showWindow(self):
+        """Show main window after subprocess"""
         self.window.enable()
         self.window.reappear()
         self.window.bring_to_front()
 
 
 
+
+
+
+
 class MeshViewer():
+    """Allows for the viewing and interaction with the meshes defined in a robot's URDF"""
 
     def __init__(self):
 
@@ -303,7 +354,7 @@ class MeshViewer():
         self.crop = False
         self._findBasePose()
         
-
+        # Get limits in degrees and rounded to integers
         self.u_reader = URDFReader()
         lims = self.u_reader.joint_limits
         lims *= (180/np.pi) 
@@ -356,12 +407,13 @@ class MeshViewer():
 
         self.layout = [          
             [sg.Column(column1),sg.Column(view_column,key='-preview_column-',pad=(1,1))],
-            [sg.Button("Quit",key='-quit-',tooltip='Quit Skeleton Wizard')],
+            [sg.Button("Quit",key='-quit-',tooltip='Quit Mesh Wizard')],
             ]
         
 
     def run(self):
-        self.window = sg.Window('Skeleton Wizard', self.layout)
+        """Run Mesh Wizard"""
+        self.window = sg.Window('Mesh Wizard', self.layout)
         event, values = self.window.read(1)
         self.window.bring_to_front()
 
@@ -397,6 +449,7 @@ class MeshViewer():
 
 
     def _setViewMode(self, values):
+        """Set the style of the 3D model"""
         modes = ['seg','real']
         mode_keys = ['-render_seg-','-render_real-']
         mode = [modes[x] for x in range(len(modes)) if values[mode_keys[x]]][0]
@@ -407,11 +460,13 @@ class MeshViewer():
             self.mode = mode
 
     def _resetRotation(self):
+        """Go back to base rotation value"""
         self._setRotation({'-horiz_slider-':0})
         for slider in ['-horiz_slider-']:
             self.window[slider].update(0)
 
     def _setRotation(self, values):
+        """Set the position of the camera around the robot model"""
         rotation_h = values['-horiz_slider-']
         self.rotation_h = (rotation_h/180) * np.pi
 
@@ -424,11 +479,13 @@ class MeshViewer():
 
 
     def _resetJointAngles(self):
+        """Put robot back in base pose"""
         self.rend.setJointAngles([0,0,0,0,0,0])
         for joint in ['-S-','-L-','-U-','-R-','-B-']:
             self.window[joint].update(0)
 
     def _setJointAngles(self, values):
+        """Update the robot pose"""
         joint_angles = [0,0,0,0,0,0]
         for joint, idx in zip(['-S-','-L-','-U-','-R-','-B-'], range(5)):
             joint_angles[idx] = values[joint] * np.pi/180 
@@ -436,12 +493,14 @@ class MeshViewer():
         self.rend.setJointAngles(joint_angles)
 
     def render(self):
+        """Render and crop image if needed"""
         color, depth = self.rend.render()
         if self.crop:
             color = self._cropImage(color)
         return color
     
     def show(self, image):
+        """Show render either in PySimpleGUI or in an OpenCV window"""
         if self.use_cv:
             cv2.imshow("Mesh Wizard",image)
             cv2.waitKey(1)
@@ -451,6 +510,7 @@ class MeshViewer():
             self.window['-preview_img-'].update(data=imgbytes)
 
     def _cropImage(self, image, pad = 10):
+        """Remove black space on edges of render"""
         # Aim for 700 w by 720 h
         occupied = np.any(image,-1)
         rows, columns = np.where(occupied)
@@ -472,6 +532,7 @@ class MeshViewer():
 
     
     def _findBasePose(self):
+        """Find the closest camera position where the entire robot is always in frame"""
         self.rend.setJointAngles([0,0,np.pi/2,0,0,0])
 
         def set_render_and_process(r,z):

@@ -15,13 +15,11 @@ from robotpose.utils import Grapher
 
 angs = 'SLU'
 
-dataset = 'set30'
+dataset = 'set21'
 
 
 ds = Dataset(dataset)
-am = Predictor(ds_factor=4, camera_pose=ds.camera_pose[0], preview=False, base_intrin = ds.attrs['color_intrinsics'], do_angles=angs, model_ds=dataset, save_to='output/set21_out.avi')
-
-starting_points = True
+am = Predictor(ds_factor=2, camera_pose=ds.camera_pose[0], preview=False, base_intrin = ds.attrs['color_intrinsics'], do_angles=angs, model_ds=dataset, save_to='output/set21_out.avi')
 
 from functools import reduce
 
@@ -50,6 +48,8 @@ with tqdm(total=ds.length,desc=f"Div Size {div_size}") as pbar:
             pbar.update(1)
 
 out = np.array(out)
+
+np.save(f'predictions_{dataset}.npy',out)
 
 g = Grapher(angs,out,np.copy(ds.angles))
 g.plot()

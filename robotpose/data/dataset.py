@@ -249,8 +249,8 @@ class Dataset():
     def close_file(self):
         self.file.close()
 
-    def __del__(self):
-        self.close_file()
+    # def __del__(self):
+    #     self.close_file()
 
 
 

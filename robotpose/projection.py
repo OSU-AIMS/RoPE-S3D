@@ -124,10 +124,11 @@ class Intrinsics():
 
 
     def downscale(self, ds_factor):
+        assert ds_factor >= 1,"Downscaling by a factor of less than 1 (upscaling) is not supported."
         downscale_res = [x/ds_factor for x in self.resolution]
         res_is_valid = [int(x) == round(x) for x in downscale_res]
         if sum(res_is_valid) != 2:
-            raise ValueError(f"Downscaling by a factor of {ds_factor} is not valid for this resolution.")
+            raise ValueError(f"Downscaling by a factor of {ds_factor} is not valid for this resolution. This yields {downscale_res} as a resolution, which cannot be interpreted.")
         else:
             self.resolution = tuple([x//ds_factor for x in self.resolution])
             self.pp = tuple([x/ds_factor for x in self.pp])

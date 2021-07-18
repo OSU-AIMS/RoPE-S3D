@@ -1,4 +1,16 @@
 {
+    "BIZI": {
+        "id": "BIZI",
+        "dataset": "set30",
+        "dataset_size": 1027,
+        "train_size": 410,
+        "valid_size": 102,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 16,
+        "date_trained": "2021-07-15 08:31:08.345944",
+        "benchmarks": [],
+        "train_ratio": 0.399221
+    },
     "BKSA": {
         "id": "BKSA",
         "dataset": "set10",
@@ -106,6 +118,18 @@
         "date_trained": "2021-07-05 20:59:13.781491",
         "benchmarks": [],
         "train_ratio": 0.4
+    },
+    "YIYA": {
+        "id": "YIYA",
+        "dataset": "set30",
+        "dataset_size": 1027,
+        "train_size": 410,
+        "valid_size": 102,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 21,
+        "date_trained": "2021-07-14 21:31:53.788078",
+        "benchmarks": [],
+        "train_ratio": 0.399221
     },
     "YWBU": {
         "id": "YWBU",

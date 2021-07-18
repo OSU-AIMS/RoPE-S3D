@@ -64,9 +64,7 @@ class Predictor():
 
         self.seg = custom_segmentation()
         self.seg.inferConfig(num_classes=6, class_names=self.classes)
-        self.seg.load_model("models/segmentation/multi/B.h5")
         self.seg.load_model(mm.dynamicLoad(dataset=model_ds))
-
         self.changeCameraPose(camera_pose)
 
 

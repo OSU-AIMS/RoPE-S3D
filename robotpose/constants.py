@@ -10,20 +10,27 @@ import numpy as np
 import logging as log
 
 
+
+NUM_MODELS_TO_KEEP = 3
+
+
+WIZARD_DATASET_PREVIEW = True   # Set to false to reduce lag caused by dataset previewing
+
+
 ##################################### Verifier
 
-VERIFIER_ALPHA = .7
-VERIFIER_SELECTED_GAMMA = -50
-VERIFIER_SCALER = 2
-VERIFIER_ROWS = 5
-VERIFIER_COLUMNS = 7
+VERIFIER_ALPHA = .7 # Weight to place on images in verifier
+VERIFIER_SELECTED_GAMMA = -50   # Amount to add to R/G/B Channels of a selected image. Usually negative.
+VERIFIER_SCALER = 2 # Scale factor of thumbnails. Overall scale is this divided by THUMBNAIL_DS_FACTOR
+VERIFIER_ROWS = 5   # Rows of images present in Verifier
+VERIFIER_COLUMNS = 7    # Columns of images present in Verifier
 
 
 ##################################### Datasets
 
-VIDEO_FPS = 15
-THUMBNAIL_DS_FACTOR = 6
-DEFAULT_CAMERA_POSE = [0, -1.5, .75, 0, 0, 0]
+VIDEO_FPS = 15  # Default video frames per second
+THUMBNAIL_DS_FACTOR = 6 # Factor to downscale images by for thumbnails. Larger numbers yield smaller images
+DEFAULT_CAMERA_POSE = [0, -1.5, .75, 0, 0, 0]   # Base camera pose to fill new datasets with before alignment
 
 ###################################### Rendering
 

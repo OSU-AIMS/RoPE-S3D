@@ -17,9 +17,9 @@ from typing import Iterable
 import numpy as np
 
 from ..CompactJSONEncoder import CompactJSONEncoder
+from ..constants import NUM_MODELS_TO_KEEP
 from ..paths import Paths as p
 
-NUM_TO_KEEP = 5
 INFO_JSON = os.path.join(p().MODELS, 'models.json')
 
 class ModelData():
@@ -78,7 +78,7 @@ class ModelInfo():
         modelfiles = [x for x in os.listdir(folder) if x.endswith('.h5')]
         epoch = [int(x.split('.')[1].split('-')[0]) for x in modelfiles]
 
-        while cleanup and (len(epoch) > NUM_TO_KEEP):
+        while cleanup and (len(epoch) > NUM_MODELS_TO_KEEP):
             to_del = min(epoch)
             for modelfile in modelfiles:
                 if int(modelfile.split('.')[1].split('-')[0]) == to_del:
