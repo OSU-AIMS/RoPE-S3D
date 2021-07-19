@@ -195,6 +195,7 @@ class Dataset():
         self.seg_img = self.file['images/segmented']
         self.camera_pose = self.file['images/camera_poses']
         self.preview_img = self.file['images/preview']
+        self.intrinsics = self.attrs['color_intrinsics']
 
         # Set paths
         self.link_anno_path = os.path.join(self.dataset_dir,'link_annotations')

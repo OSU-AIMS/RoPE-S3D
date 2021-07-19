@@ -19,7 +19,7 @@ dataset = 'set21'
 
 
 ds = Dataset(dataset)
-am = Predictor(ds_factor=2, camera_pose=ds.camera_pose[0], preview=False, base_intrin = ds.attrs['color_intrinsics'], do_angles=angs, model_ds=dataset, save_to='output/set21_out.avi')
+am = Predictor(ds_factor=2, camera_pose=ds.camera_pose[0], preview=False, base_intrin = ds.intrinsics, do_angles=angs, model_ds=dataset, save_to='output/set21_out.avi')
 
 from functools import reduce
 

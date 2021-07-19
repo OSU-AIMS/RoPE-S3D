@@ -85,6 +85,24 @@ def reject_outliers_iqr(data, iqr_mult = 1.5):
 
 
 
+def get_extremes(mat: np.ndarray):
+    """Returns the limits of data in a boolean array
+
+    Parameters
+    ----------
+    mat : ndarray
+        Must be bool type
+
+    Returns
+    -------
+    Extremes : list
+        Min row, Max row, Min column, Max column
+    """
+    r, c = np.where(mat)
+    return [min(r),max(r),min(c),max(c)]
+
+
+
 class Timer():
     def __init__(self):
         self.data = {}

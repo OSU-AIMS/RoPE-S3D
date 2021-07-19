@@ -26,6 +26,6 @@ out = np.sort(indicies[:600])
 # print(out)
 
 g = Grapher('SLU',preds[indicies],angles[indicies])
-g.plot()
+g.plot(20)
 
 

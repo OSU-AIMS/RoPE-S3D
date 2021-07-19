@@ -10,6 +10,17 @@ import numpy as np
 import logging as log
 
 
+MAX_LINKS = 7
+CROP_RENDER_WEIGHTING = [6,3,3,0,1,0]   # Higher numbers indicate more weight on that joint for rendering
+CROP_VARYING = 'SLUB'   # Joints to vary for crop calculation
+CROP_MAX_PER_JOINT = 100    # Max poses for a single joint
+CROP_SEC_ALLOTTED_APPROX = 45   # Approx number of seconds allowed for each crop rendering stage calculation
+CROP_PADDING = 5
+
+
+LOOKUP_NAME_LENGTH = 5
+
+
 
 NUM_MODELS_TO_KEEP = 3
 
