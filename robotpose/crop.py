@@ -138,6 +138,13 @@ class Crop(Renderer):
 
         return self.data[key]
 
+    def size(self, key):
+        crop = self.data[key]
+        return (crop[1] - crop[0]) * (crop[3] - crop[2])
+
 
 def applyCrop(mat, crop):
     return mat[crop[0]:crop[1]+1,crop[2]:crop[3]+1]
+
+def applyBatchCrop(mat, crop):
+    return mat[:,crop[0]:crop[1]+1,crop[2]:crop[3]+1]

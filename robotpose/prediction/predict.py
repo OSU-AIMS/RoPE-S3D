@@ -21,9 +21,13 @@ from ..training.models import ModelManager
 from ..turbo_colormap import color_array
 from ..urdf import URDFReader
 from ..utils import get_gpu_memory, str_to_arr
+from ..crop import applyBatchCrop, applyCrop, Crop
+from robotpose import crop
 
 tf.compat.v1.enable_eager_execution()
 
+
+LOOKUP_NUM_RENDERED = 4
 
 
 class Predictor():
@@ -65,6 +69,8 @@ class Predictor():
         self.seg.inferConfig(num_classes=6, class_names=self.classes)
         self.seg.load_model(mm.dynamicLoad(dataset=model_ds))
 
+        self.crops = Crop(camera_pose, self.intrinsics)
+
         self.changeCameraPose(camera_pose)  # Set to default camera pose
 
 
@@ -77,7 +83,7 @@ class Predictor():
     def _loadLookup(self):
 
         lm = RobotLookupManager()
-        ang, depth, lookup_crop, general_crop = lm.get(self.intrinsics, self.camera_pose, 4, 'SL')
+        ang, depth, = lm.get(self.intrinsics, self.camera_pose, LOOKUP_NUM_RENDERED, 'SL')
 
         self.lookup_angles = ang
         self.lookup_depth = tf.pow(tf.constant(depth,tf.float32),0.5)
@@ -154,7 +160,6 @@ class Predictor():
             self.changeCameraPose(camera_pose)
 
 
-
         target_depth = self._downsample(target_depth, self.ds_factor)
         r, output = self.seg.segmentImage(self._downsample(og_image, self.ds_factor), process_frame=True)
         segmentation_data = self._reorganize_by_link(r)
@@ -179,8 +184,6 @@ class Predictor():
         if self.preview:
             self.viz.loadTargetColor(og_image)
             self.viz.loadTargetDepth(target_depth)
-
-        if self.preview:
             self.viz.loadSegmentedLinks(output)
 
         angle_learning_rate = np.zeros(6)
@@ -428,8 +431,9 @@ class Predictor():
         else:
             d = tgt_depth
 
-        # self._tgt_depth_stack_half = tf.stack([tf.pow(tf.constant(tgt_depth, tf.float32),0.5)]*len(self.lookup_angles))
-        self._tgt_depth_stack_full = tf.stack([tf.constant(d, tf.float32)]*len(self.lookup_angles))
+        # Load cropped lookup info into GPU
+        self._tgt_depth_stack_full = tf.stack([tf.constant(applyCrop(d,self.crops[LOOKUP_NUM_RENDERED]), tf.float32)]*len(self.lookup_angles))
+
         for link in self.link_names:
             if link in seg_data.keys():
                 link_mask = seg_data[self.link_names[self.link_names.index(link)]]['mask']

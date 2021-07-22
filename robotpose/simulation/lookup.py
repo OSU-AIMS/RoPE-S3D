@@ -9,6 +9,7 @@
 
 import os
 import random
+from robotpose.crop import Crop
 import string
 from typing import Union
 
@@ -25,6 +26,9 @@ from ..utils import get_extremes, str_to_arr, get_key
 from .render import Renderer
 from ..constants import LOOKUP_NAME_LENGTH, CROP_PADDING
 from ..utils import get_gpu_memory
+from ..crop import Crop, applyBatchCrop
+
+GPU_MEMORY_ALLOWED_FOR_LOOKUP = 0.1
 
 
 class RobotLookupCreator(Renderer):
@@ -33,11 +37,13 @@ class RobotLookupCreator(Renderer):
     def __init__(self, camera_pose: np.ndarray, intrinsics: Union[str, Intrinsics]):
         self.inp_pose = camera_pose
         self.u_reader = URDFReader()
+        self.croppper = Crop(camera_pose, intrinsics)
         super().__init__('seg', camera_pose=camera_pose, camera_intrin=intrinsics)
 
     def load_config(self, joints_to_render: int, angles_to_do: Union[str,np.ndarray], divisions:np.ndarray):
         self.num_rendered = joints_to_render
         self.setMaxParts(joints_to_render)
+        self.crop = self.croppper[joints_to_render]
         self.divisions = np.array(divisions)
         if type(angles_to_do) is str:
             self.angles_to_do = str_to_arr(angles_to_do)
@@ -68,7 +74,7 @@ class RobotLookupCreator(Renderer):
 
         depth_arr = np.zeros((self.num, *color.shape[:2]), dtype=float)
 
-        for pose,idx in tqdm(zip(self.angles, range(len(self.angles))),total=len(self.angles),desc="Rendering"):
+        for pose,idx in tqdm(zip(self.angles, range(len(self.angles))),total=len(self.angles),desc=f"Rendering {list(self.divisions)} Lookup"):
             self.setJointAngles(pose)
             color, depth = self.render()
             depth_arr[idx] = depth
@@ -81,6 +87,7 @@ class RobotLookupCreator(Renderer):
     def run(self, file_name: str, preview: bool = True):
 
         depth_arr = self._generate_depth_array(preview)
+        depth_arr = applyBatchCrop(depth_arr, self.crop)
 
         with tqdm(total=2, desc=f"Writing to {file_name}") as pbar:
             f = h5py.File(file_name, 'w')
@@ -114,7 +121,7 @@ class RobotLookupInfo():
     def update(self):
         self.data = {}
 
-        paths = [os.path.join(p().ROBOT_LOOKUPS,x) for x in os.listdir(p().ROBOT_LOOKUPS) if x.endswith('.h5')]
+        paths = [os.path.join(p().ROBOT_LOOKUPS,x) for x in os.listdir(p().ROBOT_LOOKUPS) if x.endswith('.h5') and not 'crop_data' in x]
         raw_tables = {}
         for path in paths:
             with h5py.File(path,'r') as f:
@@ -205,7 +212,7 @@ class RobotLookupManager(RobotLookupInfo):
         assert sum([x is not None for x in [max_elements, max_poses, divisions]]) <= 1,\
              "Only one specifiying criterion can be used from [max_elements, max_poses, divisons]"
         if sum([x is not None for x in [max_elements, max_poses, divisions]]) == 0:
-            max_elements = int(get_gpu_memory()[0] / (3 * 32))
+            max_elements = int(get_gpu_memory()[0] * GPU_MEMORY_ALLOWED_FOR_LOOKUP)
 
         # Convert varying angs to array if needed
         varying_angles_arr = str_to_arr(varying_angles) if type(varying_angles) is str else varying_angles
@@ -246,8 +253,11 @@ class RobotLookupManager(RobotLookupInfo):
         if create:
             # If no optimal lookup is present, make one
             if divisions is None:
+                c = Crop(camera_pose, intrinsics)
                 if max_poses is None:
-                    max_poses = max_elements / (Intrinsics(intrinsics).size * self.element_bits)
+                    max_poses = max_elements / (c.size(num_rendered_links) * self.element_bits)
+
+                    print(max_poses*c.size(num_rendered_links)*self.element_bits)
                 # By default, allocate divisions equally
                 divisions = np.zeros(6, int)
                 divisions[varying_angles_arr] = int(max_poses ** (1 / sum(varying_angles_arr)))
@@ -267,7 +277,7 @@ class RobotLookupManager(RobotLookupInfo):
         if not name.endswith('.h5'):
             name = name + '.h5'
         with h5py.File(os.path.join(p().ROBOT_LOOKUPS, name), 'r') as f:
-            return np.copy(f['angles']), np.copy(f['depth']), f.attrs['lookup_crop'], f.attrs['general_crop']
+            return np.copy(f['angles']), np.copy(f['depth'])
 
 
     def create(self, 

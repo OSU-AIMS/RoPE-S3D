@@ -42,7 +42,7 @@ def get_gpu_memory():
 
     COMMAND = "nvidia-smi --query-gpu=memory.total --format=csv"
     memory_free_info = _output_to_list(sp.check_output(COMMAND.split()))[1:]
-    memory_free_values = [int(x.split()[0])*67108864 for i, x in enumerate(memory_free_info)]
+    memory_free_values = [int(x.split()[0])*8.389e6 for i, x in enumerate(memory_free_info)]
     return memory_free_values 
 
 

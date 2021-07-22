@@ -3,7 +3,7 @@ import numpy as np
 from robotpose.utils import Grapher
 from robotpose import Dataset
 
-dataset = 'set21'
+dataset = 'set30'
 
 
 ds = Dataset(dataset)
