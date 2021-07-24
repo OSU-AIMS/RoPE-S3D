@@ -8,9 +8,9 @@
 # Author: Adam Exley
 
 import multiprocessing as mp
-import string
-import time
+import os
 import subprocess as sp
+import time
 
 import cv2
 import matplotlib.pyplot as plt
@@ -47,6 +47,7 @@ def get_gpu_memory():
 
 
 def workerCount():
+    """Return number of threads to use as workers in multiprocessing"""
     cpu_count = mp.cpu_count()
     return int(min(cpu_count - 2, .75 * cpu_count))
 
@@ -56,14 +57,18 @@ def expandRegion(image, size, iterations = 1):
     return cv2.dilate(image, kern, iterations = iterations)
 
 
-def str_to_arr(string):
+def str_to_arr(string: str):
+    """Convert a string of SLURBT to a (6,) numpy array of boolean values"""
+
     joints = ['S','L','U','R','B','T']
     out = np.zeros(6, bool)
     for letter in string.upper():
         out[joints.index(letter)] = True
     return out
 
-def get_key(dict, val):
+def get_key(dict: dict, val):
+    """Return the keys of a certain dictionary value"""
+
     return list(dict.keys())[list(dict.values()).index(val)]
 
 
@@ -100,6 +105,28 @@ def get_extremes(mat: np.ndarray):
     """
     r, c = np.where(mat)
     return [min(r),max(r),min(c),max(c)]
+
+
+
+def folder_size(path: str):
+    """Return size of all files in folder in bytes"""
+    size = 0
+    for r, d, f in os.walk(path):
+        for file in f:
+            size += os.path.getsize(os.path.join(r, file))
+
+    return size
+
+def size_to_str(b: int):
+    """Format a number of bytes as a string in B/KB/MB/GB"""
+    postfixes = ['B','KB','MB','GB']
+    vals = [b / (1000 ** p) for p in range(4)]
+    v = min([x for x in vals if x >= 1])
+    return f"{v:0.2f} {postfixes[vals.index(v)]}"
+
+def folder_size_as_str(path: str):
+    """Return folder size formatted as a string"""
+    return size_to_str(folder_size(path))
 
 
 

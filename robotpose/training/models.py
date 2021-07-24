@@ -15,10 +15,12 @@ from datetime import datetime
 from typing import Iterable
 
 import numpy as np
+import PySimpleGUI as sg
 
 from ..CompactJSONEncoder import CompactJSONEncoder
 from ..constants import NUM_MODELS_TO_KEEP
 from ..paths import Paths as p
+from ..utils import folder_size, folder_size_as_str, size_to_str
 
 INFO_JSON = os.path.join(p().MODELS, 'models.json')
 
@@ -48,6 +50,9 @@ class ModelData():
 
     def __repr__(self) -> str:
         return str(self.__dict__)
+
+    def __getitem__(self, key):
+        return self.__dict__[key]
 
 
 
@@ -256,3 +261,59 @@ class ModelManager(ModelInfo):
 
         return self.loadByID(id)
 
+
+
+
+
+
+
+class ModelTree(ModelInfo):
+    """PySimpleGUI Tree of trained segmentation models
+    
+    Always uses the PySimpleGUI key of -model_tree-
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.refresh()
+
+    def _addDatasets(self):
+        """Add each dataset as a section"""
+        self.datasets = set()
+        for dat in self.info.values():
+            if dat['dataset'] not in self.datasets:
+                size = 0
+                for d in self.info.values():
+                    if d['dataset'] == dat['dataset']:
+                        size += folder_size(os.path.join(p().MODELS,d['id']))
+
+                self.treedata.insert('',dat['dataset'],dat['dataset'],['','','',size_to_str(size)])
+                self.datasets.add(dat['dataset'])
+
+
+    def _addModelsToTree(self):
+        """Add each individual model as a node"""
+        for dat in self.info.values():
+            time_string = datetime.strftime(datetime.strptime(dat['date_trained'],'%Y-%m-%d %H:%M:%S.%f'),'%m-%d %H:%M')
+            self.treedata.insert(
+                dat['dataset'],
+                dat['id'],
+                dat['id'],
+                [time_string,dat['train_size'],dat['valid_size'],folder_size_as_str(os.path.join(p().MODELS,dat['id']))]
+                )
+            
+    def refresh(self):
+        """Recreate data when needed"""
+        self.treedata = sg.TreeData()
+        self._addDatasets()
+        self._addModelsToTree()
+        return self.treedata
+
+    def __call__(self):
+        return sg.Tree(self.treedata,('Trained On','Train #','Valid #','Size'), col_widths=[9,5,5,7], auto_size_columns=False, num_rows=8, key='-model_tree-')
+
+    @property
+    def data(self):
+        """Return treedata, updating it first"""
+        self.refresh()
+        return self.treedata

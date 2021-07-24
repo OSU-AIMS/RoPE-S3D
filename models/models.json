@@ -71,30 +71,6 @@
         "benchmarks": [],
         "train_ratio": 0.4
     },
-    "KWTO": {
-        "id": "KWTO",
-        "dataset": "set0",
-        "dataset_size": 100,
-        "train_size": 40,
-        "valid_size": 10,
-        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-        "epochs_trained": 4,
-        "date_trained": "2021-07-05 20:32:16.425504",
-        "benchmarks": [],
-        "train_ratio": 0.4
-    },
-    "OETZ": {
-        "id": "OETZ",
-        "dataset": "set10",
-        "dataset_size": 1000,
-        "train_size": 700,
-        "valid_size": 200,
-        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-        "epochs_trained": 4,
-        "date_trained": "2021-05-25 21:49:53.610095",
-        "benchmarks": [],
-        "train_ratio": 0.7
-    },
     "RDZG": {
         "id": "RDZG",
         "dataset": "set20",

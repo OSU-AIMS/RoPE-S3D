@@ -9,6 +9,7 @@
 
 import json
 import os
+import shutil
 
 import cv2
 import numpy as np
@@ -19,6 +20,7 @@ from .constants import WIZARD_DATASET_PREVIEW as PREVIEW
 from .data import Dataset, DatasetInfo, Splitter, Verifier
 from .paths import Paths as p
 from .simulation import Aligner, Renderer
+from .training.models import ModelTree
 from .urdf import URDFReader
 
 
@@ -90,7 +92,8 @@ class Wizard(DatasetInfo):
 
         ########################################################################################
         prediction_tab_layout = [
-            []
+            [ModelTree()()],
+            [sg.Button('Delete Selected',k='-delete_model-')]
         ]
 
         ########################################################################################
@@ -153,6 +156,14 @@ class Wizard(DatasetInfo):
             for button in ['-details-','-align-','-verify-']:
                 self.window[button].update(disabled = True)
 
+        # Enable/Disable model delete button if on correct tab
+        if values['-tabgroup-'] == "Prediction":
+            # Only allow deletion of models, not all of a dataset's models
+            if values['-model_tree-'] == [] or sum([x in self.unique_sets() for x in values['-model_tree-']]) > 0:
+                self.window['-delete_model-'].update(disabled=True)
+            else:
+                self.window['-delete_model-'].update(disabled=False)
+
         if not self.valid_urdf:
             # Only allow alignment of dataset if valid URDF is loaded
             for button in ['-align-']:
@@ -177,6 +188,18 @@ class Wizard(DatasetInfo):
         elif event == '-update_split-':
             t,v = self.updateDatasetSplit(values)
             self._writeDatasetSplit(t,v)
+        elif event == '-delete_model-':
+            self._deleteModel(values)
+
+
+
+    def _deleteModel(self, values):
+        response = sg.popup_ok_cancel(f"Delete the following model(s)?\n{values['-model_tree-']}",title="Model Deletion")
+        if response == "OK":
+            for model in values['-model_tree-']:
+                shutil.rmtree(os.path.join(p().MODELS,model))
+            self.window['-model_tree-'].update(ModelTree().data)
+
 
 
     def updateDatasetSplit(self, values:dict):

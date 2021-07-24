@@ -17,8 +17,8 @@ import os
 from pixellib.custom_train import instance_custom_training
 
 from robotpose import Dataset, DatasetRenderer
-from robotpose.training import ModelManager
 from robotpose import Paths as p
+from robotpose.training import ModelManager
 
 # Eager Exec. is enabled when importing robotpose; disable
 import tensorflow as tf
