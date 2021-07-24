@@ -84,10 +84,11 @@ class RobotLookupCreator(Renderer):
         return depth_arr
 
 
-    def run(self, file_name: str, preview: bool = True):
+    def run(self, file_name: str, preview: bool = True, crop: bool = True):
 
         depth_arr = self._generate_depth_array(preview)
-        depth_arr = applyBatchCrop(depth_arr, self.crop)
+        if crop:
+            depth_arr = applyBatchCrop(depth_arr, self.crop)
 
         with tqdm(total=2, desc=f"Writing to {file_name}") as pbar:
             f = h5py.File(file_name, 'w')

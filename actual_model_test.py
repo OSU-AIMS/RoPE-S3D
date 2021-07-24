@@ -1,3 +1,4 @@
+from robotpose.projection import Intrinsics
 from weakref import WeakKeyDictionary
 from matplotlib.pyplot import imshow
 import tensorflow
@@ -16,20 +17,20 @@ from robotpose.urdf import URDFReader
 from robotpose.turbo_colormap import color_array
 import matplotlib.pyplot as plt
 from robotpose.utils import Grapher
+from robotpose.simulation.lookup import RobotLookupCreator
+import h5py
 
-DS_SCALE = 6
+DS_SCALE = 8
 MAX_DEPTH = 7
 TRAIN_SIZE = 800
 
 
 ds = robotpose.Dataset('set10')
-dim = ds.og_img.shape
+# dim = ds.og_img.shape
 
 # inp_img = np.copy(ds.og_img)
 # inp_depth = np.copy(ds.depthmaps)
-# data = np.zeros((ds.length,120,120),float)
-
-# side_pad = (dim[2]-dim[1])//2
+# data = np.zeros((ds.length,90,160),float)
 
 u_reader = URDFReader()
 # classes = ["BG"]
@@ -42,9 +43,9 @@ u_reader = URDFReader()
 # for idx in tqdm(range(ds.length)):
 #     r,output = seg.segmentFrame((inp_img[idx]))
 #     out = np.sum(r['masks'],-1).astype(bool)
-#     depth = (inp_depth[idx].astype(float) * out.astype(float))[:,side_pad:-side_pad]
+#     depth = (inp_depth[idx].astype(float) * out.astype(float))
 
-#     data[idx] = cv2.resize(depth,(dim[1] // DS_SCALE, dim[1] // DS_SCALE))
+#     data[idx] = cv2.resize(depth,(160, 90))
 
 # del inp_img,inp_depth
 
@@ -55,60 +56,78 @@ u_reader = URDFReader()
 
 # np.save("test_data.npy",data)
 
+
+
+
+
+
+# """Create a lookup"""
+# i = Intrinsics(ds.intrinsics)
+# i.downscale(8)
+
+# r = RobotLookupCreator(ds.camera_pose[0],i)
+# r.load_config(6,'SLU',np.array([45,45,45,1,1,1]))
+# r.run('CNN_Lookup.h5',False,False)
+
+
+
+# with h5py.File('CNN_Lookup.h5','r') as f:
+#     angs = np.copy(f['angles'])
+#     depths = np.copy(f['depth'])[:,:,:,np.newaxis]
+
+#     print(angs.shape,depths.shape)
+
+# angs /= 2 * np.pi
+
 batch_size = 256
-epochs = 500
+epochs = 50
+
+# model = keras.models.Sequential()
+# model.add(layers.Conv2D(64,6,activation='relu',input_shape=(160,90,1)))
+# model.add(layers.MaxPool2D(2))
+# model.add(layers.Conv2D(64,3,activation='relu'))
+# model.add(layers.MaxPool2D(2))
+# model.add(layers.Conv2D(64,3,activation='relu'))
+# model.add(layers.MaxPool2D(2))
+# model.add(layers.Conv2D(64,3,activation='relu'))
+# model.add(layers.Flatten())
+# model.add(layers.Dense(12,activation='relu'))
+# model.add(layers.Dense(12,activation='relu'))
+# model.add(layers.Dense(3,activation='linear'))
+
+# print(model.summary())
+
+# loss = keras.losses.MeanSquaredError()
+# optim = keras.optimizers.Adam(lr=.001)
+# metrics = ['mae','mse']
+
+# model.compile(optim,loss,metrics)
+
+# model.fit(depths,angs[:,:3],batch_size,epochs,2,validation_batch_size=batch_size,validation_split=0.05)
+# model.save('thisisatest')
 
 
-data = np.load("test_data.npy")
-data = np.stack((data,data,data),-1)
+
+
+
+
+
+data = np.load("test_data.npy")[:,:,:,np.newaxis]
 print(data.shape)
 
-labels = np.zeros((ds.length,3))
-for idx in range(3):
-    labels[:,idx] = (np.copy(ds.angles[:,idx]) - u_reader.joint_limits[idx,0]) /  (u_reader.joint_limits[idx,1] - u_reader.joint_limits[idx,0])
+# labels = np.zeros((ds.length,3))
+# for idx in range(3):
+#     labels[:,idx] = (np.copy(ds.angles[:,idx]) - u_reader.joint_limits[idx,0]) /  (u_reader.joint_limits[idx,1] - u_reader.joint_limits[idx,0]))
 
-train_labels, test_labels = labels[:TRAIN_SIZE], labels[TRAIN_SIZE:]
-train_data, test_data = data[:TRAIN_SIZE], data[TRAIN_SIZE:]
-
-model = keras.models.Sequential()
-model.add(layers.Conv2D(8,3,activation='relu',input_shape=(120,120,3)))
-model.add(layers.Conv2D(8,3,activation='relu'))
-model.add(layers.MaxPool2D(2))
-model.add(layers.Conv2D(4,3,activation='relu'))
-model.add(layers.Conv2D(4,3,activation='relu'))
-model.add(layers.MaxPool2D(2))
-model.add(layers.Conv2D(4,3,activation='relu'))
-model.add(layers.Conv2D(4,3,activation='relu'))
-model.add(layers.MaxPool2D(2))
-model.add(layers.Conv2D(4,3,activation='relu'))
-model.add(layers.Conv2D(8,3,activation='relu'))
-model.add(layers.Flatten())
-model.add(layers.Dense(12,activation='relu'))
-model.add(layers.Dense(8,activation='relu'))
-model.add(layers.Dense(3,activation='linear'))
-
-print(model.summary())
-
-loss = keras.losses.MeanSquaredLogarithmicError()
-optim = keras.optimizers.Adam(lr=.001)
-metrics = ['mae','mape','mse']
-
-model.compile(optim,loss,metrics)
-
-model.fit(train_data,train_labels,batch_size,epochs,2)
-model.save_weights('weights.h5')
-model.save('thisisatest')
-
-model.evaluate(test_data,test_labels,batch_size,2)
-
-# model = keras.models.load_model('thisisatest')
+model = keras.models.load_model('thisisatest')
 
 out = model.predict(data,batch_size,2)
-for idx in range(3):
-    out[:,idx] = (out[:,idx] * (u_reader.joint_limits[idx,1] - u_reader.joint_limits[idx,0]) + u_reader.joint_limits[idx,0])
+# for idx in range(3):
+#     out[:,idx] = (out[:,idx] * (u_reader.joint_limits[idx,1] - u_reader.joint_limits[idx,0]) + u_reader.joint_limits[idx,0])
+
 
 new = np.zeros((ds.length,6))
-new[:,:3] = out
+new[:,:3] = out * np.pi * 2
 
 g = Grapher('SLU',new,np.copy(ds.angles))
 g.plot()
