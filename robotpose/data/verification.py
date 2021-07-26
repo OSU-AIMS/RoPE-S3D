@@ -18,10 +18,29 @@ from ..constants import (VERIFIER_ALPHA, VERIFIER_COLUMNS, VERIFIER_ROWS,
 from ..simulation import DatasetRenderer
 from .building import Builder
 from .dataset import Dataset
+from typing import List
 
 
 class Verifier():
-    def __init__(self, dataset, selected = None, thumbnails = None, overlays = None):
+    """Allows images to be compared againt their claimed robot pose to elimate faulty data"""
+
+
+    def __init__(
+            self, 
+            dataset: str, 
+            selected: List[int] = None, 
+            thumbnails: np.ndarray = None, 
+            overlays: np.ndarray = None
+            ):
+        """ Create Verifier
+        Parameters
+        ----------
+        dataset : str
+            Dataset to verify
+        selected, thumbnails, overlays : List[int], np.ndarray, np.ndarray, optional
+            If supplied, will run in 'child' mode to confirm the poses to be deleted
+        """
+
         self.ds = Dataset(dataset)
         self.name = dataset
         self.ds_path = self.ds.dataset_path
@@ -29,11 +48,12 @@ class Verifier():
         img_size = [int(x * VERIFIER_SCALER) for x in self.ds.preview_img.shape[1:3]]
         dims = tuple(img_size[::-1])
 
+        # Set parent/child mode
         self.mode = 'parent' if selected is None else 'child'
-
         if selected is not None: assert thumbnails is not None and overlays is not None
 
-        if selected is None:
+        if self.mode == 'parent':
+            # Requires loading all data from scratch
             self.length = self.ds.length
             self.ds_renderer = DatasetRenderer(dataset, 'seg_full')
             self.selected = set()
@@ -48,14 +68,12 @@ class Verifier():
 
             del self.ds_renderer
         else:
+            # Copy data, do not reload
             self.length = len(thumbnails)
             self.selected = set([x for x in range(len(selected))])
             self.thumbnails = np.copy(thumbnails)
             self.overlays = np.copy(overlays)
             self.parent_selected = selected
-
-        self.num_rows = VERIFIER_ROWS
-        self.num_columns = VERIFIER_COLUMNS
 
         def img_frame(row,column):
             return sg.Image(size=dims,k=f'-img_{row}_{column}-',enable_events=True)
@@ -73,7 +91,7 @@ class Verifier():
 
         self.layout = [
             [sg.Text('Select Images to Remove' if selected is None else 'Confirm Removal',font='Any 36 bold')],
-            *[[img_frame(r,c) for c in range(self.num_columns)] for r in range(self.num_rows)],
+            *[[img_frame(r,c) for c in range(VERIFIER_COLUMNS)] for r in range(VERIFIER_ROWS)],
             [top],
             [bottom]
         ]
@@ -118,7 +136,7 @@ class Verifier():
         if match:
             r,c = int(match.group(1)), int(match.group(2))
 
-            idx = self.start_idx + r * self.num_columns + c
+            idx = self.start_idx + r * VERIFIER_COLUMNS + c
 
             if idx in self.selected:
                 self.selected.remove(idx)
@@ -136,9 +154,9 @@ class Verifier():
     def _updateRange(self):
         start = self.start_idx
         if self.mode == 'parent':
-            end = min(self.start_idx + self.num_rows * self.num_columns, self.length) - 1
+            end = min(self.start_idx + VERIFIER_ROWS * VERIFIER_COLUMNS, self.length) - 1
         else:
-            end = min(self.start_idx + self.num_rows * self.num_columns, len(self.parent_selected)) - 1
+            end = min(self.start_idx + VERIFIER_ROWS * VERIFIER_COLUMNS, len(self.parent_selected)) - 1
         self.window['-range-'].update(f'{start}-{end}')
 
 
@@ -161,15 +179,15 @@ class Verifier():
 
 
     def _next(self):
-        if self.start_idx + self.num_columns * self.num_rows <= self.length:
-            self.start_idx += self.num_columns * self.num_rows  
+        if self.start_idx + VERIFIER_COLUMNS * VERIFIER_ROWS <= self.length:
+            self.start_idx += VERIFIER_COLUMNS * VERIFIER_ROWS  
 
         self._updateImgs()
         self._updateRange()
 
 
     def _prev(self):
-        self.start_idx -= self.num_columns * self.num_rows
+        self.start_idx -= VERIFIER_COLUMNS * VERIFIER_ROWS
         if self.start_idx < 0:
             self.start_idx = 0
 
@@ -179,21 +197,21 @@ class Verifier():
 
     def _updateImgs(self):
         if self.mode == 'parent':
-            for r in range(self.num_rows):
-                for c in range(self.num_columns):
+            for r in range(VERIFIER_ROWS):
+                for c in range(VERIFIER_COLUMNS):
                     self._updateImg(r,c)
         else:
             idxs = list(self.selected)
-            idx = self.start_idx * self.num_rows * self.num_columns # Acts as page counter in child mode
-            for r in range(self.num_rows):
-                for c in range(self.num_columns):
+            idx = self.start_idx
+            for r in range(VERIFIER_ROWS):
+                for c in range(VERIFIER_COLUMNS):
                     if idx < len(idxs):
                         self._updateImg(r, c, idxs[idx])
                         idx += 1
 
     def _updateImg(self, row, column, idx = None):
         if idx is None:
-            idx = self.start_idx + row * self.num_columns + column
+            idx = self.start_idx + row * VERIFIER_COLUMNS + column
 
         if idx < self.length:
             if idx in self.selected:

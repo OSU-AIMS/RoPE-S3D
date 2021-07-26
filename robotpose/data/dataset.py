@@ -7,12 +7,11 @@
 #
 # Author: Adam Exley
 
-import json
 import os
 import shutil
 import tempfile
 import zipfile
-from json.decoder import JSONDecodeError
+from typing import List
 
 import h5py
 import numpy as np
@@ -21,51 +20,53 @@ from ..CompactJSONEncoder import CompactJSONEncoder
 from ..paths import Paths as p
 from .building import Builder
 
-INFO_JSON = os.path.join(p().DATASETS, 'datasets.json')
-DATASET_VERSION = 7.0
-                
+DATASET_VERSION = 7.0   # TODO: Is this really needed anymore?
+
 
 class DatasetInfo():
+    """Returns information about the available datasets
+    TODO: Remove JSON File
+
+    """
     def __init__(self):
         self._update()
 
-    def get(self):
-        count = 0
+    def _update(self):
+        """Recreate the info dictionary and file"""
+        # Find all .zip files in the data/raw directory
+        uncompiled_paths = [ f.path for f in os.scandir(p().RAW_DATA) if str(f.path).endswith('.zip') ]
+        uncompiled_names = [ os.path.basename(os.path.normpath(x)).replace('.zip','') for x in uncompiled_paths ]
+
+        # Find all .h5 dataset files in the data directory
+        compiled_paths, compiled_names = ([] for i in range(2))
+        for dirpath, subdirs, files in os.walk(p().DATASETS):
+            for file in files:
+
+                if file.endswith('.h5'):
+                    compiled_names.append(file.replace('.h5',''))
+                    compiled_paths.append(os.path.join(dirpath, file))
+        
+        # Create and write info dict
+        self.info = {
+            'compiled':{'names': compiled_names, 'paths': compiled_paths},
+            'uncompiled':{'names': uncompiled_names, 'paths': uncompiled_paths}
+        }
         while True:
             try:
-                with open(INFO_JSON, 'r') as f:
-                    self.data = json.load(f)
+                with open(p().DATASET_INFO_JSON,'w') as f:
+                    f.write(CompactJSONEncoder(indent=4).encode(self.info).replace('\\','/'))
                 break
-            except JSONDecodeError:
-                count += 1
-            if count > 99999:
-                raise JSONDecodeError
-        return self.data
+            except PermissionError:
+                pass
 
-    def unique_sets(self):
-        datasets = set()
-        datasets.update(self.compiled_sets())
-        datasets.update(self.data['uncompiled']['names'])
-
-        datasets = list(datasets)
-        datasets.sort()
-        return datasets
-
-    def compiled_sets(self):
-        datasets = list(set(self.data['compiled']['names']))
-        datasets.sort()
-        return datasets
-        
-
-    def __str__(self):
-        self.get()
-        datasets = self.unique_sets()
+    def __str__(self) -> str:
+        datasets = self.unique_sets
 
         full = []
         raw = []
         for ds in datasets:
-            full.append(ds in self.data['compiled']['names'])
-            raw.append(ds in self.data['uncompiled']['names'])
+            full.append(ds in self.info['compiled']['names'])
+            raw.append(ds in self.info['uncompiled']['names'])
 
 
         out = "\nAvailable Datasets:\n"
@@ -78,33 +79,27 @@ class DatasetInfo():
 
         return out
 
-    def __repr__(self):
-        return f"Dataset Information stored in {INFO_JSON}."
+    def __repr__(self) -> str:
+        return f"Dataset Information stored in {p().DATASET_INFO_JSON}."
 
-    def _update(self):
-        uncompiled_paths = [ f.path for f in os.scandir(os.path.join(p().DATASETS,'raw')) if str(f.path).endswith('.zip') ]
-        uncompiled_names = [ os.path.basename(os.path.normpath(x)).replace('.zip','') for x in uncompiled_paths ]
+    @property
+    def unique_sets(self) -> List[str]:
+        """All datasets, compiled or raw"""
+        datasets = set()
+        datasets.update(self.compiled_sets)
+        datasets.update(self.info['uncompiled']['names'])
 
-        compiled_paths, compiled_names = ([] for i in range(2))
+        datasets = list(datasets)
+        datasets.sort()
+        return datasets
 
-        for dirpath, subdirs, files in os.walk(p().DATASETS):
-            for file in files:
+    @property
+    def compiled_sets(self) -> List[str]:
+        """Datasets that have been compiled"""
+        datasets = list(set(self.info['compiled']['names']))
+        datasets.sort()
+        return datasets
 
-                if file.endswith('.h5'):
-                    compiled_names.append(file.replace('.h5',''))
-                    compiled_paths.append(os.path.join(dirpath, file))
-                    
-        info = {
-            'compiled':{'names': compiled_names, 'paths': compiled_paths},
-            'uncompiled':{'names': uncompiled_names, 'paths': uncompiled_paths}
-        }
-        while True:
-            try:
-                with open(INFO_JSON,'w') as f:
-                    f.write(CompactJSONEncoder(indent=4).encode(info).replace('\\','/'))
-                break
-            except PermissionError:
-                pass
             
 
 
@@ -116,19 +111,29 @@ class Dataset():
 
     def __init__(
             self, 
-            name,
-            recompile = False,
-            rebuild = False,
-            permissions = 'r'
+            name: str,
+            recompile: bool = False,
+            rebuild: bool = False,
+            permissions: str = 'r'
             ):
+        """Create or use a dataset
 
-        self.permissions = permissions
-        self.name = name
+        Parameters
+        ----------
+        name : str
+            Dataset name. corresponds to inital .zip file name and /data/ folder
+        recompile : bool, optional TODO: Deprecate
+            Reprocess the raw data from inside the dataset, by default False
+        rebuild : bool, optional
+            Entirely recreate the dataset from the .zip source file. Done automatically if needed, by default False
+        permissions : str, optional
+            h5py permissions to use to open the dataset file. Use 'a' to modify any data in the dataset, by default 'r'
+        """
 
+        self.permissions, self.name = permissions, name
 
         info = DatasetInfo()
-
-        d = info.get()
+        d = info.info
 
         if name in d['compiled']['names']:
             self.dataset_path = d['compiled']['paths'][d['compiled']['names'].index(name)]
@@ -164,6 +169,7 @@ class Dataset():
                     self.load()
                     self.importCameraPose()
 
+        # Recompilation
         if recompile and not building:
             self.exportCameraPose()
             self.recompile()
@@ -175,15 +181,8 @@ class Dataset():
         # Delete temp backup if there still
         if os.path.isfile(self.dataset_path.replace(".h5","_old.h5")): os.remove(self.dataset_path.replace(".h5","_old.h5"))
 
-
-    def exportCameraPose(self):
-        np.save(os.path.join(self.dataset_dir,'camera_pose.npy'), self.camera_pose)
-
-    def importCameraPose(self):
-        camera_pose = np.load(os.path.join(self.dataset_dir,'camera_pose.npy'))
-        self.camera_pose[:] = camera_pose
-
     def load(self):
+        """Load data from .h5 dataset file"""
         self.file = h5py.File(self.dataset_path,self.permissions)
         self.attrs = dict(self.file.attrs)
         self.og_resolution = self.attrs['resolution']
@@ -203,12 +202,13 @@ class Dataset():
         self.seg_vid_path = os.path.join(self.dataset_dir,'seg_vid.avi')
 
     def recompile(self):
+        """Recompile model"""
         bob = Builder()
         bob.recompile(self.dataset_dir, self.name)
 
-    def build_from_zip(self, zip_path):
+    def build_from_zip(self, zip_path: str):
         """
-        Build dataset from a tempdir that is the extracted data
+        Build dataset from a tempdir containing data extracted from a zipped folder
         """
 
         with tempfile.TemporaryDirectory() as tempdir:
@@ -225,16 +225,29 @@ class Dataset():
             bob = Builder()
             return bob.build_full(src_dir, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
 
-    def __len__(self):
+    def exportCameraPose(self):
+        """Save camera pose array as an npy file"""
+        np.save(os.path.join(self.dataset_dir,'camera_pose.npy'), self.camera_pose)
+
+    def importCameraPose(self):
+        """Overwrite current camera pose array with the camera_pose.npy file contents"""
+        camera_pose = np.load(os.path.join(self.dataset_dir,'camera_pose.npy'))
+        self.camera_pose[:] = camera_pose
+
+
+    def close_file(self):
+        self.file.close()
+
+    def __len__(self) -> int:
         if self.length is None:
             return 0
         else:
             return self.length  
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"RobotPose dataset located at {self.dataset_path}."
 
-    def __str__(self):
+    def __str__(self) -> str:
         out = ''
         out += f"Name: {self.attrs['name']}\n"
         out += f"Length: {self.attrs['length']} Poses\n"
@@ -247,11 +260,6 @@ class Dataset():
         out += f"Depth Scale: {self.attrs['depth_scale']}\n"
         return out
 
-    def close_file(self):
-        self.file.close()
-
-    # def __del__(self):
-    #     self.close_file()
 
 
 

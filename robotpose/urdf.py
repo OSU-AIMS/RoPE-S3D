@@ -10,21 +10,26 @@
 import os
 import sys
 import xml.etree.ElementTree as ET
+from typing import List
 
 import numpy as np
 
 from .paths import Paths
 
-def str_to_list(string):
+
+def str_to_list(string) -> List[float]:
+    """Split a string of floats into a list of floats"""
     return [float(x) for x in string.split(' ')]
 
 
 class URDFReader():
+    """Retrieves information from the active URDF"""
+
     def __init__(self):
         if self._get_path():
             self.load()
 
-    def _get_path(self):
+    def _get_path(self) -> bool:
         p = Paths()
         if hasattr(p,'URDF'):
             self.internal_path = p.URDF
@@ -33,6 +38,7 @@ class URDFReader():
             return False
 
     def load(self):
+        """Read information from URDF file"""
         tree = ET.parse(self.internal_path)
         root = tree.getroot()
 
@@ -59,18 +65,20 @@ class URDFReader():
         self.joint_limits = np.array(self.joint_limits)
 
     @property
-    def available_paths(self):
+    def available_paths(self) -> List[str]:
+        """Find all URDFs in the urdf folder"""
         p = Paths()
         urdfs = [os.path.join(r,x) for r,d,y in os.walk(p.URDFS) for x in y if x.endswith('.urdf')]
         return urdfs
 
     @property
-    def available_names(self):
+    def available_names(self) -> List[str]:
+        """The names of all available URDFs"""
         names = [os.path.basename(x).replace('.urdf','') for x in self.available_paths]
         return names
 
     @property
-    def path(self):
+    def path(self) -> str:
         if self._get_path():
             return self.internal_path
         else:
@@ -78,12 +86,14 @@ class URDFReader():
 
     @path.setter
     def path(self, urdf_path):
+        """Change path in path config"""
         Paths().set('URDF',urdf_path)
         if self._get_path():
             self.load()
 
     @property
-    def name(self):
+    def name(self) -> str:
+        """Name of URDF file (less the .urdf extension)"""
         if self._get_path():
             return os.path.basename(os.path.normpath(self.internal_path)).replace('.urdf','')
         else:

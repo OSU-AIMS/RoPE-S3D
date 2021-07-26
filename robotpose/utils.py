@@ -11,23 +11,14 @@ import multiprocessing as mp
 import os
 import subprocess as sp
 import time
+from typing import Any, List, Union
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
 
-def setMemoryGrowth():
-    import tensorflow as tf
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    if gpus:
-        try:
-            for gpu in gpus:
-                tf.config.experimental.set_memory_growth(gpu, True)
-        except RuntimeError as e:
-            print(e)
-
-def get_gpu_memory():
+def get_gpu_memory() -> List[int]:
     """Query GPU's for amount of VRAM
     Modified from:
     https://stackoverflow.com/questions/59567226/how-to-programmatically-determine-available-gpu-memory-with-tensorflow
@@ -46,7 +37,7 @@ def get_gpu_memory():
     return memory_free_values 
 
 
-def workerCount():
+def workerCount() -> int:
     """Return number of threads to use as workers in multiprocessing"""
     cpu_count = mp.cpu_count()
     return int(min(cpu_count - 2, .75 * cpu_count))
@@ -57,7 +48,7 @@ def expandRegion(image, size, iterations = 1):
     return cv2.dilate(image, kern, iterations = iterations)
 
 
-def str_to_arr(string: str):
+def str_to_arr(string: str) -> np.ndarray:
     """Convert a string of SLURBT to a (6,) numpy array of boolean values"""
 
     joints = ['S','L','U','R','B','T']
@@ -66,9 +57,8 @@ def str_to_arr(string: str):
         out[joints.index(letter)] = True
     return out
 
-def get_key(dict: dict, val):
+def get_key(dict: dict, val: Any) -> Union[str, list]:
     """Return the keys of a certain dictionary value"""
-
     return list(dict.keys())[list(dict.values()).index(val)]
 
 
@@ -90,7 +80,7 @@ def reject_outliers_iqr(data, iqr_mult = 1.5):
 
 
 
-def get_extremes(mat: np.ndarray):
+def get_extremes(mat: np.ndarray) -> List[int]:
     """Returns the limits of data in a boolean array
 
     Parameters
@@ -108,7 +98,7 @@ def get_extremes(mat: np.ndarray):
 
 
 
-def folder_size(path: str):
+def folder_size(path: str) -> int:
     """Return size of all files in folder in bytes"""
     size = 0
     for r, d, f in os.walk(path):
@@ -117,17 +107,16 @@ def folder_size(path: str):
 
     return size
 
-def size_to_str(b: int):
+def size_to_str(b: int) -> str:
     """Format a number of bytes as a string in B/KB/MB/GB"""
     postfixes = ['B','KB','MB','GB']
     vals = [b / (1000 ** p) for p in range(4)]
     v = min([x for x in vals if x >= 1])
     return f"{v:0.2f} {postfixes[vals.index(v)]}"
 
-def folder_size_as_str(path: str):
+def folder_size_as_str(path: str) -> str:
     """Return folder size formatted as a string"""
     return size_to_str(folder_size(path))
-
 
 
 class Timer():

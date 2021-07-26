@@ -14,7 +14,6 @@ from robotpose import Dataset, Predictor
 from robotpose.utils import Grapher
 
 angs = 'SLU'
-
 dataset = 'set30'
 
 

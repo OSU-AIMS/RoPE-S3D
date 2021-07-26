@@ -12,6 +12,7 @@ import datetime
 import json
 import os
 import time
+from typing import List
 
 import cv2
 import h5py
@@ -20,11 +21,14 @@ from tqdm import tqdm
 
 from ..constants import DEFAULT_CAMERA_POSE, THUMBNAIL_DS_FACTOR, VIDEO_FPS
 from ..paths import Paths as p
-from ..training import ModelManager
-from .segmentation import RobotSegmenter
+
+"""Used for segmentation during compilation, which is now avoided whenever possible"""
+#from ..training import ModelManager
+#from .segmentation import RobotSegmenter 
 
 
-def save_video(path, img_arr):
+def save_video(path: str, img_arr: np.ndarray):
+    """Create a video from an image array"""
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
     out = cv2.VideoWriter(path,fourcc, VIDEO_FPS, (img_arr.shape[2],img_arr.shape[1]))
     for img in img_arr:
@@ -33,11 +37,32 @@ def save_video(path, img_arr):
 
 
 class Builder():
-    def __init__(self, compression_level = 2):
-        self.compression_level = compression_level
-        self.build_start_time = time.time()
+    def __init__(self, compression_level: int = 2):
+        """Create a builder.
+        Usually named Bob.
 
-    def build_full(self, data_path, name = None):
+        Parameters
+        ----------
+        compression_level : int, optional
+            h5py compression level for large datasets, by default 2
+        """
+        self.compression_level, self.build_start_time = compression_level, time.time()
+
+    def build_full(self, data_path: str, name: str = None) -> str:
+        """Build a dataset from a data folder path
+
+        Parameters
+        ----------
+        data_path : str
+            Folder path
+        name : str, optional
+            Name to give dataset, by default will automatically generate
+
+        Returns
+        -------
+        str
+            Dataset .h5 file path
+        """
         self._set_dest_path(data_path, name)
         self._get_filepaths_from_data_dir(data_path)
         self._load_json_data()
@@ -45,12 +70,14 @@ class Builder():
         self._make_preview()
 
         self._fake_segment_images_and_maps()
+       
 
         self._save_reference_videos()
         self._make_camera_poses()
         return self._save_full()
-
-    def recompile(self, ds_path, name = None):
+ 
+    def recompile(self, ds_path: str, name: str = None):
+        """Recompile a dataset from a .h5 dataset path"""
         self._set_dest_path_recompile(ds_path, name)
         self._load_raw_data_from_ds()
 
@@ -60,20 +87,40 @@ class Builder():
         return self._save_recompile()
 
 
-    def remove_idxs(self, src, rm_idxs):
+    def remove_idxs(self, src: str, rm_idxs: List[int]):
+        """Remove specified indicies from a dataset
+
+        Parameters
+        ----------
+        src : str
+            Source .h5 dataset file
+        rm_idxs : List[int]
+            Indicies to remove
+        """
         self._read_full(src)
         self.dest_path = os.path.dirname(src)
         keep_idxs = np.array([x for x in range(self.length) if x not in rm_idxs])
         self._filter(keep_idxs)
         self._save_full()
 
+    def build_subset(self, src: str, sub_type: str, idxs: List[int]):
+        """Build a derivative dataset of an arbitrary 'type' extraced from a source dataset
 
-    def build_subset(self, src, sub_type, idxs):
+        Parameters
+        ----------
+        src : str
+            Source .h5 dataset file
+        sub_type : str
+            'Type' to give new dataset
+        idxs : List[int]
+            Indicies to extract
+        """
         self._read_full(src)
         dst = src.replace('.h5',f'_{sub_type}.h5')
         self._write_subset(dst, sub_type, idxs)
 
-    def build_subsets(self, src, sub_types, idxs):
+    def build_subsets(self, src: List[str], sub_types: List[str], idxs: List[List[str]]):
+        """Build multiple subsets at once. See build_subset() for details"""
         self._read_full(src)
         for tp, idx in zip(sub_types, idxs):
             dst = src.replace('.h5',f'_{tp}.h5')
@@ -82,7 +129,8 @@ class Builder():
 
 
 
-    def _set_dest_path(self, data_path, name):
+    def _set_dest_path(self, data_path: str, name: str = None):
+        """Set destination folder"""
         if name is None:
             name = os.path.basename(os.path.normpath(data_path))
         self.dest_path = os.path.join(p().DATASETS, name)
@@ -90,19 +138,15 @@ class Builder():
         if not os.path.isdir(self.dest_path):
             os.mkdir(self.dest_path)
 
-    def _set_dest_path_recompile(self, dest_path, name):
-        self.dest_path = dest_path
-        self.name = name
+    #TODO: Deprecate
+    def _set_dest_path_recompile(self, dest_path: str, name: str):
+        """Set Dest path and name"""
+        self.dest_path, self.name = dest_path, name
 
-
-    def _get_filepaths_from_data_dir(self, data_path):
-        self.jsons_p = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.json')]
-        self.maps_p = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.npy')]
-        self.imgs_p = [os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith('.png')]
-
-        self.jsons = [x.replace(data_path,'') for x in self.jsons_p]
-        self.maps = [x.replace(data_path,'') for x in self.maps_p]
-        self.imgs = [x.replace(data_path,'') for x in self.imgs_p]
+    def _get_filepaths_from_data_dir(self, data_path: str):
+        """Find all data files and store both name and full path"""
+        self.jsons_p, self.maps_p, self.imgs_p = [[os.path.join(r,x) for r,d,y in os.walk(data_path) for x in y if x.endswith(end)] for end in ['.json','.npy','.png']]
+        self.jsons, self.maps, self.imgs = [[x.replace(data_path,'') for x in self.jsons_p] for y in [self.jsons_p, self.maps_p, self.imgs_p]]
 
         # Make sure overall dataset length is the same for each file type
         self.length = len(self.imgs)
@@ -110,11 +154,10 @@ class Builder():
 
 
     def _load_json_data(self):
+        """Parse in a dataset's JSON info files"""
         self.ang_arr = np.zeros((self.length, 6), dtype=float)
         self.pos_arr = np.zeros((self.length, 6, 3), dtype=float)
-        depth_scale = set()
-        intrin_depth = set()
-        intrin_color = set()
+        depth_scale, intrin_depth ,intrin_color = [set() for i in range(3)]
 
         # Parse JSONs
         for idx, path in tqdm(zip(range(self.length), self.jsons_p), total=self.length, desc="Parsing JSONs"):
@@ -133,12 +176,12 @@ class Builder():
 
         assert len(depth_scale) == len(intrin_depth) ==  len(intrin_color) == 1,f'Camera settings must be uniform over the dataset.'
 
-        self.depth_scale = depth_scale.pop()
-        self.intrin_depth = intrin_depth.pop()
-        self.intrin_color = intrin_color.pop()
+        self.depth_scale, self.intrin_depth, self.intrin_color = depth_scale.pop(), intrin_depth.pop(), intrin_color.pop()
+
 
 
     def _load_imgs_and_depthmaps(self):
+        """Load in RGB and D images"""
         img = cv2.imread(self.imgs_p[0])
         self.img_height, self.img_width = img.shape[0:2]
 
@@ -154,13 +197,14 @@ class Builder():
         self.depthmap_arr *= self.depth_scale
 
     def _make_preview(self):
-        # Make Preview Images
+        """Make thumbnail images for the dataset"""
         self.thumbnails = np.zeros((self.length, self.img_height // THUMBNAIL_DS_FACTOR, self.img_width // THUMBNAIL_DS_FACTOR, 3), dtype=np.uint8)
         for idx in tqdm(range(self.length),desc="Creating Thumbnails"):
             self.thumbnails[idx] = cv2.resize(self.orig_img_arr[idx], (self.img_width // THUMBNAIL_DS_FACTOR, self.img_height // THUMBNAIL_DS_FACTOR))
 
-
+    # TODO: Deprecate
     def _load_raw_data_from_ds(self):
+        """Load in data from a dataset, namely only that present whenver a dataset is compiled"""
         with tqdm(total=2, desc="Reading Dataset") as pbar:
             dest = os.path.join(self.dest_path, self.name + '.h5')
             with h5py.File(dest, 'r') as f:
@@ -170,33 +214,44 @@ class Builder():
                 self.depthmap_arr = np.array(f['coordinates/depthmaps'])
                 pbar.update(1)
 
+    # TODO: Deprecate
     def _fake_segment_images_and_maps(self):
         self.segmented_img_arr = self.orig_img_arr
 
-    def _segment_images_and_maps(self):
-        mm = ModelManager()
-        segmenter = RobotSegmenter(mm.dynamicLoad())
-        self.segmented_img_arr = np.zeros(self.orig_img_arr.shape, dtype=np.uint8)
+    """TODO: Deprecate"""
+    # def _segment_images_and_maps(self):
+    #     mm = ModelManager()
+    #     segmenter = RobotSegmenter(mm.dynamicLoad())
+    #     self.segmented_img_arr = np.zeros(self.orig_img_arr.shape, dtype=np.uint8)
 
-        padding = 10
-        kern = np.ones((padding,padding))
+    #     padding = 10
+    #     kern = np.ones((padding,padding))
 
-        # Segment images
-        for idx in tqdm(range(self.length),desc="Segmenting Images"):
-            mask = segmenter.segmentImage(self.orig_img_arr[idx])
-            mask = cv2.dilate(mask.astype(float), kern)
-            mask = np.stack([mask]*3,-1).astype(bool)
-            self.segmented_img_arr[idx] = np.multiply(self.orig_img_arr[idx], mask).astype(np.uint8)
+    #     # Segment images
+    #     for idx in tqdm(range(self.length),desc="Segmenting Images"):
+    #         mask = segmenter.segmentImage(self.orig_img_arr[idx])
+    #         mask = cv2.dilate(mask.astype(float), kern)
+    #         mask = np.stack([mask]*3,-1).astype(bool)
+    #         self.segmented_img_arr[idx] = np.multiply(self.orig_img_arr[idx], mask).astype(np.uint8)
 
 
     def _save_reference_videos(self):
+        """Save videos for later reference"""
         save_video(os.path.join(self.dest_path,"og_vid.avi"), self.orig_img_arr)
         save_video(os.path.join(self.dest_path,"seg_vid.avi"), self.segmented_img_arr)
 
     def _make_camera_poses(self):
+        """Create an array of default camera poses"""
         self.camera_poses = np.vstack([DEFAULT_CAMERA_POSE] * self.length)
 
-    def _save_full(self):
+    def _save_full(self) -> str:
+        """Save all raw data into a dataset
+
+        Returns
+        -------
+        str
+            Dest .h5 file data was saved to
+        """
         dest = os.path.join(self.dest_path, self.name + '.h5')
 
         # Delete file if already present
@@ -242,6 +297,8 @@ class Builder():
 
 
     def _save_recompile(self):
+        """Save the dataset after recompilation
+        TODO: Deprecate"""
         dest = os.path.join(self.dest_path, self.name + '.h5')
         with tqdm(total=1, desc="Writing Dataset") as pbar:
             with h5py.File(dest,'a') as file:
@@ -251,7 +308,14 @@ class Builder():
                 pbar.update(1)
 
 
-    def _read_full(self, path):
+    def _read_full(self, path:str):
+        """Read in all data from a dataset
+
+        Parameters
+        ----------
+        path : str
+            .h5 dataset file path
+        """
         with tqdm(total=10, desc="Reading Full Dataset") as pbar:
             with h5py.File(path,'r') as file:
                 self.attrs = dict(file.attrs)
@@ -285,7 +349,14 @@ class Builder():
                 pbar.update(1)
 
 
-    def _filter(self, idxs):
+    def _filter(self, idxs: List[int]):
+        """Return only a portion of the dataset data
+
+        Parameters
+        ----------
+        idxs : List[int]
+            Indicies to include
+        """
         self.length = len(idxs)
         self.ang_arr = self.ang_arr[idxs]
         self.pos_arr = self.pos_arr[idxs]
@@ -299,8 +370,21 @@ class Builder():
         self.imgs = self.imgs[idxs]
 
 
-    def _write_subset(self,path,sub_type,idxs):
-        """Create a derivative dataset from a full dataset, using a subset of the data."""
+    def _write_subset(self, path: str, sub_type: str, idxs: List[int]):
+        """NOT WELL TESTED, USE FILTERING INSTEAD
+        TODO: Deprecate
+        Create a derivative dataset from a full dataset, using a subset of the data.
+
+        Parameters
+        ----------
+        path : str
+            Destination path
+        sub_type : str
+            'Type' to call the new dataset
+        idxs : List[int]
+            Indicies to include in the new dataset
+        """
+        
         with tqdm(total=9, desc=f"Writing {sub_type}") as pbar:
             with h5py.File(path,'a') as file:
                 for key in self.attrs.keys():
@@ -332,7 +416,9 @@ class Builder():
                 path_grp.create_dataset('images', data = np.array(self.imgs[idxs],dtype=h5py.string_dtype()), compression="gzip",compression_opts=self.compression_level)
                 pbar.update(1)
 
-        
+
+
+    """Untested function"""
     # def weld(self, path_a, path_b, dst_dir, name):
     #     a = h5py.File(path_a,'r')
     #     b = h5py.File(path_b,'r')

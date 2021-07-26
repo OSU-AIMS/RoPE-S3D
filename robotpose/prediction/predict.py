@@ -410,16 +410,12 @@ class Predictor():
             id = data['class_ids'][idx]
             if id not in data['class_ids'][:idx]:
                 out[self.classes[id]] = {
-                    'roi':data['rois'][idx],
                     'confidence':data['scores'][idx],
                     'mask':data['masks'][...,idx]
                     }
             else:
                 out[self.classes[id]]['mask'] += data['masks'][...,idx]
                 out[self.classes[id]]['confidence'] = max(out[self.classes[id]]['confidence'], data['scores'][idx])
-                # out[self.classes[id]]['roi'] = [ #TODO: Test this functionality
-                #     np.min([out[self.classes[id]]['roi'][:2],data['rois'][idx][:2]]),
-                #     np.max([out[self.classes[id]]['roi'][2:],data['rois'][idx][2:]])]
         return out
 
     def _load_target(self, seg_data: dict, tgt_depth: np.ndarray, opt_depth = None) -> None:

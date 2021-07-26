@@ -10,6 +10,13 @@ import numpy as np
 import logging as log
 
 
+GPU_MEMORY_ALLOWED_FOR_LOOKUP = 0.1 # Depending on hardware, this my vary. ~10% seems to work, but anything like 25%+ will overallocate for calculations
+
+
+PATH_JSON_PATH = r'data/paths.json'
+
+
+
 MAX_LINKS = 7
 CROP_RENDER_WEIGHTING = [6,3,3,0,1,0]   # Higher numbers indicate more weight on that joint for rendering
 CROP_VARYING = 'SLUB'   # Joints to vary for crop calculation
@@ -19,7 +26,9 @@ CROP_PADDING = 5
 
 
 LOOKUP_NAME_LENGTH = 5
+MODEL_NAME_LENGTH = 4
 
+MODELDATA_FILE_NAME = 'ModelData.json'
 
 
 NUM_MODELS_TO_KEEP = 3

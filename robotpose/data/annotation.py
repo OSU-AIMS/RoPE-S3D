@@ -13,6 +13,7 @@ import os
 import random
 import shutil
 import tempfile
+from typing import List
 
 import cv2
 import numpy as np
@@ -25,43 +26,26 @@ from ..utils import expandRegion, workerCount
 from .dataset import Dataset
 
 
-def makeMask(image):
-    mask = np.zeros(image.shape[0:2], dtype=np.uint8)
-    mask[np.where(np.all(image != (0,0,0), axis=-1))] = 255
-    return mask
-
-def maskImg(image):
-    mask = makeMask(image)
-    mask_ = np.zeros(image.shape, bool)
-    for idx in range(image.shape[2]):
-        mask_[:,:,idx] = mask
-    mask_img = np.ones(image.shape, np.uint8) * 255
-    return mask_img
-
-def makeContours(image):
-    thresh = makeMask(image)
-    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    return contours
-
-def contourImg(image):
-    contours = makeContours(image)
-    img = np.copy(image)
-    cv2.drawContours(img, contours, -1, (0,255,0), 1)
-    return img
-
-
-
 class Annotator():
     """
     Creates labelme-compatible annotation jsons and pngs for renders.
     """
 
-    def __init__(self, pad_size = 5, color_dict = None):
+    def __init__(self, pad_size: int = 5, color_dict: dict = None):
+        """Creates labelme-compatible annotation jsons and pngs for renders.
+
+        Parameters
+        ----------
+        pad_size : int, optional
+            Pixel space to add around each joint, by default 5
+        color_dict : dict, optional
+            Joint color dct from renderer class. Can be specified with setDict(), by default None
+        """
         self.pad_size = pad_size
         if color_dict is not None:
             self.color_dict = color_dict
 
-    def setDict(self, color_dict):
+    def setDict(self, color_dict: dict):
         """ Set color dict if not specified in init"""
         self.color_dict = color_dict
 
@@ -136,7 +120,7 @@ class Annotator():
         mask = expandRegion(mask, self.pad_size)
         return mask
 
-    def _get_contour(self, image, color):
+    def _get_contour(self, image: np.ndarray, color: List[int]):
         """ Return contour of a given color """
         contours, hierarchy = cv2.findContours(self._mask_color(image, color), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         return contours
@@ -234,10 +218,7 @@ class Splitter():
     def __init__(self, folder):
         self.folder = folder
 
-        self.all = []
-        self.train = []
-        self.test = []
-        self.ignore = []
+        self.all, self.train, self.test, self.ignore = [[] for i in range(4)]
         self.past_split = True
 
         for fold in ['test', 'train', 'ignore']:

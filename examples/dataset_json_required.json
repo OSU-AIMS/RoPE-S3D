@@ -1,0 +1,39 @@
+{
+  "objects": [
+    {
+      "joints": [
+        {
+          "angle": -1.5135657604546777, 
+          "name": "link_1_s"
+        }, 
+        {
+          "angle": -0.5855686125838346, 
+          "name": "link_2_l"
+        }, 
+        {
+          "angle": 0.802833615939829, 
+          "name": "link_3_u"
+        }, 
+        {
+          "angle": 0, 
+          "name": "link_4_r"
+        }, 
+        {
+          "angle": 1.7892659580419372, 
+          "name": "link_5_b"
+        }, 
+        {
+          "angle": 0, 
+          "name": "link_6_t"
+        }
+      ]
+    }
+  ], 
+  "realsense_info": [
+    {
+      "depth_scale": 0.0010000000474974513, 
+      "intrin_color": "[ 640x480  p[308.101 241.419]  f[614.685 614.807]  Inverse Brown Conrady [0 0 0 0 0] ]", 
+      "intrin_depth": "[ 640x480  p[317.351 234.187]  f[384.446 384.446]  Brown Conrady [0 0 0 0 0] ]"
+    }
+  ]
+}

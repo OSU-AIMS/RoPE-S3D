@@ -9,9 +9,8 @@
 
 import os
 import random
-from robotpose.crop import Crop
 import string
-from typing import Union
+from typing import List, Union
 
 import cv2
 import h5py
@@ -19,16 +18,13 @@ import numpy as np
 from tqdm import tqdm
 
 from ..CompactJSONEncoder import CompactJSONEncoder
+from ..constants import LOOKUP_NAME_LENGTH, GPU_MEMORY_ALLOWED_FOR_LOOKUP
+from ..crop import Crop, applyBatchCrop
 from ..paths import Paths as p
 from ..projection import Intrinsics
 from ..urdf import URDFReader
-from ..utils import get_extremes, str_to_arr, get_key
+from ..utils import get_gpu_memory, get_key, str_to_arr
 from .render import Renderer
-from ..constants import LOOKUP_NAME_LENGTH, CROP_PADDING
-from ..utils import get_gpu_memory
-from ..crop import Crop, applyBatchCrop
-
-GPU_MEMORY_ALLOWED_FOR_LOOKUP = 0.1
 
 
 class RobotLookupCreator(Renderer):
@@ -41,21 +37,24 @@ class RobotLookupCreator(Renderer):
         super().__init__('seg', camera_pose=camera_pose, camera_intrin=intrinsics)
 
     def load_config(self, joints_to_render: int, angles_to_do: Union[str,np.ndarray], divisions:np.ndarray):
+        """Load specifications for the lookup table"""
+
         self.num_rendered = joints_to_render
         self.setMaxParts(joints_to_render)
         self.crop = self.croppper[joints_to_render]
-        self.divisions = np.array(divisions)
-        if type(angles_to_do) is str:
-            self.angles_to_do = str_to_arr(angles_to_do)
-        else:
-            self.angles_to_do = angles_to_do
+        
+        # Convert to ndarray if needed
+        self.angles_to_do = str_to_arr(angles_to_do) if type(angles_to_do) is str else angles_to_do
 
+        # Load in divisions
+        self.divisions = np.array(divisions)
         self.divisions[~self.angles_to_do] = 1
         self.num = int(np.prod(self.divisions))
 
-        self._generate_angles()
+        self._generate_angles() # Create angle set
 
     def _generate_angles(self):
+        """Generate a set of angles based on divisons"""
         self.angles = np.zeros((self.num,6))
 
         for idx in np.where(self.angles_to_do)[0]:
@@ -67,17 +66,19 @@ class RobotLookupCreator(Renderer):
             self.angles[:,idx] = np.tile(np.repeat(angle_range,repeat),tile)
     
 
-    def _generate_depth_array(self, preview: bool = True):
+    def _generate_depth_array(self, preview: bool = True) -> np.ndarray:
+        """Render the robot at each of the specified poses"""
         
+        # Get size of images
         self.setJointAngles([0,0,0,0,0,0])
         color, depth = self.render()
-
         depth_arr = np.zeros((self.num, *color.shape[:2]), dtype=float)
 
+        # Render the lookup
         for pose,idx in tqdm(zip(self.angles, range(len(self.angles))),total=len(self.angles),desc=f"Rendering {list(self.divisions)} Lookup"):
-            self.setJointAngles(pose)
-            color, depth = self.render()
-            depth_arr[idx] = depth
+            self.setJointAngles(pose)   # Set pose
+            color, depth = self.render()    #Render
+            depth_arr[idx] = depth  # Add to array
             if preview: 
                 self._show(color)
 
@@ -85,10 +86,12 @@ class RobotLookupCreator(Renderer):
 
 
     def run(self, file_name: str, preview: bool = True):
+        """Create a new lookup"""
 
-        depth_arr = self._generate_depth_array(preview)
-        depth_arr = applyBatchCrop(depth_arr, self.crop)
+        depth_arr = self._generate_depth_array(preview) # Create lookup data
+        depth_arr = applyBatchCrop(depth_arr, self.crop)    # Crop
 
+        # Save to a new .h5 file    
         with tqdm(total=2, desc=f"Writing to {file_name}") as pbar:
             f = h5py.File(file_name, 'w')
             f.attrs['pose'] = self.inp_pose
@@ -119,17 +122,20 @@ class RobotLookupInfo():
         self.update()
 
     def update(self):
-        self.data = {}
+        self.data = {}  # Clear data
 
-        paths = [os.path.join(p().ROBOT_LOOKUPS,x) for x in os.listdir(p().ROBOT_LOOKUPS) if x.endswith('.h5') and not 'crop_data' in x]
+        # Find all .h5 files except the crop data file
+        paths = [os.path.join(p().ROBOT_LOOKUPS,x) for x in os.listdir(p().ROBOT_LOOKUPS) if x.endswith('.h5') and not os.path.basename(p().CROP_DATA) in x]
         raw_tables = {}
+        
+        # Create dict of attributes
         for path in paths:
             with h5py.File(path,'r') as f:
                 a = dict(f.attrs)
             name = os.path.basename(os.path.normpath(path)).replace('.h5','')
             raw_tables[name] = a
 
-        # Normalize all values
+        # Normalize all values' format
         for key in raw_tables:
             tmp_intrin = Intrinsics(raw_tables[key]['intrinsics'])
             raw_tables[key]['element_number'] = tmp_intrin.size * np.prod(raw_tables[key]['divisions'])
@@ -139,10 +145,12 @@ class RobotLookupInfo():
             for attr in ['angles_changed', 'divisions']:
                 raw_tables[key][attr] = list(raw_tables[key][attr])
 
+        # Create abbreviation for poses
         camera_poses = {x['pose'] for x in raw_tables.values()}
         pose_shortnames = {('P_'+k):v for k,v in zip(string.ascii_uppercase[:len(camera_poses)], camera_poses)}
         self.data['camera_poses'] = pose_shortnames
 
+        # Create abbreviation for intrinsics
         intrins = {x['intrinsics'] for x in raw_tables.values()}
         intrin_shortnames = {('I_'+k):v for k,v in zip(string.ascii_uppercase[:len(intrins)], intrins)}
         self.data['intrinsics'] = intrin_shortnames
@@ -179,7 +187,7 @@ class RobotLookupManager(RobotLookupInfo):
         max_elements: int = None,
         max_poses: int = None,
         divisions: np.ndarray = None
-        ):
+        ) -> List[np.ndarray]:
         """Get a lookup table, creating one if needed
 
         Parameters
@@ -191,7 +199,7 @@ class RobotLookupManager(RobotLookupInfo):
         varying_angles : Union[str,np.ndarray]
             The angles that vary in this lookup
 
-        One of the following
+        At most one of the following
         ----------------------------
         max_elements : int, (calculated by default)
             Max number of array elements
@@ -272,7 +280,7 @@ class RobotLookupManager(RobotLookupInfo):
         return self.load(name)
 
 
-    def load(self, name: str):
+    def load(self, name: str) -> List[np.ndarray]:
         """Return values from lookup table based on name"""
         if not name.endswith('.h5'):
             name = name + '.h5'
@@ -286,7 +294,8 @@ class RobotLookupManager(RobotLookupInfo):
         num_rendered_links: int, 
         varying_angles: str, 
         divisions: np.ndarray
-        ):
+        ) -> str:
+        """Create a new lookup"""
         
         creator = RobotLookupCreator(camera_pose, intrinsics)
         creator.load_config(num_rendered_links, varying_angles, divisions)

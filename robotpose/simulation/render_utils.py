@@ -13,15 +13,17 @@ import numpy as np
 import pyrender
 import trimesh
 
-from ..constants import DEFAULT_RENDER_COLORS as DEFAULT_COLORS
 from ..urdf import URDFReader
 
 
 class MeshLoader():
+    """Loads appropriate meshes based on active URDF"""
 
-    def __init__(self, include_t = False):
+    def __init__(self, include_t: bool = False):
 
         self.ureader = URDFReader()
+
+        # Able to include/exclude T
         if include_t:
             self.name_list = self.ureader.mesh_names
             self.mesh_list = self.ureader.mesh_paths
@@ -32,6 +34,7 @@ class MeshLoader():
         self.load()
 
     def load(self):
+        """Read in mesh files to Pyrender meshes"""
         self._meshes = []
         for file in self.mesh_list:
             tm = trimesh.load(os.path.join(os.getcwd(),file))

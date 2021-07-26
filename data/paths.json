@@ -1,9 +1,11 @@
 {
     "DATASETS": "data/",
+    "DATASET_INFO_JSON": "data/datasets.json",
     "RAW_DATA": "data/raw/",
     "ROBOT_LOOKUPS": "lookup/",
     "ROBOT_LOOKUP_INFO": "lookup/lookups.json",
     "MODELS": "models/",
+    "MODEL_INFO_JSON": "models/models.json",
     "OUTPUT": "output/",
     "BASE_MODEL": "models/mask_rcnn_coco.h5",
     "VIDEO": "output/video.avi",

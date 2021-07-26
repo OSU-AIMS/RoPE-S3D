@@ -29,7 +29,6 @@ class Wizard(DatasetInfo):
 
     def __init__(self):
         super().__init__()
-        self.get()
 
         # URDF Reading 
         self.urdf_reader = URDFReader()
@@ -39,7 +38,7 @@ class Wizard(DatasetInfo):
         self.last_split_data = {}
         self.last_applied_split_data = {}
         self.applied_split_data = {}
-        self.current_dataset = self.compiled_sets()[0]
+        self.current_dataset = self.compiled_sets[0]
         self._getNewSplitData()
 
         if PREVIEW:
@@ -52,7 +51,7 @@ class Wizard(DatasetInfo):
         ########################################################################################
         # Tab responsible for Dataset selection and viewing
         data_tab_layout = [
-            [sg.Txt("Dataset:"),sg.Combo(self.compiled_sets(),key='-dataset-', size=(20, 1))],
+            [sg.Txt("Dataset:"),sg.Combo(self.compiled_sets,key='-dataset-', size=(20, 1))],
             [sg.Button("View Details",key='-details-',tooltip='View dataset details'),
                 sg.Button("Align",key='-align-',tooltip='Align Dataset images with renderer'),
                 sg.Button("Verify",key='-verify-',tooltip='Remove images of incorrect poses from dataset')],
@@ -139,7 +138,7 @@ class Wizard(DatasetInfo):
 
         self.updateDatasetSplit(values)
 
-        if values['-dataset-'] in self.unique_sets():
+        if values['-dataset-'] in self.unique_sets:
             # If dataset is valid, show preview, enable buttons
             if values['-tabgroup-'] == "Data":
                 if PREVIEW:
@@ -159,7 +158,7 @@ class Wizard(DatasetInfo):
         # Enable/Disable model delete button if on correct tab
         if values['-tabgroup-'] == "Prediction":
             # Only allow deletion of models, not all of a dataset's models
-            if values['-model_tree-'] == [] or sum([x in self.unique_sets() for x in values['-model_tree-']]) > 0:
+            if values['-model_tree-'] == [] or sum([x in self.unique_sets for x in values['-model_tree-']]) > 0:
                 self.window['-delete_model-'].update(disabled=True)
             else:
                 self.window['-delete_model-'].update(disabled=False)
@@ -598,6 +597,4 @@ class MeshViewer():
         self.rend.setJointAngles([0,0,0,0,0,0])
         set_render_and_process(r,z)
         print(f'\n\nFor reference, the base camera position for this robot is:\n{self.base_pose}\n\n')
-
-
 

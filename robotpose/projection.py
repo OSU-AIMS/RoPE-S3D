@@ -14,7 +14,6 @@ import numpy as np
 import pyrealsense2 as rs
 import pyrender
 
-FLT_EPSILON = 1
 
 class Intrinsics():
 
