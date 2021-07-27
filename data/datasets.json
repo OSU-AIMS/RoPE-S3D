@@ -1,24 +1,24 @@
 {
     "compiled": {
-        "full": {
-            "names": ["set0", "set10"],
-            "paths": ["data/set0/set0.h5", "data/set10/set10.h5"]
-        },
-        "train": {
-            "names": [],
-            "paths": []
-        },
-        "validate": {
-            "names": [],
-            "paths": []
-        },
-        "test": {
-            "names": [],
-            "paths": []
-        }
+        "names": ["set0", "set10", "set20", "set21", "set30", "set40"],
+        "paths": [
+            "data/set0/set0.h5",
+            "data/set10/set10.h5",
+            "data/set20/set20.h5",
+            "data/set21/set21.h5",
+            "data/set30/set30.h5",
+            "data/set40/set40.h5"
+        ]
     },
     "uncompiled": {
-        "names": ["set0", "set10"],
-        "paths": ["data/raw/set0.zip", "data/raw/set10.zip"]
+        "names": ["set0", "set10", "set20", "set21", "set30", "set40"],
+        "paths": [
+            "data/raw/set0.zip",
+            "data/raw/set10.zip",
+            "data/raw/set20.zip",
+            "data/raw/set21.zip",
+            "data/raw/set30.zip",
+            "data/raw/set40.zip"
+        ]
     }
 }

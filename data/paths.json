@@ -1,15 +1,16 @@
 {
     "DATASETS": "data/",
+    "DATASET_INFO_JSON": "data/datasets.json",
     "RAW_DATA": "data/raw/",
-    "LOOKUPS": "lookup/",
+    "ROBOT_LOOKUPS": "lookup/",
+    "ROBOT_LOOKUP_INFO": "lookup/lookups.json",
     "MODELS": "models/",
-    "MODELS_BODY": "models/body/",
-    "MODELS_LINK": "models/link/",
+    "MODEL_INFO_JSON": "models/models.json",
     "OUTPUT": "output/",
-    "SEG_MODELS": "models/segmentation",
     "BASE_MODEL": "models/mask_rcnn_coco.h5",
     "VIDEO": "output/video.avi",
     "URDFS": "urdfs/",
     "URDF": "urdfs/motoman_mh5_support/urdf/mh5l.urdf",
-    "DH_PARAMS": "data/DH_params.json"
+    "SPLIT_CONFIG": "data/split_config.json",
+    "CROP_DATA": "lookup/crop_data.h5"
 }

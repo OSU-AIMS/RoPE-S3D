@@ -14,6 +14,8 @@ import numpy as np
 from pixellib.instance import custom_segmentation
 
 class RobotSegmenter():
+    """LEGACY
+    Used to pre-segment the robot from the background"""
 
     def __init__(self, model_path):
         self.master = custom_segmentation()

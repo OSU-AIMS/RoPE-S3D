@@ -16,31 +16,25 @@ import trimesh
 from ..urdf import URDFReader
 
 
-def default_color_maker(num):
-    b = np.linspace(0,255,num).astype(int) # Blue values are always unique
-
-    g = [0] * b.size
-    r = np.abs(255 - 2*b)
-
-    colors = []
-    for idx in range(num):
-        colors.append([b[idx],g[idx],r[idx]])
-    return colors
-
-DEFAULT_COLORS = default_color_maker(7)
-
-
 class MeshLoader():
+    """Loads appropriate meshes based on active URDF"""
 
-    def __init__(self):
+    def __init__(self, include_t: bool = False):
 
         self.ureader = URDFReader()
-        self.name_list = self.ureader.mesh_names
-        self.mesh_list = self.ureader.mesh_paths
+
+        # Able to include/exclude T
+        if include_t:
+            self.name_list = self.ureader.mesh_names
+            self.mesh_list = self.ureader.mesh_paths
+        else:
+            self.name_list = self.ureader.mesh_names[:-1]
+            self.mesh_list = self.ureader.mesh_paths[:-1]
 
         self.load()
 
     def load(self):
+        """Read in mesh files to Pyrender meshes"""
         self._meshes = []
         for file in self.mesh_list:
             tm = trimesh.load(os.path.join(os.getcwd(),file))

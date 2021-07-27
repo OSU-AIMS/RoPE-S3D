@@ -7,6 +7,7 @@
 #
 # Author: Adam Exley
 
+from typing import Union
 import numpy as np
 from klampt import WorldModel
 
@@ -14,6 +15,7 @@ from ..urdf import URDFReader
 
 
 class ForwardKinematics():
+    """Calculates the forward kinematics of the robot in the active URDF"""
 
     def __init__(self) -> None:
         self.load()
@@ -25,20 +27,24 @@ class ForwardKinematics():
 
         # Get link IDs
         link_ids = [self.robot.link(idx).getName() for idx in range(self.robot.numLinks())]
+
         # Get mapping
         self.link_map = {k:link_ids.index(k) for k in u_reader.mesh_names}
         self.link_idxs = [x for x in self.link_map.values()]
 
 
-    def calc(self, p_in):
+    def calc(self, p_in: Union[list, np.ndarray]):
+        """Calculate mesh poses based on joint angles"""
 
         angs = np.zeros(self.robot.numLinks())
         angs[self.link_idxs[1:]] = p_in # base link does not have angle
         
+        # Set angles
         self.robot.setConfig(angs)
     
         poses = np.zeros((7,4,4))
         
+        # Get pose
         for idx,i in zip(self.link_idxs, range(len(self.link_idxs))):
             trans = self.robot.link(idx).getTransform()
             poses[i,3,3] = 1

@@ -22,20 +22,13 @@ from robotpose import AutomaticAnnotator, DatasetRenderer
 def label(args):
     rend = DatasetRenderer(args.dataset)
     
-    if not args.no_body:
-        seg = AutomaticAnnotator(args.dataset, 'body', rend, not args.no_preview)
-        seg.run()
-    if not args.no_link:
-        seg = AutomaticAnnotator(args.dataset, 'link', rend, not args.no_preview)
-        seg.run()
+    seg = AutomaticAnnotator(args.dataset, rend, not args.no_preview)
+    seg.run()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset', type=str, default="set10", help="The dataset to load to annotate. Can be a partial name.")
     parser.add_argument('-no_preview', action="store_true", help="Disables preview.")
-    parser.add_argument('-no_body', action="store_true", help="Disables full-body segmentation.")
-    parser.add_argument('-no_link', action="store_true", help="Disables per-link segmentation.")
     args = parser.parse_args()
-    assert (not args.no_body) or (not args.no_link), "Some form of annotation must be done."
     label(args)

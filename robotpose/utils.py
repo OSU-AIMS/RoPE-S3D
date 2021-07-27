@@ -8,26 +8,17 @@
 # Author: Adam Exley
 
 import multiprocessing as mp
-import string
-import time
+import os
 import subprocess as sp
+import time
+from typing import Any, List, Union
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
 
-def setMemoryGrowth():
-    import tensorflow as tf
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    if gpus:
-        try:
-            for gpu in gpus:
-                tf.config.experimental.set_memory_growth(gpu, True)
-        except RuntimeError as e:
-            print(e)
-
-def get_gpu_memory():
+def get_gpu_memory() -> List[int]:
     """Query GPU's for amount of VRAM
     Modified from:
     https://stackoverflow.com/questions/59567226/how-to-programmatically-determine-available-gpu-memory-with-tensorflow
@@ -42,11 +33,12 @@ def get_gpu_memory():
 
     COMMAND = "nvidia-smi --query-gpu=memory.total --format=csv"
     memory_free_info = _output_to_list(sp.check_output(COMMAND.split()))[1:]
-    memory_free_values = [int(x.split()[0])*67108864 for i, x in enumerate(memory_free_info)]
+    memory_free_values = [int(x.split()[0])*8.389e6 for i, x in enumerate(memory_free_info)]
     return memory_free_values 
 
 
-def workerCount():
+def workerCount() -> int:
+    """Return number of threads to use as workers in multiprocessing"""
     cpu_count = mp.cpu_count()
     return int(min(cpu_count - 2, .75 * cpu_count))
 
@@ -56,14 +48,17 @@ def expandRegion(image, size, iterations = 1):
     return cv2.dilate(image, kern, iterations = iterations)
 
 
-def str_to_arr(string):
+def str_to_arr(string: str) -> np.ndarray:
+    """Convert a string of SLURBT to a (6,) numpy array of boolean values"""
+
     joints = ['S','L','U','R','B','T']
     out = np.zeros(6, bool)
     for letter in string.upper():
         out[joints.index(letter)] = True
     return out
 
-def get_key(dict, val):
+def get_key(dict: dict, val: Any) -> Union[str, list]:
+    """Return the keys of a certain dictionary value"""
     return list(dict.keys())[list(dict.values()).index(val)]
 
 
@@ -83,6 +78,45 @@ def reject_outliers_iqr(data, iqr_mult = 1.5):
     data = data[data <= max]
     return data
 
+
+
+def get_extremes(mat: np.ndarray) -> List[int]:
+    """Returns the limits of data in a boolean array
+
+    Parameters
+    ----------
+    mat : ndarray
+        Must be bool type
+
+    Returns
+    -------
+    Extremes : list
+        Min row, Max row, Min column, Max column
+    """
+    r, c = np.where(mat)
+    return [min(r),max(r),min(c),max(c)]
+
+
+
+def folder_size(path: str) -> int:
+    """Return size of all files in folder in bytes"""
+    size = 0
+    for r, d, f in os.walk(path):
+        for file in f:
+            size += os.path.getsize(os.path.join(r, file))
+
+    return size
+
+def size_to_str(b: int) -> str:
+    """Format a number of bytes as a string in B/KB/MB/GB"""
+    postfixes = ['B','KB','MB','GB']
+    vals = [b / (1000 ** p) for p in range(4)]
+    v = min([x for x in vals if x >= 1])
+    return f"{v:0.2f} {postfixes[vals.index(v)]}"
+
+def folder_size_as_str(path: str) -> str:
+    """Return folder size formatted as a string"""
+    return size_to_str(folder_size(path))
 
 
 class Timer():
@@ -154,10 +188,22 @@ class Grapher():
         self.joints = [x for x in joints_to_plot.upper()]
         self.predictions = np.degrees(predictions)
         self.true = np.degrees(ds_angles)
+        self._b_correction()
         self._cropComparison()
     
     def plot(self,ylim=None):
         self._plotWithComparison(ylim)
+
+    def _b_correction(self):
+        if 'B' not in self.joints:
+            return
+
+        offsets = [-360, -180, 0, 180, 360]
+        
+        for idx in range(len(self.predictions)):
+            err = [abs((self.predictions[idx,4] + x) - self.true[idx,4]) for x in offsets]
+            self.predictions[idx,4] += offsets[err.index(min(err))]
+
 
     def _cropComparison(self):
         ang = ['S','L','U','R','B','T']
@@ -173,7 +219,6 @@ class Grapher():
     def _plotWithComparison(self, y_lim = None):
 
         fig, axs = plt.subplots(len(self.joints),2)
-
                 
         # Plot Raw Angles
         for joint, idx in zip(self.joints,range(len(self.joints))):
@@ -195,7 +240,6 @@ class Grapher():
         err = np.abs(err)
 
         avg_err = np.mean(err,0)
-        avg_err_std = np.std(err,0)
 
         err_std = np.std(err,0)
         err_med = np.median(err,0)

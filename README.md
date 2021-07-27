@@ -26,17 +26,21 @@ The following are the main steps that must be taken to train a new model:
 
 Meshes are loaded directly from a robot's URDF.
 
-The active URDF can be changed by running the wizard (with ```python wizard.py```), which will automatically 
+The active URDF can be changed in the wizard's URDF tab (```python wizard.py```)
 
 ## Datasets
 
-Datasets are expected to contain RGB images in a ```.png``` format with accompanying depthmaps in a ```.npy``` array file, and a ```.json``` information file.
+Datasets are expected to contain RGB images in a ```.png``` format with accompanying depthmaps in a ```.npy``` array file, and a ```.json``` information file. Datasets are stored as zipped files and automatically extracted and compiled into ```.h5``` files for use.
+
+The format for the ```.json``` info file can be found in ```examples/dataset_json_required.json```.
 
 To build, or recompile a dataset, simply run the wizard with arguments:
 ```bash
 python wizard.py dataset_name [-rebuild] [-recompile]
 ```
 With ```-rebuild``` recreating the dataset from the raw data directly, and with ```-recompile``` reprocessing the dataset from the raw data stored in the dataset itself.
+
+```dataset_name``` corresponds to the name of the zipped folder in ```data/raw``` where the dataset is stored.
 
 ## Automatic Annotation
 
@@ -47,21 +51,33 @@ Before running any automatic annotation, first align the dataset with the render
 1. Select Dataset
 2. Click "Align"
 
+It is expected that the general camera pose relative to the robot is known; the tool allows for further fine-tuning if needed.
+
 ### Annotation
 
 Then, use the automatic annotation script:
 
 ```bash
-python annotate.py dataset_name [-no_body] [-no_link] [-no_preview]
+python annotate.py dataset_name [-no_preview]
 ```
+
+This will automatically split data into train/validation sets according to the split specified in the wizard's Training tab. Changing the split will automatically reapportion data.
 
 ## Training
 
-Training must be done for both full-body and joint-specific models.
-
 ```bash
-python train_seg.py dataset_name [--batch] [--valid]
+python train.py dataset_name [--batch] [--valid]
 ```
+
+# Prediction
+
+Currently, predicition is only supported on datasets. It is planned to later support live prediction.
+
+To predict on a dataset, change the 'dataset' variable hardcoded in ```predict.py```. Then run this script.
+
+Average prediciton speed ranges from 0.5-2 seconds per pose. This may vary with computer specifications.
+
+Note: Running this script will provide results for all data in the dataset, regardless of if the segmentation model was trained on the data. To view predictions on those poses of the dataset that have not been used for segmentation training, it is advisable to split the data into multiple datasets (with the same camera pose) and to train on one and evalute performace with another.
 
 # Installation
 
@@ -115,9 +131,11 @@ pip install --upgrade tensorflow-gpu
 pip install --upgrade tensorflow-gpu==2.0.0
 ```
 
+# Customization
 
+Many static constants are specified in ```robotpose/constansts.py```. Many of these can be easily modified to change program behavior.
 
-
+Some constants only change visual appearance of some functions whereas others can change how the entire program behaves; take caution whenever changing more tehchnical constants.
 
 # License
 

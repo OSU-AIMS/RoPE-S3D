@@ -1,19 +1,35 @@
 {
     "camera_poses": {
-        "P_A": [0.042, -1.425, 0.399, -0.01, 1.553, -0.057]
+        "P_A": [
+            2.59,
+            0.017,
+            0.618,
+            0.017,
+            -0.064,
+            1.613
+        ]
     },
-    "intrinsics": { "I_A": "[ 160x90  p[79.7989 45.1866]  f[113.154 113.107]  Brown Conrady [0 0 0 0 0] ]" },
+    "intrinsics": {
+        "I_A": "[ 320x240  p[154.051 120.71]  f[307.342 307.404]  Inverse Brown Conrady [0 0 0 0 0] ]"
+    },
     "lookups": {
         "I_A": {
             "P_A": {
-                "obwcq": {
+                "tbiwg": {
                     "angles_changed": [true, true, false, false, false, false],
-                    "divisions": [111, 111, 1, 1, 1, 1],
-                    "intrinsics": "[ 160x90  p[79.7989 45.1866]  f[113.154 113.107]  Brown Conrady [0 0 0 0 0] ]",
+                    "divisions": [100, 100, 1, 1, 1, 1],
+                    "intrinsics": "[ 320x240  p[154.051 120.71]  f[307.342 307.404]  Inverse Brown Conrady [0 0 0 0 0] ]",
                     "num_links_rendered": 4,
-                    "pose": [0.042, -1.425, 0.399, -0.01, 1.553, -0.057],
-                    "element_number": 177422400,
-                    "pose_number": 12321
+                    "pose": [
+                        2.59,
+                        0.017,
+                        0.618,
+                        0.017,
+                        -0.064,
+                        1.613
+                    ],
+                    "element_number": 768000000,
+                    "pose_number": 10000
                 }
             }
         }
