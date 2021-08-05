@@ -27,6 +27,8 @@ from ..utils import get_gpu_memory, get_key, str_to_arr
 from .render import Renderer
 
 
+MAX_DIV_PER_LINK = 200
+
 class RobotLookupCreator(Renderer):
     """Creates a file that stores rendered depth data in a form that can be processed easily"""
 
@@ -47,7 +49,7 @@ class RobotLookupCreator(Renderer):
         self.angles_to_do = str_to_arr(angles_to_do) if type(angles_to_do) is str else angles_to_do
 
         # Load in divisions
-        self.divisions = np.array(divisions)
+        self.divisions = np.clip(np.array(divisions),0,MAX_DIV_PER_LINK)
         self.divisions[~self.angles_to_do] = 1
         self.num = int(np.prod(self.divisions))
 

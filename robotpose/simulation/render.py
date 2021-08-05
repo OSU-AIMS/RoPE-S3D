@@ -168,6 +168,7 @@ class DatasetRenderer(Renderer):
     
     def __init__(self, dataset: str, mode: str = 'seg', camera_pose: np.ndarray = None):
         self.ds = Dataset(dataset)
+        if camera_pose is None: camera_pose = self.ds.camera_pose[0]
         super().__init__(mode, camera_pose, self.ds.attrs['color_intrinsics'])
         
     def render_at(self, idx: int) -> List[np.ndarray]:

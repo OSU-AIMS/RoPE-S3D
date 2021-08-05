@@ -207,6 +207,8 @@ class AutomaticAnnotator():
 
             # Split data into train, validate, and test sections
             splitter = Splitter(self.dest_path)
+
+            #TODO: split correctly
             splitter.split(.4,.1)
 
             # Clean up progress bar

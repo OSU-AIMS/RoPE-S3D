@@ -1,0 +1,12 @@
+{
+    "id": "UHLI",
+    "dataset": "set30",
+    "dataset_size": 1027,
+    "train_size": 821,
+    "valid_size": 154,
+    "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+    "epochs_trained": 0,
+    "date_trained": "2021-08-01 11:46:19.630730",
+    "benchmarks": [],
+    "train_ratio": 0.799416
+}

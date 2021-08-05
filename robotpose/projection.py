@@ -8,12 +8,14 @@
 # Author: Adam Exley
 
 import re
+from robotpose.constants import DEFAULT_CAMERA_POSE
 from typing import Union
 
 import numpy as np
 import pyrealsense2 as rs
 import pyrender
 
+import cv2
 
 class Intrinsics():
 
@@ -189,3 +191,72 @@ class Intrinsics():
 
     def __ne__(self, other) -> bool:
         return not self.__eq__(other)
+
+
+
+# class Camera(Intrinsics):
+#     def __init__(self, intrinsics: Union[str, 'Intrinsics'], pose: Union[list, np.ndarray] = DEFAULT_CAMERA_POSE):
+#         super().__init__(input=intrinsics)
+#         self.pose = np.array(pose)
+
+
+
+
+
+
+
+
+
+
+# def deproj_depthmap_to_pointmap(intrin, depthmap, depth_scale = 0):
+#     """
+#     Deprojects an entire depthmap into a corresponding pointmap, assuming the same camera intrinsics
+#     Arguments:
+#     intrin: intrinsics to use to project
+#     depthmap: depthmap to project
+#     depth_scale: Multiplier to apply to depthmap if not already applied
+#     """
+
+#     depthmap = np.array(depthmap, dtype=np.float64)
+
+#     point_map = np.zeros((*depthmap.shape,3))
+
+#     r_idx = np.repeat(np.arange(depthmap.shape[0]),intrin.width)
+#     c_idx = np.tile(np.arange(depthmap.shape[1]),intrin.height)
+
+#     if depth_scale != 0:
+#         depthmap *= depth_scale
+#     depths = depthmap.flatten()
+
+#     x = (c_idx - intrin.ppx) / intrin.fx 
+#     y = (r_idx - intrin.ppy) / intrin.fy 
+
+#     point_map[r_idx, c_idx, 0] = depths * x
+#     point_map[r_idx, c_idx, 1] = depths * -y
+#     point_map[r_idx, c_idx, 2] = depths
+
+#     return point_map
+
+
+# def pointmap_to_point_list(pointmap):
+#     loc = np.where(np.all(pointmap != [0,0,0],-1))
+
+#     out = np.zeros((loc[0].shape[0],3))
+#     out = pointmap[loc]
+#     return out
+
+# def fit_line_to_depthmap(intrin, depthmap):
+#     pointmap = deproj_depthmap_to_pointmap(intrin, depthmap)
+#     point_list = pointmap_to_point_list(pointmap)
+#     return cv2.fitLine(point_list,cv2.DIST_L2,0,0.1,0.1)
+
+# def compare_lines(intrin, depthmap_1, depthmap_2):
+#     intrin = intrin.rs
+#     l1 = fit_line_to_depthmap(intrin, depthmap_1)
+#     l1 = [x[0] for x in l1]
+#     l2 = fit_line_to_depthmap(intrin, depthmap_2)
+#     l2 = [x[0] for x in l2]
+#     a = np.arccos(np.dot(l1[:3],l2[:3]))
+#     if a > np.pi / 2:
+#         a -= np.pi/2
+#     return a

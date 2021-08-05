@@ -18,7 +18,7 @@ dataset = 'set30'
 
 
 ds = Dataset(dataset)
-am = Predictor(ds_factor=2, camera_pose=ds.camera_pose[0], preview=False, base_intrin = ds.intrinsics, do_angles=angs, model_ds=dataset, save_to='output/set21_out.avi')
+am = Predictor(ds_factor=2, camera_pose=ds.camera_pose[0], preview=False, base_intrin = ds.intrinsics, do_angles=angs, model_ds=dataset)
 
 from functools import reduce
 
@@ -36,7 +36,7 @@ with tqdm(total=ds.length,desc=f"Div Size {div_size}") as pbar:
     for start in range(0,ds.length,div_size):
         end = start+div_size
 
-        target_depths = np.zeros((div_size,720,1280))
+        #target_depths = np.zeros((div_size,720,1280))
 
         og_imgs = np.copy(ds.og_img[start:end])
         dms = np.copy(ds.depthmaps[start:end])

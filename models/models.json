@@ -1,122 +1,38 @@
 {
-    "BIZI": {
-        "id": "BIZI",
+    "EDBK": {
+        "id": "EDBK",
         "dataset": "set30",
-        "dataset_size": 1027,
-        "train_size": 410,
-        "valid_size": 102,
-        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-        "epochs_trained": 16,
-        "date_trained": "2021-07-15 08:31:08.345944",
-        "benchmarks": [],
-        "train_ratio": 0.399221
-    },
-    "BKSA": {
-        "id": "BKSA",
-        "dataset": "set10",
-        "dataset_size": 1000,
-        "train_size": 400,
-        "valid_size": 100,
-        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-        "epochs_trained": 7,
-        "date_trained": "2021-06-20 22:30:28.325558",
-        "benchmarks": [],
-        "train_ratio": 0.4
-    },
-    "DKWK": {
-        "id": "DKWK",
-        "dataset": "set21",
-        "dataset_size": 1035,
-        "train_size": 828,
-        "valid_size": 207,
-        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-        "epochs_trained": 15,
-        "date_trained": "2021-07-07 15:39:08.450689",
-        "benchmarks": [],
-        "train_ratio": 0.8
-    },
-    "DULF": {
-        "id": "DULF",
-        "dataset": "set30",
-        "dataset_size": 1027,
-        "train_size": 410,
-        "valid_size": 102,
-        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-        "epochs_trained": 13,
-        "date_trained": "2021-07-14 20:14:52.426914",
-        "benchmarks": [],
-        "train_ratio": 0.399221
-    },
-    "GVGO": {
-        "id": "GVGO",
-        "dataset": "set21",
-        "dataset_size": 1035,
-        "train_size": 414,
-        "valid_size": 103,
-        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-        "epochs_trained": 7,
-        "date_trained": "2021-07-05 22:46:55.548812",
-        "benchmarks": [],
-        "train_ratio": 0.4
-    },
-    "JAGV": {
-        "id": "JAGV",
-        "dataset": "set10",
-        "dataset_size": 1000,
-        "train_size": 400,
-        "valid_size": 100,
-        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-        "epochs_trained": 4,
-        "date_trained": "2021-06-02 21:58:58.006319",
-        "benchmarks": [],
-        "train_ratio": 0.4
-    },
-    "RDZG": {
-        "id": "RDZG",
-        "dataset": "set20",
-        "dataset_size": 1100,
-        "train_size": 440,
-        "valid_size": 110,
+        "dataset_size": 1020,
+        "train_size": 765,
+        "valid_size": 204,
         "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
         "epochs_trained": 9,
-        "date_trained": "2021-06-19 18:54:04.553724",
+        "date_trained": "2021-08-03 13:28:05.857840",
         "benchmarks": [],
-        "train_ratio": 0.4
+        "train_ratio": 0.75
     },
-    "XVCZ": {
-        "id": "XVCZ",
-        "dataset": "set20",
-        "dataset_size": 1100,
-        "train_size": 440,
-        "valid_size": 110,
+    "JWRF": {
+        "id": "JWRF",
+        "dataset": "set30",
+        "dataset_size": 1020,
+        "train_size": 765,
+        "valid_size": 204,
         "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-        "epochs_trained": 8,
-        "date_trained": "2021-07-05 20:59:13.781491",
+        "epochs_trained": 29,
+        "date_trained": "2021-08-03 14:20:02.970818",
         "benchmarks": [],
-        "train_ratio": 0.4
+        "train_ratio": 0.75
     },
-    "YIYA": {
-        "id": "YIYA",
+    "UHLI": {
+        "id": "UHLI",
         "dataset": "set30",
         "dataset_size": 1027,
-        "train_size": 410,
-        "valid_size": 102,
+        "train_size": 821,
+        "valid_size": 154,
         "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-        "epochs_trained": 21,
-        "date_trained": "2021-07-14 21:31:53.788078",
+        "epochs_trained": 16,
+        "date_trained": "2021-08-01 11:46:19.630730",
         "benchmarks": [],
-        "train_ratio": 0.399221
-    },
-    "YWBU": {
-        "id": "YWBU",
-        "dataset": "set21",
-        "dataset_size": 1035,
-        "train_size": 414,
-        "valid_size": 103,
-        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
-        "epochs_trained": 10,
-        "date_trained": "2021-07-06 21:12:21.224375",
-        "benchmarks": [],
-        "train_ratio": 0.4
+        "train_ratio": 0.799416
     }
 }
