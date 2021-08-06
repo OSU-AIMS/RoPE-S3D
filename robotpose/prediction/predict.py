@@ -138,7 +138,7 @@ class Predictor():
             sweeps = [l_sweep_narrow,s_sweep_narrow]
 
             self.stages = [lookup, *flips, *sweeps, *flips, *sweeps, *flips, sl_fine_tune]
-            self.stages = [lookup]
+            self.stages = [lookup, ['s_flip', 4]]
 
 
         elif self.do_angles == 'SLU':
@@ -262,7 +262,6 @@ class Predictor():
                 diff = tf.abs(diff)
                 lookup_err = (tf.reduce_mean(diff, (1,2)) * tf.math.reduce_std(diff, (1,2))).numpy()
 
-
                 angles = self.lookup_angles[tf.argmin(lookup_err).numpy()]
 
             elif stage[0] == 'descent':
@@ -329,7 +328,8 @@ class Predictor():
 
                 self.renderer.setMaxParts(stage[1])
 
-                color, depth = self.renderer.render()
+                color, depth = render_at_pos(angles)
+                preview_if_applicable(color, depth)
                 base_err = self._error(stage[1], color, depth)
 
                 temp = angles.copy()
@@ -340,7 +340,7 @@ class Predictor():
                     err = self._error(stage[1], color, depth)
 
                     if err < base_err:
-                        angles[0] = temp[0]
+                        angles = temp
 
                         if self.preview:
                             color, depth = render_at_pos(angles)
@@ -794,7 +794,7 @@ class ProjectionViz():
         self.frame = cv2.putText(self.frame, "Render Depth vs. Input Depth", (self.res[1]//2 + 10,self.res[0]//2 + 30), font, 1, color, 2, cv2.LINE_AA, False)
 
         cv2.imshow("Projection Matcher", self.frame)
-        cv2.waitKey(1)
+        cv2.waitKey(1000)
         if self.write_to_file:
             self.writer.write(self.frame)
 
