@@ -138,7 +138,7 @@ class Predictor():
             sweeps = [l_sweep_narrow,s_sweep_narrow]
 
             self.stages = [lookup, *flips, *sweeps, *flips, *sweeps, *flips, sl_fine_tune]
-            self.stages = [lookup, ['s_flip', 4]]
+            self.stages = [lookup, *flips]
 
 
         elif self.do_angles == 'SLU':
@@ -329,11 +329,12 @@ class Predictor():
                 self.renderer.setMaxParts(stage[1])
 
                 color, depth = render_at_pos(angles)
+
                 preview_if_applicable(color, depth)
                 base_err = self._error(stage[1], color, depth)
 
                 temp = angles.copy()
-                temp[0] = -temp[0] + 2*self.camera_pose[5]
+                temp[0] = -temp[0] + 2*self.camera_pose[5]*np.sign(temp[0])
 
                 if temp[0] >= self.u_reader.joint_limits[0,0] and temp[0] <= self.u_reader.joint_limits[0,1]:
                     color, depth = render_at_pos(temp)
@@ -350,7 +351,7 @@ class Predictor():
 
             #     self.renderer.setMaxParts(stage[1])
 
-            #     color, depth = self.renderer.render()
+            #     color, depth = render_at_pos(angles)
             #     base_err = self._error(stage[1], color, depth)
 
             #     temp = angles.copy()
@@ -794,7 +795,7 @@ class ProjectionViz():
         self.frame = cv2.putText(self.frame, "Render Depth vs. Input Depth", (self.res[1]//2 + 10,self.res[0]//2 + 30), font, 1, color, 2, cv2.LINE_AA, False)
 
         cv2.imshow("Projection Matcher", self.frame)
-        cv2.waitKey(1000)
+        cv2.waitKey(1)
         if self.write_to_file:
             self.writer.write(self.frame)
 

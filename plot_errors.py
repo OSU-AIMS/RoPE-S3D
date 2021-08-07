@@ -33,9 +33,9 @@ g = Grapher('SLU',preds[indicies],angles[indicies])
 g.plot(20)
 
 diff = np.abs(preds - angles)
-print(diff)
+#print(diff)
 
-print((diff[:,0] > np.percentile(diff[:,IDX_TO_USE],PERCENTILE_TO_SHOW)))
+#print((diff[:,0] > np.percentile(diff[:,IDX_TO_USE],PERCENTILE_TO_SHOW)))
 
 
 # idxs = np.where(diff[:,IDX_TO_USE] > np.percentile(diff[:,IDX_TO_USE],PERCENTILE_TO_SHOW))
