@@ -1,3 +1,4 @@
+from os import truncate
 from robotpose import prediction
 from robotpose.utils import str_to_arr
 from robotpose.urdf import URDFReader
@@ -23,6 +24,9 @@ class SyntheticPredictor():
 
         self.renderer.setJointAngles(pose)
         color, depth = self.renderer.render()
+
+        # Add gaussian noise
+        # depth[depth!=0] += np.random.normal(loc=.3,scale = 1,size = depth[depth!=0].shape)
 
         predicted = self.predictor.run(color, depth)
 

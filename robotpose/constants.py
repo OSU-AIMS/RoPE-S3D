@@ -8,7 +8,7 @@
 # Author: Adam Exley
 import numpy as np
 import logging as log
-
+MAX_LINKS = 7
 
 GPU_MEMORY_ALLOWED_FOR_LOOKUP = 0.1 # Depending on hardware, this my vary. ~10% seems to work, but anything like 25%+ will overallocate for calculations
 
@@ -17,22 +17,27 @@ PATH_JSON_PATH = r'data/paths.json'
 
 
 
-MAX_LINKS = 7
+##################################### Crops
 CROP_RENDER_WEIGHTING = [6,3,3,0,1,0]   # Higher numbers indicate more weight on that joint for rendering
 CROP_VARYING = 'SLUB'   # Joints to vary for crop calculation
-CROP_MAX_PER_JOINT = 100    # Max poses for a single joint
-CROP_SEC_ALLOTTED_APPROX = 45   # Approx number of seconds allowed for each crop rendering stage calculation
-CROP_PADDING = 5
+CROP_MAX_PER_JOINT = 50    # Max poses for a single joint
+CROP_SEC_ALLOTTED_APPROX = 20   # Approx number of seconds allowed for each crop rendering stage calculation
+CROP_PADDING = 10
 
+
+##################################### Lookups
 
 LOOKUP_NAME_LENGTH = 5
-MODEL_NAME_LENGTH = 4
+
+
+##################################### Segmentation Models
 
 MODELDATA_FILE_NAME = 'ModelData.json'
-
-
 NUM_MODELS_TO_KEEP = 3
+MODEL_NAME_LENGTH = 4
 
+
+##################################### Wizard Settings
 
 WIZARD_DATASET_PREVIEW = True   # Set to false to reduce lag caused by dataset previewing
 
@@ -52,7 +57,7 @@ VIDEO_FPS = 15  # Default video frames per second
 THUMBNAIL_DS_FACTOR = 6 # Factor to downscale images by for thumbnails. Larger numbers yield smaller images
 DEFAULT_CAMERA_POSE = [0, -1.5, .75, 0, 0, 0]   # Base camera pose to fill new datasets with before alignment
 
-###################################### Rendering
+##################################### Rendering
 
 
 def default_render_color_maker(num:int):

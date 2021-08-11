@@ -1,64 +1,29 @@
 {
     "camera_poses": {
-        "P_A": [
+        "P_A": [1.82, -1.13, 0.678, -0.035, -0.106, 1.001],
+        "P_B": [
             2.59,
             0.017,
             0.618,
             0.017,
             -0.064,
             1.613
-        ]
+        ],
+        "P_C": [0.042, -1.425, 0.729, -0.01, -0.0212963, -0.0567963]
     },
     "intrinsics": {
-        "I_A": "[ 40x30  p[20.0314 14.8305]  f[38.2205 38.2205]  Brown Conrady [0 0 0 0 0] ]",
-        "I_B": "[ 160x120  p[80.1257 59.322]  f[152.882 152.882]  Brown Conrady [0 0 0 0 0] ]",
-        "I_C": "[ 320x240  p[154.051 120.71]  f[307.342 307.404]  Inverse Brown Conrady [0 0 0 0 0] ]",
-        "I_D": "[ 160x90  p[79.7989 45.1866]  f[113.154 113.107]  Brown Conrady [0 0 0 0 0] ]",
-        "I_E": "[ 320x240  p[160.251 118.644]  f[305.764 305.764]  Brown Conrady [0 0 0 0 0] ]"
+        "I_A": "[ 320x240  p[154.051 120.71]  f[307.342 307.404]  Inverse Brown Conrady [0 0 0 0 0] ]",
+        "I_B": "[ 40x22  p[19.9497 11.2967]  f[28.2884 28.2768]  Brown Conrady [0 0 0 0 0] ]",
+        "I_C": "[ 320x240  p[160.251 118.644]  f[305.764 305.764]  Brown Conrady [0 0 0 0 0] ]",
+        "I_D": "[ 40x30  p[20.0314 14.8305]  f[38.2205 38.2205]  Brown Conrady [0 0 0 0 0] ]",
+        "I_E": "[ 160x120  p[80.1257 59.322]  f[152.882 152.882]  Brown Conrady [0 0 0 0 0] ]",
+        "I_F": "[ 160x90  p[79.7989 45.1866]  f[113.154 113.107]  Brown Conrady [0 0 0 0 0] ]",
+        "I_G": "[ 320x180  p[159.598 90.3733]  f[226.307 226.214]  Brown Conrady [0 0 0 0 0] ]"
     },
     "lookups": {
         "I_A": {
-            "P_A": {
-                "lczpg": {
-                    "angles_changed": [true, true, false, false, false, false],
-                    "divisions": [200, 200, 1, 1, 1, 1],
-                    "intrinsics": "[ 40x30  p[20.0314 14.8305]  f[38.2205 38.2205]  Brown Conrady [0 0 0 0 0] ]",
-                    "num_links_rendered": 4,
-                    "pose": [
-                        2.59,
-                        0.017,
-                        0.618,
-                        0.017,
-                        -0.064,
-                        1.613
-                    ],
-                    "element_number": 48000000,
-                    "pose_number": 40000
-                }
-            }
-        },
-        "I_B": {
-            "P_A": {
-                "ceypq": {
-                    "angles_changed": [true, true, false, false, false, false],
-                    "divisions": [189, 189, 1, 1, 1, 1],
-                    "intrinsics": "[ 160x120  p[80.1257 59.322]  f[152.882 152.882]  Brown Conrady [0 0 0 0 0] ]",
-                    "num_links_rendered": 4,
-                    "pose": [
-                        2.59,
-                        0.017,
-                        0.618,
-                        0.017,
-                        -0.064,
-                        1.613
-                    ],
-                    "element_number": 685843200,
-                    "pose_number": 35721
-                }
-            }
-        },
-        "I_C": {
-            "P_A": {
+            "P_A": {},
+            "P_B": {
                 "tbiwg": {
                     "angles_changed": [true, true, false, false, false, false],
                     "divisions": [100, 100, 1, 1, 1, 1],
@@ -75,10 +40,93 @@
                     "element_number": 768000000,
                     "pose_number": 10000
                 }
+            },
+            "P_C": {}
+        },
+        "I_B": {
+            "P_A": {},
+            "P_B": {},
+            "P_C": {
+                "dlzda": {
+                    "angles_changed": [true, true, false, false, false, false],
+                    "divisions": [200, 200, 1, 1, 1, 1],
+                    "intrinsics": "[ 40x22  p[19.9497 11.2967]  f[28.2884 28.2768]  Brown Conrady [0 0 0 0 0] ]",
+                    "num_links_rendered": 4,
+                    "pose": [0.042, -1.425, 0.729, -0.01, -0.0212963, -0.0567963],
+                    "element_number": 35200000,
+                    "pose_number": 40000
+                }
             }
         },
+        "I_C": {
+            "P_A": {},
+            "P_B": {
+                "sjpmy": {
+                    "angles_changed": [true, true, false, false, false, false],
+                    "divisions": [100, 100, 1, 1, 1, 1],
+                    "intrinsics": "[ 320x240  p[160.251 118.644]  f[305.764 305.764]  Brown Conrady [0 0 0 0 0] ]",
+                    "num_links_rendered": 4,
+                    "pose": [
+                        2.59,
+                        0.017,
+                        0.618,
+                        0.017,
+                        -0.064,
+                        1.613
+                    ],
+                    "element_number": 768000000,
+                    "pose_number": 10000
+                }
+            },
+            "P_C": {}
+        },
         "I_D": {
-            "P_A": {
+            "P_A": {},
+            "P_B": {
+                "lczpg": {
+                    "angles_changed": [true, true, false, false, false, false],
+                    "divisions": [200, 200, 1, 1, 1, 1],
+                    "intrinsics": "[ 40x30  p[20.0314 14.8305]  f[38.2205 38.2205]  Brown Conrady [0 0 0 0 0] ]",
+                    "num_links_rendered": 4,
+                    "pose": [
+                        2.59,
+                        0.017,
+                        0.618,
+                        0.017,
+                        -0.064,
+                        1.613
+                    ],
+                    "element_number": 48000000,
+                    "pose_number": 40000
+                }
+            },
+            "P_C": {}
+        },
+        "I_E": {
+            "P_A": {},
+            "P_B": {
+                "ceypq": {
+                    "angles_changed": [true, true, false, false, false, false],
+                    "divisions": [189, 189, 1, 1, 1, 1],
+                    "intrinsics": "[ 160x120  p[80.1257 59.322]  f[152.882 152.882]  Brown Conrady [0 0 0 0 0] ]",
+                    "num_links_rendered": 4,
+                    "pose": [
+                        2.59,
+                        0.017,
+                        0.618,
+                        0.017,
+                        -0.064,
+                        1.613
+                    ],
+                    "element_number": 685843200,
+                    "pose_number": 35721
+                }
+            },
+            "P_C": {}
+        },
+        "I_F": {
+            "P_A": {},
+            "P_B": {
                 "zsmxk": {
                     "angles_changed": [true, true, false, false, false, false],
                     "divisions": [200, 200, 1, 1, 1, 1],
@@ -95,25 +143,41 @@
                     "element_number": 576000000,
                     "pose_number": 40000
                 }
+            },
+            "P_C": {
+                "izoei": {
+                    "angles_changed": [true, true, false, false, false, false],
+                    "divisions": [175, 175, 1, 1, 1, 1],
+                    "intrinsics": "[ 160x90  p[79.7989 45.1866]  f[113.154 113.107]  Brown Conrady [0 0 0 0 0] ]",
+                    "num_links_rendered": 4,
+                    "pose": [0.042, -1.425, 0.729, -0.01, -0.0212963, -0.0567963],
+                    "element_number": 441000000,
+                    "pose_number": 30625
+                }
             }
         },
-        "I_E": {
+        "I_G": {
             "P_A": {
-                "sjpmy": {
+                "qeole": {
                     "angles_changed": [true, true, false, false, false, false],
-                    "divisions": [100, 100, 1, 1, 1, 1],
-                    "intrinsics": "[ 320x240  p[160.251 118.644]  f[305.764 305.764]  Brown Conrady [0 0 0 0 0] ]",
+                    "divisions": [103, 103, 1, 1, 1, 1],
+                    "intrinsics": "[ 320x180  p[159.598 90.3733]  f[226.307 226.214]  Brown Conrady [0 0 0 0 0] ]",
                     "num_links_rendered": 4,
-                    "pose": [
-                        2.59,
-                        0.017,
-                        0.618,
-                        0.017,
-                        -0.064,
-                        1.613
-                    ],
-                    "element_number": 768000000,
-                    "pose_number": 10000
+                    "pose": [1.82, -1.13, 0.678, -0.035, -0.106, 1.001],
+                    "element_number": 611078400,
+                    "pose_number": 10609
+                }
+            },
+            "P_B": {},
+            "P_C": {
+                "fhfxw": {
+                    "angles_changed": [true, true, false, false, false, false],
+                    "divisions": [86, 86, 1, 1, 1, 1],
+                    "intrinsics": "[ 320x180  p[159.598 90.3733]  f[226.307 226.214]  Brown Conrady [0 0 0 0 0] ]",
+                    "num_links_rendered": 4,
+                    "pose": [0.042, -1.425, 0.729, -0.01, -0.0212963, -0.0567963],
+                    "element_number": 426009600,
+                    "pose_number": 7396
                 }
             }
         }

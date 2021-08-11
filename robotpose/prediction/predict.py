@@ -134,10 +134,13 @@ class Predictor():
             l_sweep_narrow = ['smartsweep', 10, 4, .1, 'L']
             sl_fine_tune = ['descent',40,4,0.5,.0075,'SL',[.05,.05,None,None,None,None]]
 
+            base_sweep = ['tensorsweep', 8, 4, None, 'S']
+
             flips = [s_flip]
             sweeps = [l_sweep_narrow,s_sweep_narrow]
 
             self.stages = [lookup, *flips, *sweeps, *flips, *sweeps, *flips, sl_fine_tune]
+            self.stages = [lookup, *flips, *sweeps, *flips]
             self.stages = [lookup, *flips]
 
 
@@ -157,20 +160,39 @@ class Predictor():
 
             # self.stages = [lookup, u_sweep_coarse, s_flip_check_6, s_sweep, s_flip_check_6, u_sweep_narrow, s_flip_check_6, u_stage, s_flip_check_6, slu_fine_tune_mandatory, slu_fine_tune_optional]
             
+            # lookup = ['lookup']
+            # u_sweep_wide = ['tensorsweep', 50, 5, None, 'U']
+            # u_sweep_gen = ['tensorsweep', 50, 5, .3, 'U']
+            # u_sweep_narrow = ['smartsweep', 10, 5, .1, 'U']
+            # u_stage = ['descent',30,5,0.5,.1,'U',[0.1,0.1,0.4,0.5,0.5,0.5]]
+            # s_flip_check_6 = ['s_flip', 5]
+            # slu_fine_tune_mandatory = ['descent',40,5,0.5,.0075,'SLU',[None,None,None,None,None,None]]
+            # slu_fine_tune_optional = ['descent',35,5,0.5,.0075,'SLU',[None,None,None,None,None,None]]
+
+            # u_sweep_coarse = ['smartsweep', 20, 5, None, 'U']
+            # s_sweep = ['smartsweep', 45, 5, 1, 'S']
+
+
+            # self.stages = [lookup, s_flip_check_6, u_sweep_coarse, s_flip_check_6, s_sweep, s_flip_check_6, u_sweep_narrow, s_flip_check_6, u_stage, s_flip_check_6, slu_fine_tune_mandatory]
+            # self.stages = [lookup, s_flip_check_6, u_sweep_coarse, s_flip_check_6, u_sweep_narrow, s_flip_check_6, u_stage, s_flip_check_6, slu_fine_tune_mandatory]
+
+
             lookup = ['lookup']
-            u_sweep_wide = ['tensorsweep', 50, 5, None, 'U']
-            u_sweep_gen = ['tensorsweep', 50, 5, .3, 'U']
+
+            s_flip_4 = ['s_flip', 4]
+            sl_tune = ['descent',10,4,0.5,.1,'SL',[0.05,0.05,0.1,0.5,0.5,0.5]]
+
+            sl_init = [s_flip_4, sl_tune, s_flip_4]
+
+            u_sweep_wide = ['smartsweep', 25, 6, None, 'U']
+            s_flip_6 = ['s_flip', 6]
             u_sweep_narrow = ['smartsweep', 10, 5, .1, 'U']
-            u_stage = ['descent',30,5,0.5,.1,'U',[0.1,0.1,0.4,0.5,0.5,0.5]]
-            s_flip_check_6 = ['s_flip', 5]
-            slu_fine_tune_mandatory = ['descent',40,5,0.5,.0075,'SLU',[None,None,None,None,None,None]]
-            slu_fine_tune_optional = ['descent',35,5,0.5,.0075,'SLU',[None,None,None,None,None,None]]
+            
+            u_stages = [u_sweep_wide, s_flip_4, s_flip_6, u_sweep_narrow]
+            
+            full_tune = ['descent',40,5,0.5,.0075,'SLU',[None,None,None,None,None,None]]
 
-            u_sweep_coarse = ['smartsweep', 20, 5, None, 'U']
-            s_sweep = ['smartsweep', 45, 5, 1, 'S']
-
-
-            self.stages = [lookup, u_sweep_coarse, s_flip_check_6, s_sweep, s_flip_check_6, u_sweep_narrow, s_flip_check_6, s_sweep, u_stage, s_flip_check_6, slu_fine_tune_mandatory, slu_fine_tune_optional]
+            self.stages = [lookup, *sl_init, *u_stages, full_tune]
 
 
 
@@ -336,72 +358,37 @@ class Predictor():
                 temp = angles.copy()
                 temp[0] = -temp[0] + 2*self.camera_pose[5]*np.sign(temp[0])
 
-                if temp[0] >= self.u_reader.joint_limits[0,0] and temp[0] <= self.u_reader.joint_limits[0,1]:
+                limit_thresh = 0.15
+                close_to_limits = limit_thresh > abs(self.u_reader.joint_limits[0,0] - temp[0]) or limit_thresh > abs(self.u_reader.joint_limits[0,1] - temp[0])
+                _in_limits = temp[0] >= self.u_reader.joint_limits[0,0] and temp[0] <= self.u_reader.joint_limits[0,1]
+
+                # If it's in limits, test it
+                if _in_limits:
                     color, depth = render_at_pos(temp)
                     err = self._error(stage[1], color, depth)
 
                     if err < base_err:
                         angles = temp
+                        base_err = err
 
                         if self.preview:
                             color, depth = render_at_pos(angles)
                             preview_if_applicable(color, depth)
+                
+                if not _in_limits or close_to_limits:
+                    # If out of limits or close to limits, test endpoints
+                    for endpoint in self.u_reader.joint_limits[0]:
+                        temp[0] = endpoint
+                        color, depth = render_at_pos(temp)
+                        err = self._error(stage[1], color, depth)
 
-            # elif stage[0] == 'sl_flip':
+                    if err < base_err:
+                        angles = temp
+                        base_err = err
 
-            #     self.renderer.setMaxParts(stage[1])
-
-            #     color, depth = render_at_pos(angles)
-            #     base_err = self._error(stage[1], color, depth)
-
-            #     temp = angles.copy()
-
-            #     # Flip S 180 deg
-            #     s_max_allowed = self.u_reader.joint_limits[0,1]
-            #     s_min_allowed = self.u_reader.joint_limits[0,0]
-
-            #     # Go 180 deg over
-            #     temp[0] += + np.pi
-
-            #     if temp[0] > s_max_allowed:
-            #         temp[0] -= 2 * np.pi
-
-            #     def get_diff(comparison):
-            #         diff = np.abs(temp[0] - comparison)
-            #         return np.abs(diff - 2 * np.pi) if diff > np.pi else diff
-
-            #     if temp[0] < s_min_allowed:
-            #         temp[0] = s_min_allowed if get_diff(s_min_allowed) < get_diff(s_max_allowed) else s_max_allowed
-
-            #     # Invert L
-            #     l_max_allowed = self.u_reader.joint_limits[1,1]
-            #     l_min_allowed = self.u_reader.joint_limits[1,0]
-
-            #     temp[1] *= -1
-            #     if temp[1] < l_min_allowed:
-            #         temp[1] += 2 * np.pi
-            #     if temp[1] > l_max_allowed:
-            #         temp[1] -= 2* np.pi
-
-            #     if temp[1] < l_min_allowed or temp[1] > l_max_allowed:
-            #         temp[0] = l_min_allowed if get_diff(l_min_allowed) < get_diff(l_max_allowed) else l_max_allowed
-
-
-            #     color, depth = render_at_pos(temp)
-            #     err = self._error(stage[1], color, depth)
-
-            #     if self.preview:
-            #         color, depth = render_at_pos(angles)
-            #         preview_if_applicable(color, depth)
-            #         cv2.imshow("",color)
-            #         cv2.waitKey(1000)
-            #         color, depth = render_at_pos(temp)
-            #         preview_if_applicable(color, depth)
-            #         cv2.imshow("",color)
-            #         cv2.waitKey(1000)
-
-            #     if err < base_err:
-            #         angles = temp.copy()
+                        if self.preview:
+                            color, depth = render_at_pos(angles)
+                            preview_if_applicable(color, depth)
 
             elif stage[0] == 'smartsweep':
 
@@ -613,7 +600,7 @@ class Predictor():
                 if np.sum(target_masked != 0) > (.05 * np.sum(joint_mask)):
                     # Depth
                     diff = target_masked - render_masked
-                    diff = np.abs(diff) ** .5
+                    diff = np.abs(diff) #** .5
                     if diff[diff!=0].size > 0:
                         #err += np.mean(diff[diff!=0]) * np.std(diff[diff!=0])
                         err +=  np.mean(diff[diff!=0]) * 10

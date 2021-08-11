@@ -1,9 +1,16 @@
 from robotpose.simulation.render import DatasetRenderer
 import robotpose
 import numpy as np
-from robotpose.utils import Grapher
-from robotpose import Dataset
+from robotpose import Dataset, Grapher
 import cv2
+from robotpose.prediction.analysis import JointDistance
+
+import logging, os
+# Disable OpenGL and Tensorflow info messages (get annoying with multiprocessing)
+logging.getLogger("OpenGL.arrays.arraydatatype").setLevel(logging.WARNING)
+logging.getLogger("OpenGL.acceleratesupport").setLevel(logging.WARNING)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # or any {'0', '1', '2'}
+import tensorflow as tf
 
 # dataset = 'set30'
 
@@ -33,6 +40,11 @@ g = Grapher('SLU',preds[indicies],angles[indicies])
 g.plot(20)
 
 diff = np.abs(preds - angles)
+
+j = JointDistance()
+j.plot(preds[indicies],angles[indicies],.25)
+
+
 #print(diff)
 
 #print((diff[:,0] > np.percentile(diff[:,IDX_TO_USE],PERCENTILE_TO_SHOW)))
@@ -49,6 +61,9 @@ diff = np.abs(preds - angles)
 #     r.setJointAngles(preds[idx])
 #     c,d = r.render()
 #     out = cv2.addWeighted(imgs[idx],.5,c,.5,0)
-#     print(diff[idx] * 180 / np.pi)
+#     print("")
+#     print(idxs[idx])
+#     print([f"{x:0.3f}" for x in (ds.angles[idx] *180 / np.pi)])
+#     print([f"{x:0.3f}" for x in (preds[idx] *180 / np.pi)])
 #     cv2.imshow("",out)
 #     cv2.waitKey(0)

@@ -10,10 +10,9 @@
 import numpy as np
 from tqdm import tqdm
 
-from robotpose import Dataset, Predictor
-from robotpose.utils import Grapher
+from robotpose import Dataset, Predictor, Grapher
 
-angs = 'SLU'
+angs = 'SL'
 dataset = 'set30'
 
 
