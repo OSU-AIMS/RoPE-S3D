@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from robotpose import Dataset, Predictor, Grapher
 
-angs = 'SL'
+angs = 'SLU'
 dataset = 'set30'
 
 

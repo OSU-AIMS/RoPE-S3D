@@ -19,9 +19,8 @@ from ..projection import Intrinsics
 from ..simulation.lookup import RobotLookupManager
 from ..simulation.render import Renderer
 from ..training.models import ModelManager
-from ..turbo_colormap import color_array
 from ..urdf import URDFReader
-from ..utils import str_to_arr
+from ..utils import str_to_arr, color_array
 
 tf.compat.v1.enable_eager_execution()
 
@@ -526,11 +525,16 @@ class Predictor():
         r, output = self.seg.segmentImage(self._downsample(target_color, self.ds_factor), process_frame=True)
         segmentation_data = self._reorganize_by_link(r)
 
+        dilate_by = 8
+        erode_by = 7
+
+        dilate_by, erode_by = np.ones((dilate_by,dilate_by)), np.ones((erode_by,erode_by))
+
         # Isolate depth to be only where robot body is
         new = np.zeros((target_depth.shape))
         for k in segmentation_data:
             new += segmentation_data[k]['mask']
-        new = cv2.erode(cv2.dilate(new,np.ones((10,10))),np.ones((7,7)))
+        new = cv2.erode(cv2.dilate(new,dilate_by),erode_by)
         target_depth *= new.astype(bool).astype(float)
 
         # Do same for lookup, but only where appropriate links are
@@ -539,7 +543,7 @@ class Predictor():
         for k in segmentation_data:
             if k in self.u_reader.mesh_names[:LOOKUP_NUM_RENDERED]:
                 new += segmentation_data[k]['mask']
-        new = cv2.erode(cv2.dilate(new,np.ones((10,10))),np.ones((7,7)))
+        new = cv2.erode(cv2.dilate(new,dilate_by),erode_by)
         lookup_depth *= new.astype(bool).astype(float)
 
         self._load_target(segmentation_data, target_depth, lookup_depth)
@@ -618,105 +622,6 @@ class Predictor():
         err += np.mean(diff[diff!=0]) * np.std(diff)
 
         return err
-
-
-    # def _error(self, num_joints: int, render_color: np.ndarray, render_depth: np.ndarray) -> float:
-    #     color_dict = self.renderer.color_dict
-    #     err = 0
-
-    #     # Matched Error
-    #     for link in self.link_names[:num_joints]:
-    #         if link in self._masked_targets.keys():
-    #             target_masked = self._masked_targets[link]
-    #             joint_mask = self._target_masks[link]
-
-    #             # NOTE: Instead of matching color, this matches blue values,
-    #             #       as each of the default colors has a unique blue value when made.
-    #             render_mask = render_color[...,0] == color_dict[link][0]
-    #             render_masked = render_depth * render_mask
-
-    #             # Mask
-    #             diff = joint_mask != render_mask
-    #             err += np.mean(diff) * 50
-
-    #             # Only do if enough depth data present (>5% of required pixels have depth data)
-    #             if np.sum(target_masked != 0) > (.05 * np.sum(joint_mask)):
-    #                 # Depth
-    #                 diff = target_masked - render_masked
-    #                 diff = np.abs(diff) ** 0.5
-    #                 if diff[diff!=0].size > 0:
-    #                     err += np.mean(diff[diff!=0])
-
-    #     # Unmatched Error
-    #     diff = self._tgt_depth - render_depth
-    #     diff = np.abs(diff) ** 0.5
-    #     #err += np.mean(diff[diff!=0])
-    #     err += np.mean(diff[diff!=0])
-
-    #     # # Unmatched Error
-    #     # diff = self._tgt_depth - render_depth
-    #     # diff = np.abs(diff)
-    #     # #err += np.mean(diff[diff!=0])
-    #     # err += np.mean(diff[diff!=0]) * np.std(diff)
-
-    #     return err
-
-
-
-    # def _error(self, num_joints: int, render_color: np.ndarray, render_depth: np.ndarray) -> float:
-    #     color_dict = self.renderer.color_dict
-    #     err = 0
-
-    #     # Matched Error
-    #     for link in self.link_names[2:num_joints]:
-    #         if link in self._masked_targets.keys():
-    #             target_masked = self._masked_targets[link]
-    #             joint_mask = self._target_masks[link]
-
-    #             # NOTE: Instead of matching color, this matches blue values,
-    #             #       as each of the default colors has a unique blue value when made.
-    #             render_mask = render_color[...,0] == color_dict[link][0]
-    #             render_masked = render_depth * render_mask
-
-    #             err += compare_lines(self.intrinsics, target_masked, render_masked)
-
-    #     #         # Mask
-    #     #         diff = joint_mask != render_mask
-    #     #         err += np.mean(diff) * 5
-
-    #     #         # Only do if enough depth data present (>5% of required pixels have depth data)
-    #     #         if np.sum(target_masked != 0) > (.05 * np.sum(joint_mask)):
-    #     #             # Depth
-    #     #             diff = target_masked - render_masked
-    #     #             diff = np.abs(diff) ** .5
-    #     #             if diff[diff!=0].size > 0:
-    #     #                 err += np.mean(diff[diff!=0]) * 10
-
-    #     # # # Unmatched Error
-    #     # # diff = self._tgt_depth - render_depth
-    #     # # diff = np.abs(diff) ** 0.5
-    #     # # #err += np.mean(diff[diff!=0])
-    #     # # err += np.mean(diff[diff!=0]) *- np.std(diff[diff!=0])
-
-    #     # # Unmatched Error
-    #     # diff = self._tgt_depth - render_depth
-    #     # diff = np.abs(diff)
-    #     # #err += np.mean(diff[diff!=0])
-    #     # err += np.mean(diff[diff!=0]) * np.std(diff)
-
-    #     return err
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -798,7 +703,14 @@ class ProjectionViz():
     def _depth(self):
         tgt_d = cv2.resize(self.tgt_depth, self.resize_to, interpolation=cv2.INTER_NEAREST)
         d = cv2.resize(self.rend_depth, self.resize_to, interpolation=cv2.INTER_NEAREST)
-        return color_array(tgt_d - d)
+        
+        out = tgt_d - d
+        out[np.where(out == tgt_d)] = 0
+
+        colored = color_array(out)
+        colored[np.where(out == tgt_d)] = (55,55,55)
+
+        return colored
 
     def __del__(self) -> None:
         if self.write_to_file:

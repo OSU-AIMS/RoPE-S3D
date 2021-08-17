@@ -180,3 +180,47 @@ class FancyTimer():
         return out
 
 
+
+
+def color_array(x, mn: float = None, mx: float = None, percent: float = 3, ignore_zero: bool = True):
+    """Apply a colormap to an array
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Input array
+    mn : float, optional
+        Minimum amount to clip, by default None
+    mx : float, optional
+        Maximum amount to clip, by default None
+    percent : float, optional
+        Percentiles to ignore when scaling. Uses nth and 100-nth percentiles as bounds, by default 3
+    ignore_zero : bool, optional
+        Whether or not to color zero values, by default True
+    """
+    
+    x = x.astype(float)
+    if ignore_zero:
+        mask = np.where(x==0)
+    
+    if mn is None:
+        if ignore_zero:
+            mn = np.percentile(x[x!=0],percent)
+        else:
+            mn = np.min(x)
+
+    if mx is None:
+        if ignore_zero:
+            mx = np.percentile(x,100-percent)
+        else:
+            mx = np.max(x)
+
+    x = ((x - mn)/(mx - mn)) * 255
+    x = np.clip(x,0,255).astype(np.uint8)
+
+    out = cv2.applyColorMap(x,cv2.COLORMAP_TURBO)
+
+    if ignore_zero:
+        out[mask] = (0,0,0)
+
+    return out

@@ -16,10 +16,9 @@ from scipy.interpolate import interp1d
 from tqdm import tqdm
 
 from ..constants import DEFAULT_CAMERA_POSE
-from ..simulation.render import Renderer
-from ..turbo_colormap import color_array
+from ..simulation.render import Renderer 
 from ..urdf import URDFReader
-from ..utils import get_gpu_memory, str_to_arr
+from ..utils import get_gpu_memory, str_to_arr, color_array
 
 tf.compat.v1.enable_eager_execution()
 

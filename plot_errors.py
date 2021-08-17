@@ -5,7 +5,7 @@ from robotpose import Dataset, Grapher
 import cv2
 from robotpose.prediction.analysis import JointDistance
 import PySimpleGUI as sg
-
+import re
 
 
 import logging, os
@@ -15,21 +15,30 @@ logging.getLogger("OpenGL.acceleratesupport").setLevel(logging.WARNING)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # or any {'0', '1', '2'}
 import tensorflow as tf
 
-# dataset = 'set30'
-
-
-# ds = Dataset(dataset)
-
-# preds = np.load(f'predictions_{dataset}.npy')
-# angles = np.copy(ds.angles)
 
 file = sg.PopupGetFile('Select Prediction File','Prediction File Selection',file_types=(("NPY Files", "*.npy"), ),initial_folder=os.getcwd())
 
 results = np.load(file)
 
+print(results.shape[0])
 
-angles = results[0]
-preds = results[1]
+if results.shape[0] == 2:
+    angles = results[0]
+    preds = results[1]
+else:
+    name = re.search(r'_set.+_',file)
+    if name is not None:
+        dataset = name.group(0)[1:][:-1]
+    else:
+        name = re.search(r'_set.+\.npy',file)
+        dataset = name.group(0)[1:][:-4]
+
+    print(dataset)
+    ds = Dataset(dataset)
+
+    preds = results
+    angles = np.copy(ds.angles)
+
 
 
 IDX_TO_USE = 0
