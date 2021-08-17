@@ -184,18 +184,6 @@ class Builder():
         for idx in tqdm(range(self.length),desc="Creating Thumbnails"):
             self.thumbnails[idx] = cv2.resize(self.orig_img_arr[idx], (self.img_width // THUMBNAIL_DS_FACTOR, self.img_height // THUMBNAIL_DS_FACTOR))
 
-    # TODO: Deprecate
-    def _load_raw_data_from_ds(self):
-        """Load in data from a dataset, namely only that present whenver a dataset is compiled"""
-        with tqdm(total=2, desc="Reading Dataset") as pbar:
-            dest = os.path.join(self.dest_path, self.name + '.h5')
-            with h5py.File(dest, 'r') as f:
-                self.length = f.attrs['length']
-                self.orig_img_arr = np.array(f['images/original'])
-                pbar.update(1)
-                self.depthmap_arr = np.array(f['coordinates/depthmaps'])
-                pbar.update(1)
-
     def _save_reference_video(self):
         """Save video for later reference"""
         save_video(os.path.join(self.dest_path,"og_vid.avi"), self.orig_img_arr)
