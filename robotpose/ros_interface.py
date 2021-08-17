@@ -7,26 +7,14 @@
 #
 # Author: Adam Exley
 
-import klampt
-import klampt.io.numpy_convert as kionp
-import klampt.io.ros as kioros
+# import klampt
+# import klampt.io.numpy_convert as kionp
+# import klampt.io.ros as kioros
 
+import roslibpy
 
-
-
-
-class Publisher():
-
-
-    def __init__(self) -> None:
-        pass
-
-
-
-def callback(data):
-    pass
 
 class Subscriber():
 
     def __init__(self) -> None:
-        self.sub = kioros.subscriber("A","Config",callback)
+        pass
