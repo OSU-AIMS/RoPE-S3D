@@ -68,24 +68,11 @@ class Builder():
         self._load_json_data()
         self._load_imgs_and_depthmaps()
         self._make_preview()
-
-        self._fake_segment_images_and_maps()
        
 
-        self._save_reference_videos()
+        self._save_reference_video()
         self._make_camera_poses()
         return self._save_full()
- 
-    def recompile(self, ds_path: str, name: str = None):
-        """Recompile a dataset from a .h5 dataset path"""
-        self._set_dest_path_recompile(ds_path, name)
-        self._load_raw_data_from_ds()
-
-        self._fake_segment_images_and_maps()
-
-        self._save_reference_videos()
-        return self._save_recompile()
-
 
     def remove_idxs(self, src: str, rm_idxs: List[int]):
         """Remove specified indicies from a dataset
@@ -137,11 +124,6 @@ class Builder():
         self.name = name
         if not os.path.isdir(self.dest_path):
             os.mkdir(self.dest_path)
-
-    #TODO: Deprecate
-    def _set_dest_path_recompile(self, dest_path: str, name: str):
-        """Set Dest path and name"""
-        self.dest_path, self.name = dest_path, name
 
     def _get_filepaths_from_data_dir(self, data_path: str):
         """Find all data files and store both name and full path"""
@@ -214,31 +196,9 @@ class Builder():
                 self.depthmap_arr = np.array(f['coordinates/depthmaps'])
                 pbar.update(1)
 
-    # TODO: Deprecate
-    def _fake_segment_images_and_maps(self):
-        self.segmented_img_arr = self.orig_img_arr
-
-    """TODO: Deprecate"""
-    # def _segment_images_and_maps(self):
-    #     mm = ModelManager()
-    #     segmenter = RobotSegmenter(mm.dynamicLoad())
-    #     self.segmented_img_arr = np.zeros(self.orig_img_arr.shape, dtype=np.uint8)
-
-    #     padding = 10
-    #     kern = np.ones((padding,padding))
-
-    #     # Segment images
-    #     for idx in tqdm(range(self.length),desc="Segmenting Images"):
-    #         mask = segmenter.segmentImage(self.orig_img_arr[idx])
-    #         mask = cv2.dilate(mask.astype(float), kern)
-    #         mask = np.stack([mask]*3,-1).astype(bool)
-    #         self.segmented_img_arr[idx] = np.multiply(self.orig_img_arr[idx], mask).astype(np.uint8)
-
-
-    def _save_reference_videos(self):
-        """Save videos for later reference"""
+    def _save_reference_video(self):
+        """Save video for later reference"""
         save_video(os.path.join(self.dest_path,"og_vid.avi"), self.orig_img_arr)
-        save_video(os.path.join(self.dest_path,"seg_vid.avi"), self.segmented_img_arr)
 
     def _make_camera_poses(self):
         """Create an array of default camera poses"""
@@ -257,7 +217,7 @@ class Builder():
         # Delete file if already present
         if os.path.isfile(dest): os.remove(dest)
 
-        with tqdm(total=10, desc="Writing Dataset") as pbar:
+        with tqdm(total=9, desc="Writing Dataset") as pbar:
             with h5py.File(dest,'a') as file:
                 file.attrs['name'] = self.name
                 file.attrs['length'] = self.length
@@ -281,8 +241,6 @@ class Builder():
                 pbar.update(1)
                 img_grp.create_dataset('preview', data = self.thumbnails)
                 pbar.update(1)
-                img_grp.create_dataset('segmented', data = self.segmented_img_arr, compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
                 img_grp.create_dataset('camera_poses', data = self.camera_poses)
                 pbar.update(1)
                 path_grp = file.create_group('paths')
@@ -295,19 +253,6 @@ class Builder():
 
         return dest
 
-
-    def _save_recompile(self):
-        """Save the dataset after recompilation
-        TODO: Deprecate"""
-        dest = os.path.join(self.dest_path, self.name + '.h5')
-        with tqdm(total=1, desc="Writing Dataset") as pbar:
-            with h5py.File(dest,'a') as file:
-                file.attrs['compile_date'] = str(datetime.datetime.now())
-                file.attrs['compile_time'] = time.time() - self.build_start_time
-                file['images/segmented'][...] = self.segmented_img_arr
-                pbar.update(1)
-
-
     def _read_full(self, path:str):
         """Read in all data from a dataset
 
@@ -316,7 +261,7 @@ class Builder():
         path : str
             .h5 dataset file path
         """
-        with tqdm(total=10, desc="Reading Full Dataset") as pbar:
+        with tqdm(total=9, desc="Reading Full Dataset") as pbar:
             with h5py.File(path,'r') as file:
                 self.attrs = dict(file.attrs)
                 self.name = file.attrs['name']
@@ -335,8 +280,6 @@ class Builder():
                 self.orig_img_arr = np.copy(file['images/original'])
                 pbar.update(1)
                 self.thumbnails = np.copy(file['images/preview'])
-                pbar.update(1)
-                self.segmented_img_arr = np.copy(file['images/segmented'])
                 pbar.update(1)
                 self.camera_poses = np.copy(file['images/camera_poses'])
                 pbar.update(1)
@@ -363,87 +306,9 @@ class Builder():
         self.depthmap_arr = self.depthmap_arr[idxs]
         self.orig_img_arr = self.orig_img_arr[idxs]
         self.thumbnails = self.thumbnails[idxs]
-        self.segmented_img_arr = self.segmented_img_arr[idxs]
         self.camera_poses = self.camera_poses[idxs]
         self.jsons = self.jsons[idxs]
         self.maps = self.maps[idxs]
         self.imgs = self.imgs[idxs]
 
 
-    def _write_subset(self, path: str, sub_type: str, idxs: List[int]):
-        """NOT WELL TESTED, USE FILTERING INSTEAD
-        TODO: Deprecate
-        Create a derivative dataset from a full dataset, using a subset of the data.
-
-        Parameters
-        ----------
-        path : str
-            Destination path
-        sub_type : str
-            'Type' to call the new dataset
-        idxs : List[int]
-            Indicies to include in the new dataset
-        """
-        
-        with tqdm(total=9, desc=f"Writing {sub_type}") as pbar:
-            with h5py.File(path,'a') as file:
-                for key in self.attrs.keys():
-                    file.attrs[key] = self.attrs[key]
-                file.attrs['length'] = len(idxs)
-                file.attrs['compile_date'] = str(datetime.datetime.now())
-                file.attrs['compile_time'] = 0
-                file.attrs['type'] = sub_type
-                file.create_dataset('angles', data = self.ang_arr[idxs], compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
-                file.create_dataset('positions', data = self.pos_arr[idxs], compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
-                coord_grop = file.create_group('coordinates')
-                dm = coord_grop.create_dataset('depthmaps', data = self.depthmap_arr[idxs], compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
-                dm.attrs['depth_scale'] = self.depth_scale
-                img_grp = file.create_group('images')
-                img_grp.create_dataset('original', data = self.orig_img_arr[idxs], compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
-                img_grp.create_dataset('segmented', data = self.segmented_img_arr[idxs], compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
-                img_grp.create_dataset('camera_poses', data = self.camera_poses[idxs], compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
-                path_grp = file.create_group('paths')
-                path_grp.create_dataset('jsons', data = np.array(self.jsons[idxs], dtype=h5py.string_dtype()), compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
-                path_grp.create_dataset('depthmaps', data = np.array(self.maps[idxs], dtype=h5py.string_dtype()), compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
-                path_grp.create_dataset('images', data = np.array(self.imgs[idxs],dtype=h5py.string_dtype()), compression="gzip",compression_opts=self.compression_level)
-                pbar.update(1)
-
-
-
-    """Untested function"""
-    # def weld(self, path_a, path_b, dst_dir, name):
-    #     a = h5py.File(path_a,'r')
-    #     b = h5py.File(path_b,'r')
-    #     dst = h5py.File(path_a,'r')
-
-    #     a_attrs = a.attrs
-    #     b_attrs = b.attrs
-
-    #     for attribute in ['version','resolution','depth_intrinsics','color_intrinsics','depth_scale']:
-    #         assert a_attrs[attribute] == b_attrs[attribute], f"{attribute} must be equal to join datasets"
-
-    #     a_len = a.attrs['length']
-    #     b_len = b.attrs['length']
-    #     self.length = a_len + b_len
-
-    #     self.name = name
-    #     self.dest_path = dst_dir
-
-    #     self.ang_arr = np.vstack((a['angles'],b['angles']))
-    #     self.pos_arr = np.vstack((a['positions'],b['positions']))
-    #     self.depthmap_arr = np.vstack((a['coordinates/depthmaps'],b['coordinates/depthmaps']))
-    #     self.orig_img_arr = np.vstack((a['images/original'],b['images/original']))
-    #     self.segmented_img_arr = np.vstack((a['images/segmented'],b['images/segmented']))
-    #     self.jsons = np.vstack((a['paths/jsons'],b['paths/jsons']))
-    #     self.maps = np.vstack((a['paths/depthmaps'],b['paths/depthmaps']))
-    #     self.imgs = np.vstack((a['paths/images'],b['paths/images']))
-
-    #     self._save_full()

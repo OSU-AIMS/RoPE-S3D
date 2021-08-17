@@ -8,6 +8,7 @@
 # Author: Adam Exley
 
 import json
+import logging
 import os
 import random
 import string
@@ -265,7 +266,7 @@ class ModelManager(ModelInfo):
                         remaining = {k:v for k,v in remaining.items() if getattr(v,key) == value}
                         if len(remaining) == 0:
                             remaining = current_state
-                            print(f"Not using {key}={value} for model selection; Not satisfied by any remaining models.")
+                            logging.warning(f"Not using {key}={value} for model selection; Not satisfied by any remaining models.")
 
                 else:
                     # Dynamic kwargs
@@ -274,14 +275,14 @@ class ModelManager(ModelInfo):
                         remaining = {k:v for k,v in remaining.items() if getattr(v,key) >= value}
                         if len(remaining) == 0:
                             remaining = current_state
-                            print(f"{key}={value} not satisfied for model selection; Using maximum value instead.")
+                            logging.warning(f"{key}={value} not satisfied for model selection; Using maximum value instead.")
                             return get_max(remaining, key)
 
                     elif key in dynamic_below:  # 'Below' kwargs
                         remaining = {k:v for k,v in remaining.items() if getattr(v,key) <= value}
                         if len(remaining) == 0:
                             remaining = current_state
-                            print(f"{key}={value} not satisfied for model selection; Using minimum value instead.")
+                            logging.warning(f"{key}={value} not satisfied for model selection; Using minimum value instead.")
                             return get_min(remaining, key)
 
                     else:
@@ -304,7 +305,7 @@ class ModelManager(ModelInfo):
 
         if len(remaining) > 1:
             # Multiple options
-            print(f"\n{len(remaining)} models match the chosen selection. Choosing most recently trained.")
+            logging.info(f"\nSEG MODEL SELECTION: {len(remaining)} models match the chosen selection. Choosing most recently trained.")
 
             # Find most recently trained model
             deltas = [datetime.now() - datetime.strptime(x.date_trained,'%Y-%m-%d %H:%M:%S.%f') for x in remaining.values()]

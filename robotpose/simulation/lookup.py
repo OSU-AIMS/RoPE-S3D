@@ -264,10 +264,10 @@ class RobotLookupManager(RobotLookupInfo):
             # If no optimal lookup is present, make one
             if divisions is None:
                 c = Crop(camera_pose, intrinsics)
+                
                 if max_poses is None:
                     max_poses = max_elements / (c.size(num_rendered_links) * self.element_bits)
 
-                    print(max_poses*c.size(num_rendered_links)*self.element_bits)
                 # By default, allocate divisions equally
                 divisions = np.zeros(6, int)
                 divisions[varying_angles_arr] = int(max_poses ** (1 / sum(varying_angles_arr)))

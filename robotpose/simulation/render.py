@@ -7,6 +7,7 @@
 #
 # Author: Adam Exley
 
+import logging
 from typing import List, Tuple, Union
 
 import cv2
@@ -226,7 +227,7 @@ class Aligner():
 
 
         # Copy image array into RAM to avoid stuttering whenever moving
-        print("Copying Image Array...")
+        logging.info("Copying Image Array...")
         self.real_arr = np.copy(self.ds.og_img)
         self.zoom = 1
 
@@ -244,7 +245,7 @@ class Aligner():
             
             # If there was user input into the GUI, do what it specifies
             if event == 'quit':
-                print("Quit by user.")
+                logging.info("Quit by user.")
                 ret = False
                 continue
             elif event == 'new_section':

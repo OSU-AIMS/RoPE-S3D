@@ -111,49 +111,7 @@ class Grapher():
             self.predictions[:,idx] = predictions[:l,ang.index(joint)]
 
     def _plotWithComparison(self, y_lim = None):
-
         general_plot(self.joints,'deg',actual=self.true,predicted=self.predictions,y_lim=y_lim)
-
-        # fig, axs = plt.subplots(len(self.joints),2)
-                
-        # # Plot Raw Angles
-        # for joint, idx in zip(self.joints,range(len(self.joints))):
-        #     axs[idx,0].set_title(f'Raw {joint} Angle')
-        #     axs[idx,0].plot(self.true[:,idx])
-        #     axs[idx,0].plot(self.predictions[:,idx],color='purple')
-
-        # err = self.predictions - self.true
-        # zeros_err = np.zeros(err.shape[0])
-
-        # # Plot errors
-        # for joint, idx in zip(self.joints,range(len(self.joints))):
-        #     axs[idx,1].set_title(f'Angle {joint} Error')
-        #     axs[idx,1].plot(zeros_err)
-        #     axs[idx,1].plot(err[:,idx],color='purple')
-        #     if y_lim is not None:
-        #         axs[idx,1].set_ylim([-y_lim,y_lim])
-
-        # err = np.abs(err)
-
-        # avg_err = np.mean(err,0)
-
-        # err_std = np.std(err,0)
-        # err_med = np.median(err,0)
-        # err_90 = np.percentile(err, 90, 0)
-        # err_95 = np.percentile(err, 95, 0)
-        # err_99 = np.percentile(err, 99, 0)
-        
-        # w = 5
-
-        # print("\nStats (deg):")
-        # print(f"\t   {' '*(w-4)}Mean {' '*(w-3)}Std {' '*(w-3)}Med {' '*(w-4)}90th {' '*(w-4)}95th {' '*(w-4)}99th")
-        # for joint, idx in zip(self.joints,range(len(self.joints))):
-        #     print(f"\t{joint}: {avg_err[idx]:{w}.2f} {err_std[idx]:{w}.2f} {err_med[idx]:{w}.2f} {err_90[idx]:{w}.2f} {err_95[idx]:{w}.2f} {err_99[idx]:{w}.2f}")
-
-        # plt.show()
-
-
-
 
 
 

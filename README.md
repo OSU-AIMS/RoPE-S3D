@@ -34,11 +34,11 @@ Datasets are expected to contain RGB images in a ```.png``` format with accompan
 
 The format for the ```.json``` info file can be found in ```examples/dataset_json_required.json```.
 
-To build, or recompile a dataset, simply run the wizard with arguments:
+To build, or rebuild a dataset, simply run the wizard with arguments:
 ```bash
-python wizard.py dataset_name [-rebuild] [-recompile]
+python wizard.py dataset_name [-rebuild]
 ```
-With ```-rebuild``` recreating the dataset from the raw data directly, and with ```-recompile``` reprocessing the dataset from the raw data stored in the dataset itself.
+With ```-rebuild``` recreating the dataset from the raw data directly, with the exception of stored camera poses.
 
 ```dataset_name``` corresponds to the name of the zipped folder in ```data/raw``` where the dataset is stored.
 
@@ -114,28 +114,15 @@ This will often cause issues when loading a model for segmentation.
 
 **This is avoided if using ```requirements.txt``` to install**
 
-Numpy **1.19.5** may be automatically installed with tensorflow. This version of Numpy presents memory issues on some machines when running Multiprocessing, as this repository does.
+Numpy **1.19.5** may be automatically installed with Tensorflow. This version of Numpy presents memory issues on some machines when utilizing the multiprocessing module, as this repository does.
 
 Numpy **1.19.2** should work with this repository.
-
-#### PixelLib
-
-**In the suggested configuration using *Tensorflow 2.4.1* this is avoided.**
-
-**This is avoided if using ```requirements.txt``` to install**
-
-Sometimes Pixellib will not work after all installations have been completed when using Tensorflow 2.0.0. To fix this error, upgrade and downgrade Tensorflow.
-
-```bash
-pip install --upgrade tensorflow-gpu
-pip install --upgrade tensorflow-gpu==2.0.0
-```
 
 # Customization
 
 Many static constants are specified in ```robotpose/constansts.py```. Many of these can be easily modified to change program behavior.
 
-Some constants only change visual appearance of some functions whereas others can change how the entire program behaves; take caution whenever changing more tehchnical constants.
+Some constants only change visual appearance of some functions whereas others can change how the entire program behaves; take caution whenever changing more technical constants.
 
 # License
 

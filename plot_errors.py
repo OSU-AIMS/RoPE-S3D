@@ -4,6 +4,9 @@ import numpy as np
 from robotpose import Dataset, Grapher
 import cv2
 from robotpose.prediction.analysis import JointDistance
+import PySimpleGUI as sg
+
+
 
 import logging, os
 # Disable OpenGL and Tensorflow info messages (get annoying with multiprocessing)
@@ -20,15 +23,17 @@ import tensorflow as tf
 # preds = np.load(f'predictions_{dataset}.npy')
 # angles = np.copy(ds.angles)
 
-results = np.load('synth_test.npy')
+file = sg.PopupGetFile('Select Prediction File','Prediction File Selection',file_types=(("NPY Files", "*.npy"), ),initial_folder=os.getcwd())
+
+results = np.load(file)
+
+
 angles = results[0]
 preds = results[1]
 
 
 IDX_TO_USE = 0
 PERCENTILE_TO_SHOW = 99
-
-
 
 
 indicies = np.argsort(angles[...,IDX_TO_USE])

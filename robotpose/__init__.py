@@ -6,4 +6,7 @@ from .paths import Paths
 from .prediction.analysis import Grapher
 from .prediction.synthetic import SyntheticPredictor
 
+import logging
+logging.basicConfig(level=logging.INFO)
+
 Paths().create()
