@@ -101,6 +101,7 @@ class RobotLookupCreator(Renderer):
             f.attrs['num_links_rendered'] = self.num_rendered
             f.attrs['angles_changed'] = self.angles_to_do
             f.attrs['divisions'] = self.divisions
+            f.attrs['urdf'] = self.u_reader.name
             f.create_dataset('angles', data=self.angles)
             pbar.update(1)
             f.create_dataset('depth', data=depth_arr, compression="gzip", compression_opts=1)
@@ -179,6 +180,7 @@ class RobotLookupManager(RobotLookupInfo):
 
     def __init__(self, element_bits: int = 32) -> None:
         self.element_bits = element_bits
+        self.u_reader = URDFReader()
         super().__init__()
 
     def get(self,
@@ -246,6 +248,7 @@ class RobotLookupManager(RobotLookupInfo):
             acceptable = self.data['lookups'][intrinsic_short][camera_pose_short]
             acceptable = {k:acceptable[k] for k in acceptable if acceptable[k]['num_links_rendered'] == num_rendered_links}
             acceptable = {k:acceptable[k] for k in acceptable if np.all([x != 1 for x in acceptable[k]['divisions']] == varying_angles_arr,-1)}
+            acceptable = {k:acceptable[k] for k in acceptable if acceptable[k]['urdf'] == self.u_reader.name}
             if len(acceptable) == 0:
                 create = True
             else:

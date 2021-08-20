@@ -8,7 +8,7 @@
 # Author: Adam Exley
 
 from robotpose import Dataset
-from robotpose.prediction.camera import ModellessCameraPredictor, CameraPredictor
+from robotpose.prediction.camera_pose_prediction import ModellessCameraPredictor, CameraPredictor
 import numpy as np
 
 

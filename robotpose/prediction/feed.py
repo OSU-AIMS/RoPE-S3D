@@ -12,9 +12,8 @@ import numpy as np
 
 
 class LiveCamera():
-    
-    def __init__(self, width, height) -> None:
-        fps = 30
+
+    def __init__(self, width = 1280, height = 720, fps = 30) -> None:
 
         self.pipeline = rs.pipeline()
         self.config = rs.config()

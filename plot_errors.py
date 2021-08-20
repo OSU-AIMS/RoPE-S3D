@@ -9,14 +9,15 @@ import re
 
 
 import logging, os
-# Disable OpenGL and Tensorflow info messages (get annoying with multiprocessing)
+# Disable OpenGL and Tensorflow info messages (get annoying)
 logging.getLogger("OpenGL.arrays.arraydatatype").setLevel(logging.WARNING)
 logging.getLogger("OpenGL.acceleratesupport").setLevel(logging.WARNING)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # or any {'0', '1', '2'}
 import tensorflow as tf
 
 
-file = sg.PopupGetFile('Select Prediction File','Prediction File Selection',file_types=(("NPY Files", "*.npy"), ),initial_folder=os.getcwd())
+#file = sg.PopupGetFile('Select Prediction File','Prediction File Selection',file_types=(("NPY Files", "*.npy"), ),initial_folder=os.getcwd())
+file = 'synth_test.npy'
 
 results = np.load(file)
 
