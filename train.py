@@ -19,6 +19,7 @@ from pixellib.custom_train import instance_custom_training
 from robotpose import Dataset, DatasetRenderer
 from robotpose import Paths as p
 from robotpose.training import ModelManager
+from robotpose.data.annotation import refresh_split
 
 # Eager Exec. is enabled when importing robotpose; disable
 import tensorflow as tf
@@ -26,6 +27,8 @@ tf.compat.v1.disable_eager_execution()
 
 
 def train(dataset, batch, cont, cont_from):
+    
+    refresh_split(dataset)
     ds = Dataset(dataset)
 
     # Get names of classes for modeldata

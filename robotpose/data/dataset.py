@@ -87,7 +87,8 @@ class DatasetInfo():
     def unique_sets(self) -> List[str]:
         """All datasets, compiled or raw"""
         datasets = set()
-        datasets.update(self.compiled_sets)
+        if self.compiled_sets != [None]:
+            datasets.update(self.compiled_sets)
         datasets.update(self.info['uncompiled']['names'])
 
         datasets = list(datasets)

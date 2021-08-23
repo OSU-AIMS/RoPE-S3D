@@ -24,6 +24,7 @@ from ..CompactJSONEncoder import CompactJSONEncoder
 from ..simulation.render import DatasetRenderer
 from ..utils import expandRegion, workerCount
 from .dataset import Dataset
+from ..paths import Paths as p
 
 
 class Annotator():
@@ -341,3 +342,15 @@ class Splitter():
         """Alias for split(), but skips checking anything if the requested proportions are already present"""
         if not self.ratios_equal(train_prop, valid_prop):
             self.split(train_prop, valid_prop)
+
+def refresh_split(ds):
+    # Read in config
+    with open(p().SPLIT_CONFIG,'r') as f:
+        data = json.load(f)
+    data = data[ds]
+
+    # Actually split if data is present
+    expected_anno_dir = os.path.join(Dataset(ds).dataset_dir,"link_annotations")
+    if os.path.isdir(expected_anno_dir):
+        s = Splitter(expected_anno_dir)
+        s.resplit(data['train'],data['validate'])

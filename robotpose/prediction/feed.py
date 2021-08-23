@@ -21,6 +21,8 @@ class LiveCamera():
         self.config.enable_stream(rs.stream.depth, width, height, rs.format.z16, fps)    # Enable Depth
         self.config.enable_stream(rs.stream.color, width, height, rs.format.bgr8, fps)    # Enable Color
 
+        self.align = rs.align(rs.stream.color)
+
     def start(self):
         self.pipeline.start(self.config)
 
@@ -34,8 +36,9 @@ class LiveCamera():
         # Wait until a pair is found
         while not depth or not color:
             frames = self.pipeline.wait_for_frames()
-            depth = frames.get_depth_frame()
-            color = frames.get_color_frame()
+            frames_aligned = self.align.process(frames)
+            depth = frames_aligned.get_depth_frame()
+            color = frames_aligned.get_color_frame()
 
         # Return color, depth frame
         return np.array(color.get_data()), np.array(depth.get_data())

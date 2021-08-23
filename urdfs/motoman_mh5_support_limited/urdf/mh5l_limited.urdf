@@ -121,21 +121,21 @@
     <child link="link_1_s"/>
     <origin rpy="0 0 0" xyz="0 0 0.330"/>
     <axis xyz="0 0 1"/>
-    <limit effort="303.8" lower="0" upper="2.96705972839" velocity="4.71238898038"/>
+    <limit effort="303.8" lower="-0.78539816339" upper="1.57079632679" velocity="4.71238898038"/>
   </joint>
   <joint name="joint_2_l" type="revolute">
     <parent link="link_1_s"/>
     <child link="link_2_l"/>
     <origin rpy="0 0 0" xyz="0.0880 0 0.00"/>
     <axis xyz="0 1 0"/>
-    <limit effort="205.8" lower="-1.1344640138" upper="2.61799387799" velocity="4.88692190558"/>
+    <limit effort="205.8" lower="-0.994838" upper="1.57079632679" velocity="4.88692190558"/>
   </joint>
   <joint name="joint_3_u" type="revolute">
     <parent link="link_2_l"/>
     <child link="link_3_u"/>
     <origin rpy="0 0 0" xyz="0 0 0.400"/>
     <axis xyz="0 -1 0"/>
-    <limit effort="85.5" lower="-1.2217304764" upper="3.31612557879" velocity="5.23598775598"/>
+    <limit effort="85.5" lower="-0.872665" upper="2.44346" velocity="5.23598775598"/>
   </joint>
   <joint name="joint_4_r" type="revolute">
     <parent link="link_3_u"/>
