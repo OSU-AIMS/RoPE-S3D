@@ -13,11 +13,11 @@ from tqdm import tqdm
 from robotpose import Dataset, Predictor, Grapher
 
 angs = 'SLU'
-dataset = 'set30'
+dataset = 'set50'
 
 
 ds = Dataset(dataset)
-am = Predictor(ds_factor=2, camera_pose=ds.camera_pose[0], preview=False, base_intrin = ds.intrinsics, do_angles=angs, model_ds=dataset)
+am = Predictor(ds_factor=8, camera_pose=ds.camera_pose[0], preview=False, base_intrin = ds.intrinsics, do_angles=angs, model_ds=dataset)
 
 from functools import reduce
 

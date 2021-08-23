@@ -24,7 +24,10 @@ class LiveCamera():
         self.align = rs.align(rs.stream.color)
 
     def start(self):
-        self.pipeline.start(self.config)
+        self.profile = self.pipeline.start(self.config)
+
+        self.depth_sensor = self.profile.get_device().first_depth_sensor()
+        self.depth_scale = self.depth_sensor.get_depth_scale()
 
     def stop(self):
         self.pipeline.stop()
@@ -41,5 +44,5 @@ class LiveCamera():
             color = frames_aligned.get_color_frame()
 
         # Return color, depth frame
-        return np.array(color.get_data()), np.array(depth.get_data())
+        return np.array(color.get_data()), np.array(depth.get_data(),dtype=float) * self.depth_scale
 

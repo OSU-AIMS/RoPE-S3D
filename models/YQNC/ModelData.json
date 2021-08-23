@@ -1,0 +1,12 @@
+{
+    "id": "YQNC",
+    "dataset": "set50",
+    "dataset_size": 477,
+    "train_size": 405,
+    "valid_size": 71,
+    "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+    "epochs_trained": 0,
+    "date_trained": "2021-08-23 16:48:44.983291",
+    "benchmarks": [],
+    "train_ratio": 0.849057
+}
