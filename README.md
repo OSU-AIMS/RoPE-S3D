@@ -102,21 +102,27 @@ pip install --upgrade -r requirements.txt
 
 ## Known Issues
 
-### Keras
+<details>
+  <summary> Keras </summary>
 
 Keras sometimes includes ```.decode('utf8')``` in its code. This is unnecessary, and causes issues when loading and saving hd5f files.
 
-Notably, every instance of ```.decode('utf8')``` in ```"lib\site-packages\tensorflow_core\python\keras\saving\hdf5_format.py"``` can be removed.
+Notably, every instance of ```.decode('utf8')``` in ```"tensorflow_core\python\keras\saving\hdf5_format.py"``` can be removed.
 
 This will often cause issues when loading a model for segmentation.
 
-#### Numpy
+</details>
+
+<details>
+  <summary> Numpy </summary>
 
 **This is avoided if using ```requirements.txt``` to install**
 
 Numpy **1.19.5** may be automatically installed with Tensorflow. This version of Numpy presents memory issues on some machines when utilizing the multiprocessing module, as this repository does.
 
 Numpy **1.19.2** should work with this repository.
+
+</details>
 
 # Customization
 

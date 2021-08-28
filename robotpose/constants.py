@@ -28,6 +28,9 @@ CROP_PADDING = 10
 ##################################### Lookups
 
 LOOKUP_NAME_LENGTH = 5
+LOOKUP_MAX_DIV_PER_LINK = 200
+LOOKUP_JOINTS = 'SLU'
+LOOKUP_NUM_RENDERED = 6
 
 
 ##################################### Segmentation Models
@@ -46,7 +49,7 @@ WIZARD_DATASET_PREVIEW = True   # Set to false to reduce lag caused by dataset p
 
 VERIFIER_ALPHA = .7 # Weight to place on images in verifier
 VERIFIER_SELECTED_GAMMA = -50   # Amount to add to R/G/B Channels of a selected image. Usually negative.
-VERIFIER_SCALER = 2 # Scale factor of thumbnails. Overall scale is this divided by THUMBNAIL_DS_FACTOR
+VERIFIER_SCALER = 1.5 # Scale factor of thumbnails. Overall scale is this divided by THUMBNAIL_DS_FACTOR
 VERIFIER_ROWS = 4   # Rows of images present in Verifier
 VERIFIER_COLUMNS = 4    # Columns of images present in Verifier
 

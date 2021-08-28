@@ -60,10 +60,10 @@ def train(dataset, batch, cont, cont_from):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset', type=str, help="The dataset to load to annotate. Can be a partial name.")
-    parser.add_argument('-batch',type=int, choices=[1,2,4,8,12,16], default=2, help="Batch size for training")
+    parser.add_argument('-batch_size',type=int, choices=[1,2,4,8,12,16], default=2, help="Batch size for training")
     parser.add_argument('-cont',action='store_true', help="Continue latest trained model.")
     parser.add_argument('-cont_from', type=str, default=None, help="Last model to build from.")
 
     args = parser.parse_args()
 
-    train(args.dataset, args.batch, args.cont, args.cont_from)
+    train(args.dataset, args.batch_size, args.cont, args.cont_from)

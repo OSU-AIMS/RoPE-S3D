@@ -7,13 +7,14 @@
 #
 # Author: Adam Exley
 
+from typing import Union
 import cv2
 import numpy as np
 import tensorflow as tf
 from pixellib.instance import custom_segmentation
 from scipy.interpolate import interp1d
 
-from ..constants import DEFAULT_CAMERA_POSE, VIDEO_FPS
+from ..constants import DEFAULT_CAMERA_POSE, MAX_LINKS, VIDEO_FPS, LOOKUP_JOINTS, LOOKUP_NUM_RENDERED
 from ..crop import Crop, applyBatchCrop, applyCrop
 from ..projection import Intrinsics
 from ..simulation.lookup import RobotLookupManager
@@ -22,11 +23,137 @@ from ..training.models import ModelManager
 from ..urdf import URDFReader
 from ..utils import str_to_arr, color_array
 
-tf.compat.v1.enable_eager_execution()
+tf.compat.v1.enable_eager_execution()   # Enable GPU-Accelerated math
 
 
-LOOKUP_NUM_RENDERED = 4
 HISTORY_LENGTH = 5
+
+
+
+
+class Lookup():
+    """
+    Compares depth to prerendered poses.
+
+    Settings defined globally instead of instantially.
+
+    Num rendered and joints changed can be modified.
+    """
+    pass
+
+class BaseStage():
+    def __init__(self, to_render: int):
+        self.to_render = to_render
+
+class SFlip(BaseStage):
+    def __init__(self, to_render: int):
+        """
+        Perspecitive flip the S joint.
+        'Flip' amount depends on camera position. Will produce roughly the same shadow. 
+
+        Parameters
+        ----------
+        to_render : int
+            Number of links to render
+        """
+        super().__init__(to_render)
+
+class Sweep(BaseStage):
+    def __init__(self, to_render: int, divs: int, joints: Union[str, np.ndarray], range: float = None):
+        """Base Sweep Class"""
+        super().__init__(to_render)
+        self.divs, self.range = divs, range
+        self.joints = str_to_arr(joints) if type(joints) is str else joints
+
+class InterpolativeSweep(Sweep):
+    def __init__(self, to_render: int, divs: int, joints: Union[str, np.ndarray], range: float = None):
+        """
+        Sweep through a joint's range in a specified number of divisons.
+        Attempts to interpolate error function to find true minimum of loss.
+
+        See TensorSweep for similar behavior.
+
+        Parameters
+        ----------
+        to_render : int
+            Number of links to render
+        divs : int
+            Divisons of the range to do
+        joints : Union[str, np.ndarray]
+            Joints to sweep
+        range : float, optional
+            Range in rad to sweep about current pos, or None to do entire joint range, by default None.
+        """
+        super().__init__(to_render, divs, joints, range=range)
+
+class TensorSweep(Sweep):
+    def __init__(self, to_render: int, divs: int, joints: Union[str, np.ndarray], range: float = None):
+        """
+        Sweep through a joint's range in a specified number of divisons.
+        Uses GPU matrix acceleration to determine loss. InterpolativeSweep may give better results in most cases.
+
+        See InterpolativeSweep for similar behavior.
+
+        Parameters
+        ----------
+        to_render : int
+            Number of links to render
+        divs : int
+            Divisons of the range to do
+        joints : Union[str, np.ndarray]
+            Joints to sweep
+        range : float, optional
+            Range in rad to sweep about current pos, or None to do entire joint range, by default None.
+        """
+        super().__init__(to_render, divs, joints, range=range)
+
+class Descent(BaseStage):
+    def __init__(self, to_render: int, iterations: int, joints: Union[str, np.ndarray],
+        init_rate: Union[float, int, np.ndarray] = None, 
+        rate_reduction: float = 0.5, early_stop_thresh: float = 0.01
+        ):
+        """[summary]
+
+        Parameters
+        ----------
+        to_render : int
+            Number of links to render
+        iterations : int
+            Max number of iterations to complete
+        joints : Union[str, np.ndarray]
+            Joints to use for descent
+        init_rate : Union[float, int, np.ndarray], optional
+            Default step size for each joint (six entries) None on one or all will continue past descent rate.
+            A single value, if given, will apply to all entries, by default None
+        rate_reduction : float, optional
+            Scalar to apply to step size/rate whenever no progress is made with steps, by default 0.5
+        early_stop_thresh : float, optional
+            Percentage change of error. If below this value, descent will end prematurely, by default 0.01
+        """
+
+        super().__init__(to_render)
+        self.its, self.rate_redux, self.early_stop = iterations, rate_reduction, early_stop_thresh
+        self.joints = str_to_arr(joints) if type(joints) is str else joints
+        self.init_rate = [init_rate]*6 if type(init_rate) in [float, int] or init_rate is None else init_rate
+
+# Class Aliases
+IntSweep = InterpolativeSweep
+ISweep = InterpolativeSweep
+TSweep = TensorSweep
+
+
+# Stages in form:
+# Lookup:
+#   Num_link_to_render
+# Sweep/Smartsweep:
+#   Divisions, Num_link_to_render, offset to render, angles_to_edit
+# Descent:
+#   Iterations, Num_link_to_render, rate reduction, early_stop_thresh, angles_to_edit, inital_learning_rate
+# Flip:
+#   Num_link_to_render, edit_angles
+
+
+
 
 class Predictor():
     def __init__(self,
@@ -36,12 +163,11 @@ class Predictor():
         save_to: str = None,
         do_angles: str = 'SLU',
         min_angle_inc: np.ndarray = np.array([.005]*6),
-        base_intrin: str = "1280_720_color",
+        base_intrin: str = '1280_720_color',
         model_ds: str = 'set10',
         color_dict : dict = None
         ):
-        """[summary]
-
+        """
         Parameters
         ----------
         camera_pose : np.ndarray, optional
@@ -106,7 +232,7 @@ class Predictor():
     def _loadLookup(self):
 
         lm = RobotLookupManager()
-        ang, depth, = lm.get(self.intrinsics, self.camera_pose, LOOKUP_NUM_RENDERED, 'SL')
+        ang, depth, = lm.get(self.intrinsics, self.camera_pose, LOOKUP_NUM_RENDERED, LOOKUP_JOINTS)
 
         self.lookup_angles = ang
         self.lookup_depth = tf.pow(tf.constant(depth,tf.float32),0.5)
@@ -127,108 +253,103 @@ class Predictor():
 
 
         if self.do_angles == 'SL':
-            lookup = ['lookup']
-            s_flip = ['s_flip', 4]
-            s_sweep_narrow = ['smartsweep', 10, 4, .1, 'S']
-            l_sweep_narrow = ['smartsweep', 10, 4, .1, 'L']
-            sl_fine_tune = ['descent',40,4,0.5,.0075,'SL',[.05,.05,None,None,None,None]]
+            # lookup = ['lookup']
+            # s_flip = ['s_flip', 4]
+            # s_sweep_narrow = ['smartsweep', 10, 4, .1, 'S']
+            # l_sweep_narrow = ['smartsweep', 10, 4, .1, 'L']
+            # sl_fine_tune = ['descent',40,4,0.5,.0075,'SL',[.05,.05,None,None,None,None]]
 
-            base_sweep = ['tensorsweep', 8, 4, None, 'S']
+            # base_sweep = ['tensorsweep', 8, 4, None, 'S']
 
-            flips = [s_flip]
+            # flips = [s_flip]
+            # sweeps = [l_sweep_narrow,s_sweep_narrow]
+
+            # self.stages = [lookup, *flips, *sweeps, *flips, *sweeps, *flips, sl_fine_tune]
+            # self.stages = [lookup, *flips, *sweeps, *flips]
+
+            lookup = Lookup()
+            s_flip = SFlip(4)
+            s_sweep_narrow = InterpolativeSweep(4,10,'S',0.1)
+            l_sweep_narrow = InterpolativeSweep(4,10,'L',0.1)
+
+            sl_fine_tune = Descent(4,40,'SL',[.05,.05,None,None,None,None], early_stop_thresh = .0075)
+
             sweeps = [l_sweep_narrow,s_sweep_narrow]
 
-            self.stages = [lookup, *flips, *sweeps, *flips, *sweeps, *flips, sl_fine_tune]
-            self.stages = [lookup, *flips, *sweeps, *flips]
-            self.stages = [lookup, *flips]
+            self.stages = [lookup, s_flip, *sweeps, s_flip, *sweeps, s_flip, sl_fine_tune]
+            self.stages = [lookup, s_flip, *sweeps, s_flip]
 
 
         elif self.do_angles == 'SLU':
 
             # lookup = ['lookup']
-            # u_sweep_wide = ['tensorsweep', 50, 6, None, 'U']
-            # u_sweep_gen = ['tensorsweep', 50, 6, .3, 'U']
-            # u_sweep_narrow = ['smartsweep', 10, 6, .1, 'U']
-            # u_stage = ['descent',30,6,0.5,.1,'U',[0.1,0.1,0.4,0.5,0.5,0.5]]
-            # s_flip_check_6 = ['s_flip', 6]
-            # slu_fine_tune_mandatory = ['descent',40,6,0.5,.0075,'SLU',[None,None,None,None,None,None]]
-            # slu_fine_tune_optional = ['descent',35,6,0.5,.0075,'SLU',[None,None,None,None,None,None]]
 
-            # u_sweep_coarse = ['smartsweep', 15, 6, None, 'U']
-            # s_sweep = ['smartsweep', 45, 6, 1, 'S']
+            # s_flip_4 = ['s_flip', 4]
+            # sl_tune = ['descent',10,4,0.5,.1,'SL',[0.05,0.05,0.1,0.5,0.5,0.5]]
 
-            # self.stages = [lookup, u_sweep_coarse, s_flip_check_6, s_sweep, s_flip_check_6, u_sweep_narrow, s_flip_check_6, u_stage, s_flip_check_6, slu_fine_tune_mandatory, slu_fine_tune_optional]
-            
-            # lookup = ['lookup']
-            # u_sweep_wide = ['tensorsweep', 50, 5, None, 'U']
-            # u_sweep_gen = ['tensorsweep', 50, 5, .3, 'U']
+            # sl_init = [s_flip_4, sl_tune, s_flip_4]
+
+            # u_sweep_wide = ['smartsweep', 25, 6, None, 'U']
+            # s_flip_6 = ['s_flip', 6]
             # u_sweep_narrow = ['smartsweep', 10, 5, .1, 'U']
-            # u_stage = ['descent',30,5,0.5,.1,'U',[0.1,0.1,0.4,0.5,0.5,0.5]]
-            # s_flip_check_6 = ['s_flip', 5]
-            # slu_fine_tune_mandatory = ['descent',40,5,0.5,.0075,'SLU',[None,None,None,None,None,None]]
-            # slu_fine_tune_optional = ['descent',35,5,0.5,.0075,'SLU',[None,None,None,None,None,None]]
+            
+            # u_stages = [u_sweep_wide, s_flip_4, s_flip_6, u_sweep_narrow]
+            
+            # full_tune = ['descent',40,5,0.5,.0075,'SLU',[None,None,None,None,None,None]]
 
-            # u_sweep_coarse = ['smartsweep', 20, 5, None, 'U']
-            # s_sweep = ['smartsweep', 45, 5, 1, 'S']
+            # self.stages = [lookup, *sl_init, *u_stages, full_tune]
 
+            lookup = Lookup()
 
-            # self.stages = [lookup, s_flip_check_6, u_sweep_coarse, s_flip_check_6, s_sweep, s_flip_check_6, u_sweep_narrow, s_flip_check_6, u_stage, s_flip_check_6, slu_fine_tune_mandatory]
-            # self.stages = [lookup, s_flip_check_6, u_sweep_coarse, s_flip_check_6, u_sweep_narrow, s_flip_check_6, u_stage, s_flip_check_6, slu_fine_tune_mandatory]
-
-
-            lookup = ['lookup']
-
-            s_flip_4 = ['s_flip', 4]
-            sl_tune = ['descent',10,4,0.5,.1,'SL',[0.05,0.05,0.1,0.5,0.5,0.5]]
+            s_flip_4 = SFlip(4)
+            sl_tune = Descent(4,10,'SL',[0.05,0.05,0.1,0.5,0.5,0.5],early_stop_thresh=0.1)
 
             sl_init = [s_flip_4, sl_tune, s_flip_4]
 
-            u_sweep_wide = ['smartsweep', 25, 6, None, 'U']
-            s_flip_6 = ['s_flip', 6]
-            u_sweep_narrow = ['smartsweep', 10, 5, .1, 'U']
+            u_sweep_wide = InterpolativeSweep(6,25,'U')
+            s_flip_6 = SFlip(6)
+            u_sweep_narrow = InterpolativeSweep(6, 10, 'U',0.1)
             
             u_stages = [u_sweep_wide, s_flip_4, s_flip_6, u_sweep_narrow]
             
-            full_tune = ['descent',40,5,0.5,.0075,'SLU',[None,None,None,None,None,None]]
+            full_tune = Descent(6,40,'SLU',early_stop_thresh=0.0075)
 
             self.stages = [lookup, *sl_init, *u_stages, full_tune]
 
 
+        # elif self.do_angles == 'SLUB':
 
+        #     lookup = ['lookup']
+        #     u_sweep_wide = ['tensorsweep', 50, 6, None, 'U']
+        #     u_sweep_gen = ['tensorsweep', 50, 6, .3, 'U']
+        #     u_sweep_narrow = ['smartsweep', 10, 6, .1, 'U']
+        #     u_stage = ['descent',30,6,0.5,.1,'U',[0.1,0.1,0.4,0.5,0.5,0.5]]
+        #     s_flip_check_6 = ['s_flip', 6]
+        #     slu_fine_tune = ['descent',10,6,0.4,.015,'SLU',[None,None,None,None,None,None]]
+        #     b_sweep_full = ['tensorsweep', 40, 6, None, 'B']
+        #     b_sweep = ['tensorsweep', 5, 6, .1, 'B']
+        #     b_fine_tune = ['descent',5,6,0.4,.015,'B',[None,None,None,.005,.005,None]]
+        #     full_tune = ['descent',10,6,0.4,.015,'SLUB',[None,None,None,None,None,None]]
 
-        elif self.do_angles == 'SLUB':
+        #     self.stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune,
+        #         b_sweep_full, b_sweep, b_fine_tune, full_tune]
 
-            lookup = ['lookup']
-            u_sweep_wide = ['tensorsweep', 50, 6, None, 'U']
-            u_sweep_gen = ['tensorsweep', 50, 6, .3, 'U']
-            u_sweep_narrow = ['smartsweep', 10, 6, .1, 'U']
-            u_stage = ['descent',30,6,0.5,.1,'U',[0.1,0.1,0.4,0.5,0.5,0.5]]
-            s_flip_check_6 = ['s_flip', 6]
-            slu_fine_tune = ['descent',10,6,0.4,.015,'SLU',[None,None,None,None,None,None]]
-            b_sweep_full = ['tensorsweep', 40, 6, None, 'B']
-            b_sweep = ['tensorsweep', 5, 6, .1, 'B']
-            b_fine_tune = ['descent',5,6,0.4,.015,'B',[None,None,None,.005,.005,None]]
-            full_tune = ['descent',10,6,0.4,.015,'SLUB',[None,None,None,None,None,None]]
+        # elif self.do_angles == 'SLURB':
 
-            self.stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune,
-                b_sweep_full, b_sweep, b_fine_tune, full_tune]
+        #     lookup = ['lookup']
+        #     u_sweep_wide = ['tensorsweep', 50, 6, None, 'U']
+        #     u_sweep_gen = ['tensorsweep', 50, 6, .3, 'U']
+        #     u_sweep_narrow = ['smartsweep', 10, 6, .1, 'U']
+        #     u_stage = ['descent',30,6,0.5,.1,'U',[0.1,0.1,0.4,0.5,0.5,0.5]]
+        #     s_flip_check_6 = ['s_flip', 6]
+        #     slu_fine_tune = ['descent',10,6,0.4,.015,'SLU',[None,None,None,None,None,None]]
+        #     rb_sweep_full = ['tensorsweep', 40, 6, None, 'RB']
+        #     rb_sweep = ['tensorsweep', 5, 6, .1, 'RB']
+        #     rb_fine_tune = ['descent',5,6,0.4,.015,'RB',[None,None,None,.005,.005,None]]
+        #     full_tune = ['descent',10,6,0.4,.015,'SLURB',[None,None,None,None,None,None]]
 
-        elif self.do_angles == 'SLURB':
-
-            lookup = ['lookup']
-            u_sweep_wide = ['tensorsweep', 50, 6, None, 'U']
-            u_sweep_gen = ['tensorsweep', 50, 6, .3, 'U']
-            u_sweep_narrow = ['smartsweep', 10, 6, .1, 'U']
-            u_stage = ['descent',30,6,0.5,.1,'U',[0.1,0.1,0.4,0.5,0.5,0.5]]
-            s_flip_check_6 = ['s_flip', 6]
-            slu_fine_tune = ['descent',10,6,0.4,.015,'SLU',[None,None,None,None,None,None]]
-            rb_sweep_full = ['tensorsweep', 40, 6, None, 'RB']
-            rb_sweep = ['tensorsweep', 5, 6, .1, 'RB']
-            rb_fine_tune = ['descent',5,6,0.4,.015,'RB',[None,None,None,.005,.005,None]]
-            full_tune = ['descent',10,6,0.4,.015,'SLURB',[None,None,None,None,None,None]]
-
-            self.stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune,
-                rb_sweep_full, rb_sweep, rb_fine_tune, full_tune]
+        #     self.stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune,
+        #         rb_sweep_full, rb_sweep, rb_fine_tune, full_tune]
 
 
 
@@ -252,7 +373,7 @@ class Predictor():
             self.viz.loadTargetDepth(target_depth)
             self.viz.loadSegmentedLinks(output)
 
-        angle_learning_rate = np.zeros(6)
+        angle_learning_rate = np.ones(6) * 0.1
 
         history = np.zeros((self.history_length, 6))
         err_history = np.zeros(self.history_length)
@@ -273,11 +394,7 @@ class Predictor():
 
         for stage in self.stages:
 
-            if stage[0] == 'lookup':
-
-                # diff = self._tgt_depth_stack_half - self.lookup_depth
-                # diff = tf.abs(diff)
-                # lookup_err = tf.reduce_mean(diff, (1,2)) *- tf.math.reduce_std(diff, (1,2))
+            if type(stage) is Lookup:
 
                 diff = self._tgt_depth_stack_full - tf.constant(self.lookup_depth,tf.float32)
                 diff = tf.abs(diff)
@@ -285,20 +402,19 @@ class Predictor():
 
                 angles = self.lookup_angles[tf.argmin(lookup_err).numpy()]
 
-            elif stage[0] == 'descent':
+            elif type(stage) is Descent:
 
                 for i in range(6):
-                    if stage[6][i] is not None:
-                        angle_learning_rate[i] = stage[6][i]
+                    if stage.init_rate[i] is not None:
+                        angle_learning_rate[i] = stage.init_rate[i]
 
-                do_ang = str_to_arr(stage[5])
-                self.renderer.setMaxParts(stage[2])
+                self.renderer.setMaxParts(stage.to_render)
 
-                for i in range(stage[1]):
-                    for idx in np.where(do_ang)[0]:
+                for i in range(stage.its):
+                    for idx in np.where(stage.joints)[0]:
 
                         if abs(np.mean(history,0)[idx] - angles[idx]) <= angle_learning_rate[idx]:
-                            angle_learning_rate[idx] *= stage[3]
+                            angle_learning_rate[idx] *= stage.rate_redux
 
                         angle_learning_rate = np.max((angle_learning_rate,self.min_ang_inc),0)
 
@@ -310,7 +426,7 @@ class Predictor():
                         temp[idx] -= angle_learning_rate[idx]
                         if in_limits(temp[idx]):
                             color, depth = render_at_pos(temp)
-                            under_err = self._error(stage[2], color, depth)
+                            under_err = self._error(stage.to_render, color, depth)
                             preview_if_applicable(color, depth)
 
                         else:
@@ -320,7 +436,7 @@ class Predictor():
                         temp[idx] += 2 * angle_learning_rate[idx]
                         if in_limits(temp[idx]):
                             color, depth = render_at_pos(temp)
-                            over_err = self._error(stage[2], color, depth)
+                            over_err = self._error(stage.to_render, color, depth)
                             preview_if_applicable(color, depth)
                         else:
                             over_err = np.inf
@@ -336,7 +452,7 @@ class Predictor():
 
                     err_history[1:] = err_history[:-1]
                     err_history[0] = min(over_err, under_err)
-                    if abs(np.mean(err_history) - err_history[0])/err_history[0] < stage[4]:
+                    if abs(np.mean(err_history) - err_history[0])/err_history[0] < stage.early_stop:
                         break
 
                     # Angle not changing
@@ -345,17 +461,24 @@ class Predictor():
                     if (history[:3] == history[0]).all():
                         break
 
-            elif stage[0] == 's_flip':
+            elif type(stage) is SFlip:
 
-                self.renderer.setMaxParts(stage[1])
+                self.renderer.setMaxParts(stage.to_render)
 
                 color, depth = render_at_pos(angles)
 
                 preview_if_applicable(color, depth)
-                base_err = self._error(stage[1], color, depth)
+                base_err = self._error(stage.to_render, color, depth)
 
                 temp = angles.copy()
-                temp[0] = -temp[0] + 2*self.camera_pose[5]*np.sign(temp[0])
+
+                # temp[0] = -temp[0] + 2*self.camera_pose[5]*np.sign(temp[0])
+
+                a = self.camera_pose[5] * np.abs(np.cos(self.camera_pose[3])) + self.camera_pose[4] * np.abs(np.sin(self.camera_pose[3]))
+                # print(a)
+                # print(self.camera_pose[5])
+
+                temp[0] = -temp[0] + 2*a*np.sign(temp[0])
 
                 limit_thresh = 0.15
                 close_to_limits = limit_thresh > abs(self.u_reader.joint_limits[0,0] - temp[0]) or limit_thresh > abs(self.u_reader.joint_limits[0,1] - temp[0])
@@ -364,7 +487,7 @@ class Predictor():
                 # If it's in limits, test it
                 if _in_limits:
                     color, depth = render_at_pos(temp)
-                    err = self._error(stage[1], color, depth)
+                    err = self._error(stage.to_render, color, depth)
 
                     if err < base_err:
                         angles = temp
@@ -379,7 +502,7 @@ class Predictor():
                     for endpoint in self.u_reader.joint_limits[0]:
                         temp[0] = endpoint
                         color, depth = render_at_pos(temp)
-                        err = self._error(stage[1], color, depth)
+                        err = self._error(stage.to_render, color, depth)
 
                     if err < base_err:
                         angles = temp
@@ -389,30 +512,30 @@ class Predictor():
                             color, depth = render_at_pos(angles)
                             preview_if_applicable(color, depth)
 
-            elif stage[0] == 'smartsweep':
+            elif type(stage) is InterpolativeSweep:
 
-                do_ang = str_to_arr(stage[4])
-                self.renderer.setMaxParts(stage[2])
-                div = stage[1]
+                self.renderer.setMaxParts(stage.to_render)
+                div = stage.divs
 
                 color, depth = render_at_pos(angles)
-                base_err = self._error(stage[2], color, depth)
+                base_err = self._error(stage.to_render, color, depth)
 
-                for idx in np.where(do_ang)[0]:
+                for idx in np.where(stage.joints)[0]:
                     temp_low = angles.copy()
                     temp_high = angles.copy()
-                    if stage[3] is None:
+
+                    if stage.range is None:
                         temp_low[idx] = self.u_reader.joint_limits[idx,0]
                         temp_high[idx] = self.u_reader.joint_limits[idx,1]
                     else:
-                        temp_low[idx] = max(temp_low[idx]-stage[3], self.u_reader.joint_limits[idx,0])
-                        temp_high[idx] = min(temp_high[idx]+stage[3], self.u_reader.joint_limits[idx,1])
+                        temp_low[idx] = max(temp_low[idx]-stage.range, self.u_reader.joint_limits[idx,0])
+                        temp_high[idx] = min(temp_high[idx]+stage.range, self.u_reader.joint_limits[idx,1])
 
                     space = np.linspace(temp_low, temp_high, div)
                     space_err = []
                     for angs in space:
                         color, depth = render_at_pos(angs)
-                        space_err.append(self._error(stage[2], color, depth))
+                        space_err.append(self._error(stage.to_render, color, depth))
                         preview_if_applicable(color, depth)
 
                     ang_space = space[:,idx]
@@ -424,7 +547,7 @@ class Predictor():
                     angs = angles.copy()
                     angs[idx] = pred_min_ang
                     color, depth = render_at_pos(angs)
-                    pred_min_err = self._error(stage[2], color, depth)
+                    pred_min_err = self._error(stage.to_render, color, depth)
 
                     errs = [base_err, min(space_err), pred_min_err]
                     min_type = errs.index(min(errs))
@@ -446,21 +569,21 @@ class Predictor():
                         color, depth = render_at_pos(angles)
                         preview_if_applicable(color, depth)
 
-            elif stage[0] == 'tensorsweep':
+            elif type(stage) is TensorSweep:
 
-                do_ang = str_to_arr(stage[4])
-                self.renderer.setMaxParts(stage[2])
-                div = stage[1]
+                self.renderer.setMaxParts(stage.to_render)
+                div = stage.divs
 
-                for idx in np.where(do_ang)[0]:
+                for idx in np.where(stage.joints)[0]:
                     temp_low = angles.copy()
                     temp_high = angles.copy()
-                    if stage[3] is None:
+
+                    if stage.range is None:
                         temp_low[idx] = self.u_reader.joint_limits[idx,0]
                         temp_high[idx] = self.u_reader.joint_limits[idx,1]
                     else:
-                        temp_low[idx] = max(temp_low[idx]-stage[3], self.u_reader.joint_limits[idx,0])
-                        temp_high[idx] = min(temp_high[idx]+stage[3], self.u_reader.joint_limits[idx,1])
+                        temp_low[idx] = max(temp_low[idx]-stage.range, self.u_reader.joint_limits[idx,0])
+                        temp_high[idx] = min(temp_high[idx]+stage.range, self.u_reader.joint_limits[idx,1])
 
                     space = np.linspace(temp_low, temp_high, div)
                     depths = np.zeros((div, *self.renderer.resolution))
@@ -608,12 +731,6 @@ class Predictor():
                     if diff[diff!=0].size > 0:
                         #err += np.mean(diff[diff!=0]) * np.std(diff[diff!=0])
                         err +=  np.mean(diff[diff!=0]) * 10
-
-        # # Unmatched Error
-        # diff = self._tgt_depth - render_depth
-        # diff = np.abs(diff) ** 0.5
-        # #err += np.mean(diff[diff!=0])
-        # err += np.mean(diff[diff!=0]) *- np.std(diff[diff!=0])
 
         # Unmatched Error
         diff = self._tgt_depth - render_depth

@@ -2,9 +2,9 @@ from robotpose import Dataset, SyntheticPredictor
 from tqdm import tqdm
 
 angs = 'SLU'
-dataset = 'set30'
+dataset = 'set50'
 
 
 ds = Dataset(dataset)
-synth = SyntheticPredictor(ds.camera_pose[0],'640_480_color',2,angs)
-synth.run_batch(5000)
+synth = SyntheticPredictor(ds.camera_pose[0],'1280_720_color',8,angs)
+synth.run_batch(2500)
