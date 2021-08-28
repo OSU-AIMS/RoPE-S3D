@@ -7,19 +7,9 @@ data/datasets.json
 .vscode
 .github
 
-models/segmentation/*.h5
-models/segmentation/*/*.h5
-
-models/link/*/*.h5
-models/body/*/*.h5
-
-
 
 models/*/*.h5
 output/projection_viz.avi
-
-seg_test/
-solidworks/
 
 
 # Byte-compiled / optimized / DLL files
@@ -83,11 +73,9 @@ target/
 
 .DS_Store
 
-examples/\.ipynb_checkpoints/
 
 
 examples/deepposekit-data
 data/datasets.json
 models/mask_rcnn_coco.h5
-output/projection_viz_set10.avi
 lookup/lookups.json

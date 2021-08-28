@@ -2,7 +2,7 @@ from robotpose import Dataset, SyntheticPredictor
 from tqdm import tqdm
 
 angs = 'SLU'
-dataset = 'set50'
+dataset = 'set63'
 
 
 ds = Dataset(dataset)
