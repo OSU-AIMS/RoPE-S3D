@@ -17,7 +17,7 @@ import tensorflow as tf
 
 
 #file = sg.PopupGetFile('Select Prediction File','Prediction File Selection',file_types=(("NPY Files", "*.npy"), ),initial_folder=os.getcwd())
-file = 'synth_test_.npy'
+file = 'live_preds.npy'
 
 results = np.load(file)
 

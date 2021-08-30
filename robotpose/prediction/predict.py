@@ -22,6 +22,7 @@ from ..simulation.render import Renderer
 from ..training.models import ModelManager
 from ..urdf import URDFReader
 from ..utils import str_to_arr, color_array
+from .stages import *
 
 tf.compat.v1.enable_eager_execution()   # Enable GPU-Accelerated math
 
@@ -29,128 +30,6 @@ tf.compat.v1.enable_eager_execution()   # Enable GPU-Accelerated math
 HISTORY_LENGTH = 5
 
 
-
-
-class Lookup():
-    """
-    Compares depth to prerendered poses.
-
-    Settings defined globally instead of instantially.
-
-    Num rendered and joints changed can be modified.
-    """
-    pass
-
-class BaseStage():
-    def __init__(self, to_render: int):
-        self.to_render = to_render
-
-class SFlip(BaseStage):
-    def __init__(self, to_render: int):
-        """
-        Perspecitive flip the S joint.
-        'Flip' amount depends on camera position. Will produce roughly the same shadow. 
-
-        Parameters
-        ----------
-        to_render : int
-            Number of links to render
-        """
-        super().__init__(to_render)
-
-class Sweep(BaseStage):
-    def __init__(self, to_render: int, divs: int, joints: Union[str, np.ndarray], range: float = None):
-        """Base Sweep Class"""
-        super().__init__(to_render)
-        self.divs, self.range = divs, range
-        self.joints = str_to_arr(joints) if type(joints) is str else joints
-
-class InterpolativeSweep(Sweep):
-    def __init__(self, to_render: int, divs: int, joints: Union[str, np.ndarray], range: float = None):
-        """
-        Sweep through a joint's range in a specified number of divisons.
-        Attempts to interpolate error function to find true minimum of loss.
-
-        See TensorSweep for similar behavior.
-
-        Parameters
-        ----------
-        to_render : int
-            Number of links to render
-        divs : int
-            Divisons of the range to do
-        joints : Union[str, np.ndarray]
-            Joints to sweep
-        range : float, optional
-            Range in rad to sweep about current pos, or None to do entire joint range, by default None.
-        """
-        super().__init__(to_render, divs, joints, range=range)
-
-class TensorSweep(Sweep):
-    def __init__(self, to_render: int, divs: int, joints: Union[str, np.ndarray], range: float = None):
-        """
-        Sweep through a joint's range in a specified number of divisons.
-        Uses GPU matrix acceleration to determine loss. InterpolativeSweep may give better results in most cases.
-
-        See InterpolativeSweep for similar behavior.
-
-        Parameters
-        ----------
-        to_render : int
-            Number of links to render
-        divs : int
-            Divisons of the range to do
-        joints : Union[str, np.ndarray]
-            Joints to sweep
-        range : float, optional
-            Range in rad to sweep about current pos, or None to do entire joint range, by default None.
-        """
-        super().__init__(to_render, divs, joints, range=range)
-
-class Descent(BaseStage):
-    def __init__(self, to_render: int, iterations: int, joints: Union[str, np.ndarray],
-        init_rate: Union[float, int, np.ndarray] = None, 
-        rate_reduction: float = 0.5, early_stop_thresh: float = 0.01
-        ):
-        """[summary]
-
-        Parameters
-        ----------
-        to_render : int
-            Number of links to render
-        iterations : int
-            Max number of iterations to complete
-        joints : Union[str, np.ndarray]
-            Joints to use for descent
-        init_rate : Union[float, int, np.ndarray], optional
-            Default step size for each joint (six entries) None on one or all will continue past descent rate.
-            A single value, if given, will apply to all entries, by default None
-        rate_reduction : float, optional
-            Scalar to apply to step size/rate whenever no progress is made with steps, by default 0.5
-        early_stop_thresh : float, optional
-            Percentage change of error. If below this value, descent will end prematurely, by default 0.01
-        """
-
-        super().__init__(to_render)
-        self.its, self.rate_redux, self.early_stop = iterations, rate_reduction, early_stop_thresh
-        self.joints = str_to_arr(joints) if type(joints) is str else joints
-        self.init_rate = [init_rate]*6 if type(init_rate) in [float, int] or init_rate is None else init_rate
-
-# Class Aliases
-IntSweep = InterpolativeSweep
-ISweep = InterpolativeSweep
-TSweep = TensorSweep
-
-
-# Stages in form:
-# Lookup:
-#   Num_link_to_render
-# Sweep/Smartsweep:
-#   Divisions, Num_link_to_render, offset to render, angles_to_edit
-# Descent:
-#   Iterations, Num_link_to_render, rate reduction, early_stop_thresh, angles_to_edit, inital_learning_rate
-# Flip:
-#   Num_link_to_render, edit_angles
 
 
 
@@ -237,123 +116,12 @@ class Predictor():
         self.lookup_angles = ang
         self.lookup_depth = tf.pow(tf.constant(depth,tf.float32),0.5)
 
-
-
     def _setStages(self):
 
-        # Stages in form:
-        # Lookup:
-        #   Num_link_to_render
-        # Sweep/Smartsweep:
-        #   Divisions, Num_link_to_render, offset to render, angles_to_edit
-        # Descent:
-        #   Iterations, Num_link_to_render, rate reduction, early_stop_thresh, angles_to_edit, inital_learning_rate
-        # Flip:
-        #   Num_link_to_render, edit_angles
+        self.stages = getStages(self.do_angles)
 
-
-        if self.do_angles == 'SL':
-            # lookup = ['lookup']
-            # s_flip = ['s_flip', 4]
-            # s_sweep_narrow = ['smartsweep', 10, 4, .1, 'S']
-            # l_sweep_narrow = ['smartsweep', 10, 4, .1, 'L']
-            # sl_fine_tune = ['descent',40,4,0.5,.0075,'SL',[.05,.05,None,None,None,None]]
-
-            # base_sweep = ['tensorsweep', 8, 4, None, 'S']
-
-            # flips = [s_flip]
-            # sweeps = [l_sweep_narrow,s_sweep_narrow]
-
-            # self.stages = [lookup, *flips, *sweeps, *flips, *sweeps, *flips, sl_fine_tune]
-            # self.stages = [lookup, *flips, *sweeps, *flips]
-
-            lookup = Lookup()
-            s_flip = SFlip(4)
-            s_sweep_narrow = InterpolativeSweep(4,10,'S',0.1)
-            l_sweep_narrow = InterpolativeSweep(4,10,'L',0.1)
-
-            sl_fine_tune = Descent(4,40,'SL',[.05,.05,None,None,None,None], early_stop_thresh = .0075)
-
-            sweeps = [l_sweep_narrow,s_sweep_narrow]
-
-            self.stages = [lookup, s_flip, *sweeps, s_flip, *sweeps, s_flip, sl_fine_tune]
-            self.stages = [lookup, s_flip, *sweeps, s_flip]
-
-
-        elif self.do_angles == 'SLU':
-
-            # lookup = ['lookup']
-
-            # s_flip_4 = ['s_flip', 4]
-            # sl_tune = ['descent',10,4,0.5,.1,'SL',[0.05,0.05,0.1,0.5,0.5,0.5]]
-
-            # sl_init = [s_flip_4, sl_tune, s_flip_4]
-
-            # u_sweep_wide = ['smartsweep', 25, 6, None, 'U']
-            # s_flip_6 = ['s_flip', 6]
-            # u_sweep_narrow = ['smartsweep', 10, 5, .1, 'U']
-            
-            # u_stages = [u_sweep_wide, s_flip_4, s_flip_6, u_sweep_narrow]
-            
-            # full_tune = ['descent',40,5,0.5,.0075,'SLU',[None,None,None,None,None,None]]
-
-            # self.stages = [lookup, *sl_init, *u_stages, full_tune]
-
-            lookup = Lookup()
-
-            s_flip_4 = SFlip(4)
-            sl_tune = Descent(4,10,'SL',[0.05,0.05,0.1,0.5,0.5,0.5],early_stop_thresh=0.1)
-
-            sl_init = [s_flip_4, sl_tune, s_flip_4]
-
-            u_sweep_wide = InterpolativeSweep(6,25,'U')
-            s_flip_6 = SFlip(6)
-            u_sweep_narrow = InterpolativeSweep(6, 10, 'U',0.1)
-            
-            u_stages = [u_sweep_wide, s_flip_4, s_flip_6, u_sweep_narrow]
-            
-            full_tune = Descent(6,40,'SLU',early_stop_thresh=0.0075)
-
-            self.stages = [lookup, *sl_init, *u_stages, full_tune]
-
-
-        # elif self.do_angles == 'SLUB':
-
-        #     lookup = ['lookup']
-        #     u_sweep_wide = ['tensorsweep', 50, 6, None, 'U']
-        #     u_sweep_gen = ['tensorsweep', 50, 6, .3, 'U']
-        #     u_sweep_narrow = ['smartsweep', 10, 6, .1, 'U']
-        #     u_stage = ['descent',30,6,0.5,.1,'U',[0.1,0.1,0.4,0.5,0.5,0.5]]
-        #     s_flip_check_6 = ['s_flip', 6]
-        #     slu_fine_tune = ['descent',10,6,0.4,.015,'SLU',[None,None,None,None,None,None]]
-        #     b_sweep_full = ['tensorsweep', 40, 6, None, 'B']
-        #     b_sweep = ['tensorsweep', 5, 6, .1, 'B']
-        #     b_fine_tune = ['descent',5,6,0.4,.015,'B',[None,None,None,.005,.005,None]]
-        #     full_tune = ['descent',10,6,0.4,.015,'SLUB',[None,None,None,None,None,None]]
-
-        #     self.stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune,
-        #         b_sweep_full, b_sweep, b_fine_tune, full_tune]
-
-        # elif self.do_angles == 'SLURB':
-
-        #     lookup = ['lookup']
-        #     u_sweep_wide = ['tensorsweep', 50, 6, None, 'U']
-        #     u_sweep_gen = ['tensorsweep', 50, 6, .3, 'U']
-        #     u_sweep_narrow = ['smartsweep', 10, 6, .1, 'U']
-        #     u_stage = ['descent',30,6,0.5,.1,'U',[0.1,0.1,0.4,0.5,0.5,0.5]]
-        #     s_flip_check_6 = ['s_flip', 6]
-        #     slu_fine_tune = ['descent',10,6,0.4,.015,'SLU',[None,None,None,None,None,None]]
-        #     rb_sweep_full = ['tensorsweep', 40, 6, None, 'RB']
-        #     rb_sweep = ['tensorsweep', 5, 6, .1, 'RB']
-        #     rb_fine_tune = ['descent',5,6,0.4,.015,'RB',[None,None,None,.005,.005,None]]
-        #     full_tune = ['descent',10,6,0.4,.015,'SLURB',[None,None,None,None,None,None]]
-
-        #     self.stages = [lookup, u_sweep_wide, u_sweep_gen, u_sweep_narrow, u_stage, s_flip_check_6, slu_fine_tune,
-        #         rb_sweep_full, rb_sweep, rb_fine_tune, full_tune]
-
-
-
-
+        if self.stages is None:
+            raise ValueError(f"Stages not defined for joint set {self.do_angles}. Please define in robotpose/prediction/stages.py.")
 
 
     def run(self, target_color, target_depth, camera_pose = None):

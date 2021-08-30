@@ -1,10 +1,44 @@
 {
     "compiled": {
-        "names": ["set40", "set50", "set63"],
-        "paths": ["data/set40/set40.h5", "data/set50/set50.h5", "data/set63/set63.h5"]
+        "names": [
+            "set0",
+            "set10",
+            "set20",
+            "set21",
+            "set30",
+            "set40",
+            "set50",
+            "set63"
+        ],
+        "paths": [
+            "data/set0/set0.h5",
+            "data/set10/set10.h5",
+            "data/set20/set20.h5",
+            "data/set21/set21.h5",
+            "data/set30/set30.h5",
+            "data/set40/set40.h5",
+            "data/set50/set50.h5",
+            "data/set63/set63.h5"
+        ]
     },
     "uncompiled": {
-        "names": ["set40", "set50", "set63"],
-        "paths": ["data/raw/set40.zip", "data/raw/set50.zip", "data/raw/set63.zip"]
+        "names": [
+            "set0",
+            "set10",
+            "set20",
+            "set21",
+            "set30",
+            "set40",
+            "set50"
+        ],
+        "paths": [
+            "data/raw/set0.zip",
+            "data/raw/set10.zip",
+            "data/raw/set20.zip",
+            "data/raw/set21.zip",
+            "data/raw/set30.zip",
+            "data/raw/set40.zip",
+            "data/raw/set50.zip"
+        ]
     }
 }

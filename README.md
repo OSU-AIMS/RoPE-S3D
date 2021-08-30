@@ -126,7 +126,7 @@ Numpy **1.19.2** should work with this repository.
 
 # Customization
 
-Many static constants are specified in ```robotpose/constansts.py```. Many of these can be easily modified to change program behavior.
+Many static constants are specified in [robotpose/constants.py](robotpose/constants.py). Many of these can be easily modified to change program behavior.
 
 Some constants only change visual appearance of some functions whereas others can change how the entire program behaves; take caution whenever changing more technical constants.
 

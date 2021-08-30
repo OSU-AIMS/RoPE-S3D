@@ -46,7 +46,7 @@ while time.time() - start_time < RUN_FOR:
     claims.append(claimed)
     predictions.append(calculated)
 
-    out = np.stack((np.array(claimed),np.array(calculated)))
+    out = np.stack((np.array(claims),np.array(predictions)))
     np.save('live_preds.npy',out)
 
     

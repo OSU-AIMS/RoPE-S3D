@@ -129,6 +129,10 @@ Using -cont_from can be used to build a model off of a model from another datase
 
 # Prediction
 
+Prediction settings are more complex than other settings in this repo.
+
+To change prediciton stages, the [stages.py](robotpose/prediction/stages.py) file in the prediction module must be modified.
+
 ## Dataset Prediction
 
 To predict on a dataset, change the 'dataset' variable hardcoded in ```predict.py```. Then run this script.
@@ -142,3 +146,6 @@ Average prediciton speed ranges from 0.5-2 seconds per pose. This may vary signi
 </details>
 
 ## Live Prediction
+
+
+
