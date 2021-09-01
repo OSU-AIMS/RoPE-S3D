@@ -8,6 +8,7 @@
 # Author: Adam Exley
 
 import json
+import logging
 import os
 import shutil
 
@@ -39,6 +40,13 @@ class Wizard(DatasetInfo):
         self.last_applied_split_data = {}
         self.applied_split_data = {}
         self.current_dataset = self.compiled_sets[0]
+
+        if self.current_dataset is None:
+            # Raise error if no datasets have been compiled
+            raise SystemError(
+                'No datasets have been compiled. Please build a dataset before attempting to use the wizard.'+
+                "\nThis is done with 'python wizard.py DATASET_NAME'")
+                
         self._getNewSplitData()
 
         if PREVIEW:
@@ -596,5 +604,5 @@ class MeshViewer():
                 frame = set_render_and_process(r,z)
         self.rend.setJointAngles([0,0,0,0,0,0])
         set_render_and_process(r,z)
-        print(f'\n\nFor reference, the base camera position for this robot is:\n{self.base_pose}\n\n')
+        logging.info(f'\n\nFor reference, the base camera position for this robot is:\n{self.base_pose}\n\n')
 

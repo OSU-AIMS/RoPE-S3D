@@ -181,76 +181,46 @@ class FancyTimer():
 
 
 
-class Grapher():
 
-    def __init__(self, joints_to_plot: str, predictions: np.ndarray, ds_angles: np.ndarray = None):
-        self.compare = ds_angles is not None
-        self.joints = [x for x in joints_to_plot.upper()]
-        self.predictions = np.degrees(predictions)
-        self.true = np.degrees(ds_angles)
-        self._b_correction()
-        self._cropComparison()
+def color_array(x, mn: float = None, mx: float = None, percent: float = 3, ignore_zero: bool = True):
+    """Apply a colormap to an array
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Input array
+    mn : float, optional
+        Minimum amount to clip, by default None
+    mx : float, optional
+        Maximum amount to clip, by default None
+    percent : float, optional
+        Percentiles to ignore when scaling. Uses nth and 100-nth percentiles as bounds, by default 3
+    ignore_zero : bool, optional
+        Whether or not to color zero values, by default True
+    """
     
-    def plot(self,ylim=None):
-        self._plotWithComparison(ylim)
+    x = x.astype(float)
+    if ignore_zero:
+        mask = np.where(x==0)
+    
+    if mn is None:
+        if ignore_zero:
+            mn = np.percentile(x[x!=0],percent)
+        else:
+            mn = np.min(x)
 
-    def _b_correction(self):
-        if 'B' not in self.joints:
-            return
+    if mx is None:
+        if ignore_zero:
+            mx = np.percentile(x,100-percent)
+        else:
+            mx = np.max(x)
 
-        offsets = [-360, -180, 0, 180, 360]
-        
-        for idx in range(len(self.predictions)):
-            err = [abs((self.predictions[idx,4] + x) - self.true[idx,4]) for x in offsets]
-            self.predictions[idx,4] += offsets[err.index(min(err))]
+    x = ((x - mn)/(mx - mn)) * 255
+    x = np.clip(x,0,255).astype(np.uint8)
 
+    out = cv2.applyColorMap(x,cv2.COLORMAP_TURBO)
 
-    def _cropComparison(self):
-        ang = ['S','L','U','R','B','T']
-        l = len(self.predictions)
-        true = np.copy(self.true)
-        predictions = np.copy(self.predictions)
-        self.true = np.zeros((l,len(self.joints)))
-        self.predictions = np.zeros((l,len(self.joints)))
-        for joint, idx in zip(self.joints,range(len(self.joints))):
-            self.true[:,idx] = true[:l,ang.index(joint)]
-            self.predictions[:,idx] = predictions[:l,ang.index(joint)]
+    if ignore_zero:
+        out[mask] = (0,0,0)
 
-    def _plotWithComparison(self, y_lim = None):
-
-        fig, axs = plt.subplots(len(self.joints),2)
-                
-        # Plot Raw Angles
-        for joint, idx in zip(self.joints,range(len(self.joints))):
-            axs[idx,0].set_title(f'Raw {joint} Angle')
-            axs[idx,0].plot(self.true[:,idx])
-            axs[idx,0].plot(self.predictions[:,idx],color='purple')
-
-        err = self.predictions - self.true
-        zeros_err = np.zeros(err.shape[0])
-
-        # Plot errors
-        for joint, idx in zip(self.joints,range(len(self.joints))):
-            axs[idx,1].set_title(f'Angle {joint} Error')
-            axs[idx,1].plot(zeros_err)
-            axs[idx,1].plot(err[:,idx],color='purple')
-            if y_lim is not None:
-                axs[idx,1].set_ylim([-y_lim,y_lim])
-
-        err = np.abs(err)
-
-        avg_err = np.mean(err,0)
-
-        err_std = np.std(err,0)
-        err_med = np.median(err,0)
-        err_90 = np.percentile(err, 90, 0)
-        err_95 = np.percentile(err, 95, 0)
-        err_99 = np.percentile(err, 99, 0)
-        w = 5
-
-        print("\nStats (deg):")
-        print(f"\t   {' '*(w-4)}Mean {' '*(w-3)}Std {' '*(w-3)}Med {' '*(w-4)}90th {' '*(w-4)}95th {' '*(w-4)}99th")
-        for joint, idx in zip(self.joints,range(len(self.joints))):
-            print(f"\t{joint}: {avg_err[idx]:{w}.2f} {err_std[idx]:{w}.2f} {err_med[idx]:{w}.2f} {err_90[idx]:{w}.2f} {err_95[idx]:{w}.2f} {err_99[idx]:{w}.2f}")
-
-        plt.show()
+    return out

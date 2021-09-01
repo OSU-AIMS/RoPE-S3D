@@ -67,7 +67,7 @@ class Crop(Renderer):
             self._generate_angles() # Figure out the poses to render
             depth_arr = np.zeros(color.shape[:2], dtype=float)  # Init depth sum arr
 
-            for pose,idx in tqdm(zip(self.angles, range(len(self.angles))),total=len(self.angles),desc=f"Finding Crop {self.divisons}"):
+            for pose,idx in tqdm(zip(self.angles, range(len(self.angles))),total=len(self.angles),desc=f"Finding Crop {self.divisions}"):
                 # Render; add to sum arr
                 self.setJointAngles(pose)
                 color, depth = self.render()
@@ -160,8 +160,6 @@ class Crop(Renderer):
         """Return a crop for a number of joints visible"""
         if key is None:
             key = 0
-        elif type(key) is not int:
-            key = int(key)
 
         return self.data[key]
 

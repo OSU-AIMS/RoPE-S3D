@@ -14,3 +14,4 @@ psutil
 pandas
 pyopengl-accelerate
 klampt==0.8.7
+roslibpy

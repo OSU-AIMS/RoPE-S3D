@@ -2,6 +2,10 @@
 
 **Ro**botic **P**ose **E**stimation using **S**egmented **3**-**D**imensional images
 
+**For full documentation of usage/setup please follow the steps outlined in [GUIDE.md](GUIDE.md).**
+
+**For prediction-specific documentation please see [PREDICTION.md](PREDICTION.md).**
+
 This tool uses Artifical Intelligence (AI), specifically image segmentation algorithms provided by [PixelLib](https://github.com/ayoolaolafenwa/PixelLib), to predict robot joint angles.
 
 This is acomplished by segmenting the robot and each of its joints from an RGBD (3-D) image. *With a known camera pose realtive to the robot*, these segmented sections of the image can be compared to a 3-D rendering of the robot in any possible pose.
@@ -12,72 +16,7 @@ Traversing this loss to find minima therefore enables the depicted robot pose to
 
 The afforementioned 3D Rendering is done via [Pyrender](https://github.com/mmatl/pyrender), with forward kinematics handled by [Klamp't](https://github.com/krishauser/Klampt).
 
-Depth visualization uses the [Turbo Colormap](https://ai.googleblog.com/2019/08/turbo-improved-rainbow-colormap-for.html).
 
-# Usage
-
-The following are the main steps that must be taken to train a new model:
-1. Create a dataset
-2. Align the dataset
-3. Perform automatic annotation
-4. Train the model
-
-## Meshes
-
-Meshes are loaded directly from a robot's URDF.
-
-The active URDF can be changed in the wizard's URDF tab (```python wizard.py```)
-
-## Datasets
-
-Datasets are expected to contain RGB images in a ```.png``` format with accompanying depthmaps in a ```.npy``` array file, and a ```.json``` information file. Datasets are stored as zipped files and automatically extracted and compiled into ```.h5``` files for use.
-
-The format for the ```.json``` info file can be found in ```examples/dataset_json_required.json```.
-
-To build, or recompile a dataset, simply run the wizard with arguments:
-```bash
-python wizard.py dataset_name [-rebuild] [-recompile]
-```
-With ```-rebuild``` recreating the dataset from the raw data directly, and with ```-recompile``` reprocessing the dataset from the raw data stored in the dataset itself.
-
-```dataset_name``` corresponds to the name of the zipped folder in ```data/raw``` where the dataset is stored.
-
-## Automatic Annotation
-
-### Alignment
-
-Before running any automatic annotation, first align the dataset with the render using the Aligner found in the wizard: ```python wizard.py```
-
-1. Select Dataset
-2. Click "Align"
-
-It is expected that the general camera pose relative to the robot is known; the tool allows for further fine-tuning if needed.
-
-### Annotation
-
-Then, use the automatic annotation script:
-
-```bash
-python annotate.py dataset_name [-no_preview]
-```
-
-This will automatically split data into train/validation sets according to the split specified in the wizard's Training tab. Changing the split will automatically reapportion data.
-
-## Training
-
-```bash
-python train.py dataset_name [--batch] [--valid]
-```
-
-# Prediction
-
-Currently, predicition is only supported on datasets. It is planned to later support live prediction.
-
-To predict on a dataset, change the 'dataset' variable hardcoded in ```predict.py```. Then run this script.
-
-Average prediciton speed ranges from 0.5-2 seconds per pose. This may vary with computer specifications.
-
-Note: Running this script will provide results for all data in the dataset, regardless of if the segmentation model was trained on the data. To view predictions on those poses of the dataset that have not been used for segmentation training, it is advisable to split the data into multiple datasets (with the same camera pose) and to train on one and evalute performace with another.
 
 # Installation
 
@@ -100,42 +39,35 @@ It is recommended to simply install requirements with pip:
 pip install --upgrade -r requirements.txt
 ```
 
-## Known Issues
+### Issues That May Occur on Install
 
-### Keras
+<details>
+  <summary> Keras </summary>
 
 Keras sometimes includes ```.decode('utf8')``` in its code. This is unnecessary, and causes issues when loading and saving hd5f files.
 
-Notably, every instance of ```.decode('utf8')``` in ```"lib\site-packages\tensorflow_core\python\keras\saving\hdf5_format.py"``` can be removed.
+Notably, every instance of ```.decode('utf8')``` in ```"tensorflow_core\python\keras\saving\hdf5_format.py"``` can be removed.
 
 This will often cause issues when loading a model for segmentation.
 
-#### Numpy
+</details>
+
+<details>
+  <summary> Numpy </summary>
 
 **This is avoided if using ```requirements.txt``` to install**
 
-Numpy **1.19.5** may be automatically installed with tensorflow. This version of Numpy presents memory issues on some machines when running Multiprocessing, as this repository does.
+Numpy **1.19.5** may be automatically installed with Tensorflow. This version of Numpy presents memory issues on some machines when utilizing the multiprocessing module, as this repository does.
 
 Numpy **1.19.2** should work with this repository.
 
-#### PixelLib
-
-**In the suggested configuration using *Tensorflow 2.4.1* this is avoided.**
-
-**This is avoided if using ```requirements.txt``` to install**
-
-Sometimes Pixellib will not work after all installations have been completed when using Tensorflow 2.0.0. To fix this error, upgrade and downgrade Tensorflow.
-
-```bash
-pip install --upgrade tensorflow-gpu
-pip install --upgrade tensorflow-gpu==2.0.0
-```
+</details>
 
 # Customization
 
-Many static constants are specified in ```robotpose/constansts.py```. Many of these can be easily modified to change program behavior.
+Many static constants are specified in [robotpose/constants.py](robotpose/constants.py). Many of these can be easily modified to change program behavior.
 
-Some constants only change visual appearance of some functions whereas others can change how the entire program behaves; take caution whenever changing more tehchnical constants.
+Some constants only change visual appearance of some functions whereas others can change how the entire program behaves; take caution whenever changing more technical constants.
 
 # License
 

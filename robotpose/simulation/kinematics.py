@@ -51,4 +51,5 @@ class ForwardKinematics():
             poses[i,:3,3] = trans[1]
             poses[i,:3,:3] = np.reshape(trans[0],(3,3),'F') # Use Fortran mapping for reshape
 
+        # Returns N x 4 x 4 array
         return poses

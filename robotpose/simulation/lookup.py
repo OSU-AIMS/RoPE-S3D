@@ -18,7 +18,7 @@ import numpy as np
 from tqdm import tqdm
 
 from ..CompactJSONEncoder import CompactJSONEncoder
-from ..constants import LOOKUP_NAME_LENGTH, GPU_MEMORY_ALLOWED_FOR_LOOKUP
+from ..constants import LOOKUP_NAME_LENGTH, GPU_MEMORY_ALLOWED_FOR_LOOKUP, LOOKUP_MAX_DIV_PER_LINK
 from ..crop import Crop, applyBatchCrop
 from ..paths import Paths as p
 from ..projection import Intrinsics
@@ -47,7 +47,7 @@ class RobotLookupCreator(Renderer):
         self.angles_to_do = str_to_arr(angles_to_do) if type(angles_to_do) is str else angles_to_do
 
         # Load in divisions
-        self.divisions = np.array(divisions)
+        self.divisions = np.clip(np.array(divisions),0,LOOKUP_MAX_DIV_PER_LINK)
         self.divisions[~self.angles_to_do] = 1
         self.num = int(np.prod(self.divisions))
 
@@ -99,6 +99,7 @@ class RobotLookupCreator(Renderer):
             f.attrs['num_links_rendered'] = self.num_rendered
             f.attrs['angles_changed'] = self.angles_to_do
             f.attrs['divisions'] = self.divisions
+            f.attrs['urdf'] = self.u_reader.name
             f.create_dataset('angles', data=self.angles)
             pbar.update(1)
             f.create_dataset('depth', data=depth_arr, compression="gzip", compression_opts=1)
@@ -177,6 +178,7 @@ class RobotLookupManager(RobotLookupInfo):
 
     def __init__(self, element_bits: int = 32) -> None:
         self.element_bits = element_bits
+        self.u_reader = URDFReader()
         super().__init__()
 
     def get(self,
@@ -244,6 +246,7 @@ class RobotLookupManager(RobotLookupInfo):
             acceptable = self.data['lookups'][intrinsic_short][camera_pose_short]
             acceptable = {k:acceptable[k] for k in acceptable if acceptable[k]['num_links_rendered'] == num_rendered_links}
             acceptable = {k:acceptable[k] for k in acceptable if np.all([x != 1 for x in acceptable[k]['divisions']] == varying_angles_arr,-1)}
+            acceptable = {k:acceptable[k] for k in acceptable if acceptable[k]['urdf'] == self.u_reader.name}
             if len(acceptable) == 0:
                 create = True
             else:
@@ -262,10 +265,10 @@ class RobotLookupManager(RobotLookupInfo):
             # If no optimal lookup is present, make one
             if divisions is None:
                 c = Crop(camera_pose, intrinsics)
+                
                 if max_poses is None:
                     max_poses = max_elements / (c.size(num_rendered_links) * self.element_bits)
 
-                    print(max_poses*c.size(num_rendered_links)*self.element_bits)
                 # By default, allocate divisions equally
                 divisions = np.zeros(6, int)
                 divisions[varying_angles_arr] = int(max_poses ** (1 / sum(varying_angles_arr)))
