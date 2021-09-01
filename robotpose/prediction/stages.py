@@ -125,7 +125,15 @@ TSweep = TensorSweep
 
 
 
-def getStages(angles):
+def getStages(angles:str):
+    """Return stages for a given angle prediction set
+
+    Parameters
+    ----------
+    angles : str
+        Angles to predict ('SL','SLU', etc)
+    """
+
 
     if angles == 'SL':
 

@@ -14,8 +14,6 @@ ds_factor = 8
 base_intrin = Intrinsics(base_intrin_str)
 ds = Dataset(parent_ds)
 
-
-
 cam = LiveCamera(base_intrin.width, base_intrin.height)
 link = JSONCoupling()
 pred = Predictor(ds.camera_pose[0],8,False,None,'SLU',base_intrin=base_intrin_str,model_ds=parent_ds)

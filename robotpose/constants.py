@@ -10,12 +10,10 @@ import numpy as np
 import logging as log
 MAX_LINKS = 7
 
-GPU_MEMORY_ALLOWED_FOR_LOOKUP = 0.1 # Depending on hardware, this my vary. ~10% seems to work, but anything like 25%+ will overallocate for calculations
-
 
 PATH_JSON_PATH = r'data/paths.json'
 
-
+JSON_LINK_FILE = r"\\marvin\ROPE\joint_states.json"
 
 ##################################### Crops
 CROP_RENDER_WEIGHTING = [6,3,3,0,1,0]   # Higher numbers indicate more weight on that joint for rendering
@@ -27,16 +25,17 @@ CROP_PADDING = 10
 
 ##################################### Lookups
 
+GPU_MEMORY_ALLOWED_FOR_LOOKUP = 0.1 # Depending on hardware, this my vary. ~10% seems to work, but anything ~25%+ will overallocate for calculations
 LOOKUP_NAME_LENGTH = 5
 LOOKUP_MAX_DIV_PER_LINK = 200
-LOOKUP_JOINTS = 'SLU'
-LOOKUP_NUM_RENDERED = 6
+LOOKUP_JOINTS = 'SLU'   # SL is also usable
+LOOKUP_NUM_RENDERED = 6 # 3 or 4 for SL
 
 
 ##################################### Segmentation Models
 
 MODELDATA_FILE_NAME = 'ModelData.json'
-NUM_MODELS_TO_KEEP = 3
+NUM_MODELS_TO_KEEP = 3  # If a model has more than this number of stored checkpoints, they will be deleted.
 MODEL_NAME_LENGTH = 4
 
 

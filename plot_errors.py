@@ -17,7 +17,7 @@ import tensorflow as tf
 
 
 #file = sg.PopupGetFile('Select Prediction File','Prediction File Selection',file_types=(("NPY Files", "*.npy"), ),initial_folder=os.getcwd())
-file = 'live_preds.npy'
+file = 'synth_test_50_8_3LU_ext.npy'
 
 results = np.load(file)
 
@@ -42,7 +42,7 @@ else:
 
 
 
-IDX_TO_USE = 0
+IDX_TO_USE = 2
 PERCENTILE_TO_SHOW = 99
 
 

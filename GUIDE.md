@@ -49,6 +49,12 @@ Each set of files should represent a single pose. If any errors occured in colle
 
 The format for the ```.json``` info file can be found in [examples/dataset_json_required.json](examples/dataset_json_required.json).
 
+## Collection
+
+Collection can be done in numerous ways depending on your specific setup.
+
+A starting point for collection can be obtained from our [RoPE Capture Tool](https://github.com/OSU-AIMS/RoPE-Capture-Tool), which is used to collect data from anInterl Realsense 435i and a Yaskawa MH5L on ROS Melodic.
+
 ## Ingest
 
 To load data into the repo, first collect all data into a ```.zip``` file. This should then be plased in [data/raw/](data/raw/).
@@ -129,6 +135,8 @@ Using -cont_from can be used to build a model off of a model from another datase
 
 # Prediction
 
+**For more thorough
+
 Prediction settings are more complex than other settings in this repo.
 
 To change prediciton stages, the [stages.py](robotpose/prediction/stages.py) file in the prediction module must be modified.
@@ -147,5 +155,6 @@ Average prediciton speed ranges from 0.5-2 seconds per pose. This may vary signi
 
 ## Live Prediction
 
+Live prediction involves more setup than dataset prediction. Please see [PREDICTION.md](PREDICTION.md) for specific instructions.
 
 

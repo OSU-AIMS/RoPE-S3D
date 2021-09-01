@@ -8,14 +8,13 @@
 # Author: Adam Exley
 
 import json
+import logging
 import os
 import time
-import logging
+
 import numpy as np
 
-FILE_TO_CHECK = r"\\marvin\ROPE\joint_states.json"
-
-
+from .constants import JSON_LINK_FILE
 
 class JSONCoupling():
     def __init__(self) -> None:
@@ -28,9 +27,9 @@ class JSONCoupling():
         fails = 0
 
         while True:
-            if os.path.isfile(FILE_TO_CHECK):
+            if os.path.isfile(JSON_LINK_FILE):
                 try:
-                    with open(FILE_TO_CHECK,'r') as f:
+                    with open(JSON_LINK_FILE,'r') as f:
                         self.data = json.load(f)
                     break
                 except Exception:
@@ -53,9 +52,9 @@ class JSONCoupling():
         fails = 0
 
         while True:
-            if os.path.isfile(FILE_TO_CHECK):
+            if os.path.isfile(JSON_LINK_FILE):
                 try:
-                    os.remove(FILE_TO_CHECK)
+                    os.remove(JSON_LINK_FILE)
                     break
                 except Exception:
                     fails += 1
