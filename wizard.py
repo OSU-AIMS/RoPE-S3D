@@ -27,10 +27,9 @@ if __name__ == "__main__":
         ds_info = DatasetInfo()
         parser = argparse.ArgumentParser()
         parser.add_argument("dataset", type=str, default=None, choices=ds_info.unique_sets, help="Dataset to run wizard on")
-        parser.add_argument("-recompile", action='store_true', help="Reprocessing dataset from data stored in dataset")
         parser.add_argument("-rebuild", action='store_true', help="Recreate dataset from the raw data")
         args = parser.parse_args()
-        ds = Dataset(args.dataset, recompile=args.recompile, rebuild=args.rebuild, permissions='a')
+        ds = Dataset(args.dataset, rebuild=args.rebuild, permissions='a')
     else:
         wiz = Wizard()
         wiz.run()

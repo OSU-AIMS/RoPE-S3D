@@ -10,6 +10,7 @@
 from robotpose import Dataset, Predictor
 import numpy as np
 from tqdm import tqdm
+import logging
 
 ds = Dataset('set21')
 am = Predictor(ds_factor=8, camera_pose=ds.camera_pose[0], preview=True, base_intrin = ds.attrs['color_intrinsics'], do_angles='SLU',model_ds='set21')
@@ -18,7 +19,7 @@ am = Predictor(ds_factor=8, camera_pose=ds.camera_pose[0], preview=True, base_in
 start = 0
 end = 100
 
-print("Copying Data...")
+logging.info("Copying Data...")
 target_depths = np.copy(ds.depthmaps[start:end])
 og_imgs = np.copy(ds.og_img[start:end])
 cam_poses = np.copy(ds.camera_pose[start:end])

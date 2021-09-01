@@ -7,6 +7,7 @@
 #
 # Author: Adam Exley
 
+import logging
 import os
 import shutil
 import tempfile
@@ -86,7 +87,8 @@ class DatasetInfo():
     def unique_sets(self) -> List[str]:
         """All datasets, compiled or raw"""
         datasets = set()
-        datasets.update(self.compiled_sets)
+        if self.compiled_sets != [None]:
+            datasets.update(self.compiled_sets)
         datasets.update(self.info['uncompiled']['names'])
 
         datasets = list(datasets)
@@ -98,7 +100,7 @@ class DatasetInfo():
         """Datasets that have been compiled"""
         datasets = list(set(self.info['compiled']['names']))
         datasets.sort()
-        return datasets
+        return datasets if len(datasets) > 0 else [None]
 
             
 
@@ -112,7 +114,6 @@ class Dataset():
     def __init__(
             self, 
             name: str,
-            recompile: bool = False,
             rebuild: bool = False,
             permissions: str = 'r'
             ):
@@ -122,8 +123,6 @@ class Dataset():
         ----------
         name : str
             Dataset name. corresponds to inital .zip file name and /data/ folder
-        recompile : bool, optional TODO: Deprecate
-            Reprocess the raw data from inside the dataset, by default False
         rebuild : bool, optional
             Entirely recreate the dataset from the .zip source file. Done automatically if needed, by default False
         permissions : str, optional
@@ -169,13 +168,6 @@ class Dataset():
                     self.load()
                     self.importCameraPose()
 
-        # Recompilation
-        if recompile and not building:
-            self.exportCameraPose()
-            self.recompile()
-            self.load()
-            self.importCameraPose()
-
         self.load()
 
         # Delete temp backup if there still
@@ -191,7 +183,6 @@ class Dataset():
         self.positions = self.file['positions']
         self.depthmaps = self.file['coordinates/depthmaps']
         self.og_img = self.file['images/original']
-        self.seg_img = self.file['images/segmented']
         self.camera_pose = self.file['images/camera_poses']
         self.preview_img = self.file['images/preview']
         self.intrinsics = self.attrs['color_intrinsics']
@@ -199,12 +190,6 @@ class Dataset():
         # Set paths
         self.link_anno_path = os.path.join(self.dataset_dir,'link_annotations')
         self.og_vid_path = os.path.join(self.dataset_dir,'og_vid.avi')
-        self.seg_vid_path = os.path.join(self.dataset_dir,'seg_vid.avi')
-
-    def recompile(self):
-        """Recompile model"""
-        bob = Builder()
-        bob.recompile(self.dataset_dir, self.name)
 
     def build_from_zip(self, zip_path: str):
         """
@@ -212,7 +197,7 @@ class Dataset():
         """
 
         with tempfile.TemporaryDirectory() as tempdir:
-            print("Extracting raw data...")
+            logging.info("Extracting raw data...")
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 zip_ref.extractall(tempdir)
 
@@ -221,7 +206,7 @@ class Dataset():
             if len(os.listdir(tempdir)) == 1:
                 src_dir = os.path.join(tempdir,os.listdir(tempdir)[0])
 
-            print("Attempting dataset build...\n\n")
+            logging.info("Attempting dataset build...\n\n")
             bob = Builder()
             return bob.build_full(src_dir, os.path.basename(os.path.normpath(zip_path)).replace('.zip',''))
 

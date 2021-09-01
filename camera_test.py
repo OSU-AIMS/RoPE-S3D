@@ -8,13 +8,13 @@
 # Author: Adam Exley
 
 from robotpose import Dataset
-from robotpose.prediction.camera import ModellessCameraPredictor, CameraPredictor
+from robotpose.prediction.camera_pose_prediction import ModellessCameraPredictor, CameraPredictor
 import numpy as np
 
 
-ds = Dataset('set40')
+ds = Dataset('set50')
 
-pred = ModellessCameraPredictor([2.14,0.5,.4,0,0.021,1.775],base_intrinsics=ds.attrs['color_intrinsics'], ds_factor=2, preview=True)#, save_to='output/projection_viz.avi')
+pred = ModellessCameraPredictor(ds.camera_pose[0],base_intrinsics=ds.attrs['color_intrinsics'], ds_factor=2, preview=True)#, save_to='output/projection_viz.avi')
 # pred_model = CameraPredictor([2.14,0.5,.4,0,0.021,1.775], base_intrinsics=ds.attrs['color_intrinsics'], ds_factor=2, preview=True)#, save_to='output/projection_viz.avi')
 
 
@@ -22,8 +22,8 @@ pred = ModellessCameraPredictor([2.14,0.5,.4,0,0.021,1.775],base_intrinsics=ds.a
 # idxs = [50,0,25,75,99]
 # idxs = [x for x in range(0,100,5)]
 
-# 20 random chosen by numpy
-idxs = [100, 526, 263, 109, 774, 722, 151, 107, 485, 344, 679, 621, 694, 919, 110, 618, 367, 587, 352, 277]
+# 25 random chosen by numpy
+idxs = [x for x in np.random.randint(0,500,25)]
 #idxs = [50]
 
 print("Copying Data...")

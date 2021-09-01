@@ -27,11 +27,7 @@ Data should be arranged as follows:
 |   |  
 |   |── set6_slu                     # Compilied by program
 |   |   |── set6_slu.h5
-|   |   |── set6_slu_train.h5
-|   |   |── set6_slu_validate.h5
-|   |   |── set6_slu_test.h5
 |   |   |── og_vid.avi
-|   |   |── seg_vid.avi
 |   |   └── 
 |   |   
 |   └── ...
@@ -48,8 +44,8 @@ Associated files must have the same basename, only differing in extension.
 ---------------------------------
 The following are expected:
 
-| extension  | data type                         |
-| ---------- |  |
+| Extension  | Data type                         |
+| ---------- | - |
 | .png       | RGB image                         |
 | .npy       | uint16 depthmap                   |
 | .json      | JSON info dict (see format below) |

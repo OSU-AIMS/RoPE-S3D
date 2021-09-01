@@ -7,6 +7,7 @@
 #
 # Author: Adam Exley
 
+import logging
 from typing import List, Tuple, Union
 
 import cv2
@@ -168,6 +169,7 @@ class DatasetRenderer(Renderer):
     
     def __init__(self, dataset: str, mode: str = 'seg', camera_pose: np.ndarray = None):
         self.ds = Dataset(dataset)
+        if camera_pose is None: camera_pose = self.ds.camera_pose[0]
         super().__init__(mode, camera_pose, self.ds.attrs['color_intrinsics'])
         
     def render_at(self, idx: int) -> List[np.ndarray]:
@@ -225,7 +227,7 @@ class Aligner():
 
 
         # Copy image array into RAM to avoid stuttering whenever moving
-        print("Copying Image Array...")
+        logging.info("Copying Image Array...")
         self.real_arr = np.copy(self.ds.og_img)
         self.zoom = 1
 
@@ -243,7 +245,7 @@ class Aligner():
             
             # If there was user input into the GUI, do what it specifies
             if event == 'quit':
-                print("Quit by user.")
+                logging.info("Quit by user.")
                 ret = False
                 continue
             elif event == 'new_section':
