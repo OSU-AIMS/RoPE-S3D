@@ -39,7 +39,7 @@ It is recommended to simply install requirements with pip:
 pip install --upgrade -r requirements.txt
 ```
 
-## Known Issues
+### Issues That May Occur on Install
 
 <details>
   <summary> Keras </summary>
