@@ -63,10 +63,9 @@ When running at low resolutions and/or with a limited range of motion, it may be
 
 **Note: As the lookup stage is a prerequisite for all other stages, care should be taken to re-adjust subsequent changes after modifying lookup settings**
 
-### Descent (Left) and Sweeps (Right)
-
-![An animation of the descent phase should be here](assets/descent.gif)
-![An animation of the sweep phase should be here](assets/sweeps.gif)
+### Descent and Sweep Animations on SLU
+<img src="assets/descent.gif" width="250" />
+<img src="assets/sweeps.gif" width="250" />
 
 ## Running Dataset Prediction
 
