@@ -63,6 +63,11 @@ When running at low resolutions and/or with a limited range of motion, it may be
 
 **Note: As the lookup stage is a prerequisite for all other stages, care should be taken to re-adjust subsequent changes after modifying lookup settings**
 
+### Descent (Left) and Sweeps (Right)
+
+![An animation of the descent phase should be here](assets/descent.gif)
+![An animation of the sweep phase should be here](assets/sweeps.gif)
+
 ## Running Dataset Prediction
 
 To predict on a dataset, change the 'dataset' variable hardcoded in ```predict.py```. Then run this script.
