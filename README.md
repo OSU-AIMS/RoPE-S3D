@@ -2,6 +2,8 @@
 
 **Ro**botic **P**ose **E**stimation using **S**egmented **3**-**D**imensional images
 
+<img src="assets/demo.gif" align="right" width="400"/>
+
 **For full documentation of usage/setup please follow the steps outlined in [GUIDE.md](GUIDE.md).**
 
 **For prediction-specific documentation please see [PREDICTION.md](PREDICTION.md).**

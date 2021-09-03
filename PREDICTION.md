@@ -1,4 +1,4 @@
-# General Prediction
+# Prediction
 
 ## Stages
 
@@ -63,6 +63,10 @@ When running at low resolutions and/or with a limited range of motion, it may be
 
 **Note: As the lookup stage is a prerequisite for all other stages, care should be taken to re-adjust subsequent changes after modifying lookup settings**
 
+### Descent and Sweep Animations on SLU
+<img src="assets/descent.gif" width="250" />
+<img src="assets/sweeps.gif" width="250" />
+
 ## Running Dataset Prediction
 
 To predict on a dataset, change the 'dataset' variable hardcoded in ```predict.py```. Then run this script.
@@ -105,3 +109,28 @@ This repository requires the data from ROS' ```joint_states``` node to ascertain
 This can be ingested in any way you see fit. See [textfile_integration.py](robotpose/testfile_integration.py) for a reference on how our JSON link setup works.
 
 It would also be helpful to look through [predict_live.py](predict_live.py).
+
+
+# Synthetic Prediction
+
+Synthetic prediction can be used to find the *best-case scenario* for joint prediction at a specific camera location, resolution, scaling, and stage config.
+
+Synthetic predcition is run with ```python synth.py```, and will save results to ```synth_test.npy``` by default.
+
+Parameters must be changed system-wide for prediction stages, and in [synth.py](synth.py) for camera position/scaling options.
+
+## Viewing Pesults
+
+To view results, run ```python plot_errors.py```. Make sure the hardcoded `file` variable in [plot_errors.py](plot_errors.py) matches the npy you wish to view.
+
+This will bring up angle errors and stats as well as cartesian joint distance errors and stats.
+
+## Details
+
+Synthetic prediction can occur much faster than dataset prediction as it forgoes segmentation entirely.
+
+Instead, a rendering of the robot at a random position is used, meaning the predictor is given exact data.
+
+Because of the nature of the predictor, it is nearly impossible for it to simply match the given data to its actual pose, even if it's perfect.
+
+Instead, this allows you to ascertain the *absolute best-case* accuracy and precision of your configuration on many (1-15k poses) in a relatively short amount of time.

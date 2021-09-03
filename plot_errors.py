@@ -1,22 +1,27 @@
-from robotpose.simulation.render import DatasetRenderer
-import robotpose
-import numpy as np
-from robotpose import Dataset, Grapher
-import cv2
-from robotpose.prediction.analysis import JointDistance
-import PySimpleGUI as sg
+# Software License Agreement (Apache 2.0 License)
+#
+# Copyright (c) 2021, The Ohio State University
+# Center for Design and Manufacturing Excellence (CDME)
+# The Artificially Intelligent Manufacturing Systems Lab (AIMS)
+# All rights reserved.
+#
+# Author: Adam Exley
+
+import logging
+import os
 import re
 
+import numpy as np
 
-import logging, os
+from robotpose import Dataset, Grapher
+from robotpose.prediction.analysis import JointDistance
+
 # Disable OpenGL and Tensorflow info messages (get annoying)
 logging.getLogger("OpenGL.arrays.arraydatatype").setLevel(logging.WARNING)
 logging.getLogger("OpenGL.acceleratesupport").setLevel(logging.WARNING)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # or any {'0', '1', '2'}
 import tensorflow as tf
 
-
-#file = sg.PopupGetFile('Select Prediction File','Prediction File Selection',file_types=(("NPY Files", "*.npy"), ),initial_folder=os.getcwd())
 file = 'synth_test.npy'
 
 results = np.load(file)
@@ -42,43 +47,20 @@ else:
 
 
 
-IDX_TO_USE = 2
+IDX_TO_USE = 0
 PERCENTILE_TO_SHOW = 99
 
-
+# Sort by angle
 indicies = np.argsort(angles[...,IDX_TO_USE])
 
 out = np.sort(indicies)
-# print(out)
 
+# Graph angle offsets
 g = Grapher('SLU',preds[indicies],angles[indicies])
 g.plot(20)
 
 diff = np.abs(preds - angles)
 
+# Graph joint offsets
 j = JointDistance()
 j.plot(preds[indicies],angles[indicies],.25)
-
-
-#print(diff)
-
-#print((diff[:,0] > np.percentile(diff[:,IDX_TO_USE],PERCENTILE_TO_SHOW)))
-
-
-# idxs = np.where(diff[:,IDX_TO_USE] > np.percentile(diff[:,IDX_TO_USE],PERCENTILE_TO_SHOW))
-# imgs = np.copy(ds.og_img[idxs])
-# preds, diff = preds[idxs], diff[idxs]
-
-# r = DatasetRenderer(dataset)
-# r.setMaxParts(6)
-
-# for idx in range(len(imgs)):
-#     r.setJointAngles(preds[idx])
-#     c,d = r.render()
-#     out = cv2.addWeighted(imgs[idx],.5,c,.5,0)
-#     print("")
-#     print(idxs[idx])
-#     print([f"{x:0.3f}" for x in (ds.angles[idx] *180 / np.pi)])
-#     print([f"{x:0.3f}" for x in (preds[idx] *180 / np.pi)])
-#     cv2.imshow("",out)
-#     cv2.waitKey(0)
