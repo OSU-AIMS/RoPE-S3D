@@ -68,3 +68,33 @@ class LiveCamera():
         # Return color, depth frame
         return np.array(color.get_data()), np.array(depth.get_data(),dtype=float) * self.depth_scale
 
+    def get_average(self):
+
+        num = 20
+
+        depth, color = False, False
+
+        # Wait until a pair is found
+        while not depth or not color:
+            frames = self.pipeline.wait_for_frames()
+            filtered = self.filter(frames)
+            frames_aligned = self.align.process(filtered)
+            depth = frames_aligned.get_depth_frame()
+            color = frames_aligned.get_color_frame()
+
+        depth_sum = np.array(depth.get_data())
+
+        for i in range(num - 1):
+            depth = False
+            while not depth:
+                frames = self.pipeline.wait_for_frames()
+                filtered = self.filter(frames)
+                frames_aligned = self.align.process(filtered)
+                depth = frames_aligned.get_depth_frame()
+            depth_sum += np.array(depth.get_data())
+
+        
+
+        # Return color, depth frame
+        return np.array(color.get_data()), depth_sum * self.depth_scale / num
+
