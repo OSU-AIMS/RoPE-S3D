@@ -11,6 +11,30 @@
         "benchmarks": [],
         "train_ratio": 0.899705
     },
+    "HSNN": {
+        "id": "HSNN",
+        "dataset": "hybrid",
+        "dataset_size": 1693,
+        "train_size": 1439,
+        "valid_size": 253,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 37,
+        "date_trained": "2021-09-08 21:56:22.111653",
+        "benchmarks": [],
+        "train_ratio": 0.84997
+    },
+    "IDRC": {
+        "id": "IDRC",
+        "dataset": "set70",
+        "dataset_size": 678,
+        "train_size": 610,
+        "valid_size": 67,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 19,
+        "date_trained": "2021-09-09 14:44:26.275925",
+        "benchmarks": [],
+        "train_ratio": 0.899705
+    },
     "JVGY": {
         "id": "JVGY",
         "dataset": "set63",
@@ -22,5 +46,17 @@
         "date_trained": "2021-08-28 14:32:00.771439",
         "benchmarks": [],
         "train_ratio": 0.699634
+    },
+    "YFRW": {
+        "id": "YFRW",
+        "dataset": "set80",
+        "dataset_size": 196,
+        "train_size": 176,
+        "valid_size": 19,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 7,
+        "date_trained": "2021-09-09 17:33:51.324164",
+        "benchmarks": [],
+        "train_ratio": 0.897959
     }
 }

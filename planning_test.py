@@ -16,4 +16,4 @@ divs = [a, a, a,[0],[-1,0,1],[0]]
 #     cv2.imshow("",color)
 #     cv2.waitKey(1)
 
-np.save('plan.npy',p.basicGrid('SLU',1000))
+np.save('plan.npy',p.basicGrid('SLU',300))
