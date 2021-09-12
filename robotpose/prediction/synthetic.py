@@ -1,8 +1,6 @@
-from os import truncate
-from robotpose import prediction
-from robotpose.utils import str_to_arr
-from robotpose.urdf import URDFReader
-from robotpose.projection import Intrinsics
+from ..simulation.noise import NoiseMaker
+from ..utils import str_to_arr
+from ..urdf import URDFReader
 from .predict import Predictor
 from ..simulation.render import Renderer
 import numpy as np
@@ -10,13 +8,15 @@ from tqdm import tqdm
 
 
 class SyntheticPredictor():
-    def __init__(self, camera_pose, base_intrin, ds_factor, do_angles):
+    def __init__(self, camera_pose, base_intrin, ds_factor, do_angles, noise):
         self.renderer = Renderer(camera_pose=camera_pose, camera_intrin=base_intrin)
         self.predictor = Predictor(camera_pose, ds_factor,
             do_angles=do_angles, base_intrin=base_intrin,
             color_dict=self.renderer.color_dict)
         self.urdf_reader = URDFReader()
         self.do_angles = do_angles
+        self.noise = NoiseMaker()
+        self.do_noise = noise
 
 
     def run(self):
@@ -25,9 +25,10 @@ class SyntheticPredictor():
         self.renderer.setJointAngles(pose)
         color, depth = self.renderer.render()
 
-        # Add gaussian noise
-        # depth[depth!=0] += np.random.normal(loc=.3,scale = 1,size = depth[depth!=0].shape)
-
+        # Add noise to depth
+        if self.do_noise:
+            depth = self.noise.holes(depth,)
+        
         predicted = self.predictor.run(color, depth)
 
         return pose, predicted

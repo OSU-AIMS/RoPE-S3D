@@ -17,7 +17,7 @@ import tensorflow as tf
 
 
 #file = sg.PopupGetFile('Select Prediction File','Prediction File Selection',file_types=(("NPY Files", "*.npy"), ),initial_folder=os.getcwd())
-file = 'synth_test_50_8_3LU_ext.npy'
+file = 'synth_test_clean.npy'
 
 results = np.load(file)
 

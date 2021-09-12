@@ -91,7 +91,6 @@ class Grapher():
     def _b_correction(self):
         if 'B' not in self.joints:
             return
-
         offsets = [-360, -180, 0, 180, 360]
         
         for idx in range(len(self.predictions)):
@@ -137,3 +136,7 @@ class JointDistance(ForwardKinematics):
     def plot(self,predicted: np.ndarray, actual: np.ndarray, y_lim = None):
         err = self.distance(predicted,actual)
         general_plot(self.joints,'cm',given_err=err[:,str_to_arr(self.joints_str)]*100, y_lim=[0,y_lim*100])
+
+    def single(self, predicted, actual, joint = 'T'):
+        err = self.distance(predicted,actual)
+        return err[...,str_to_arr(joint)]
