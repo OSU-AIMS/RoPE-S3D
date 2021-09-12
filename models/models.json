@@ -11,6 +11,18 @@
         "benchmarks": [],
         "train_ratio": 0.899705
     },
+    "FJHA": {
+        "id": "FJHA",
+        "dataset": "set90",
+        "dataset_size": 195,
+        "train_size": 175,
+        "valid_size": 19,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 4,
+        "date_trained": "2021-09-12 14:37:41.269218",
+        "benchmarks": [],
+        "train_ratio": 0.897436
+    },
     "HSNN": {
         "id": "HSNN",
         "dataset": "hybrid",
@@ -46,6 +58,30 @@
         "date_trained": "2021-08-28 14:32:00.771439",
         "benchmarks": [],
         "train_ratio": 0.699634
+    },
+    "TEYQ": {
+        "id": "TEYQ",
+        "dataset": "set90",
+        "dataset_size": 195,
+        "train_size": 175,
+        "valid_size": 19,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 6,
+        "date_trained": "2021-09-12 13:48:10.095215",
+        "benchmarks": [],
+        "train_ratio": 0.897436
+    },
+    "VDII": {
+        "id": "VDII",
+        "dataset": "set91",
+        "dataset_size": 196,
+        "train_size": 166,
+        "valid_size": 29,
+        "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+        "epochs_trained": 4,
+        "date_trained": "2021-09-12 16:32:53.819244",
+        "benchmarks": [],
+        "train_ratio": 0.846939
     },
     "YFRW": {
         "id": "YFRW",

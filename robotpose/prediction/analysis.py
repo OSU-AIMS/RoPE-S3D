@@ -42,12 +42,14 @@ def general_plot(joints, unit, given_err = None, actual = None, predicted = None
     # Plot errors
     for joint, idx in zip(joints,range(len(joints))):
 
+        idx2 = idx
         idx = idx if given_err is not None else (idx, 1)
+        
 
         axs[idx].set_title(f'{joint} Error')
         axs[idx].set_ylabel(f'({unit})')
         axs[idx].plot(zeros_err)
-        axs[idx].plot(err[:,idx],color='purple')
+        axs[idx].plot(err[:,idx2],color='purple')
         if y_lim is not None:
             axs[idx].set_ylim(y_lim)
 

@@ -28,7 +28,7 @@ def label(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('dataset', type=str, default="set10", help="The dataset to load to annotate. Can be a partial name.")
+    parser.add_argument('dataset', type=str, help="The dataset to load to annotate. Can be a partial name.")
     parser.add_argument('-no_preview', action="store_true", help="Disables preview.")
     args = parser.parse_args()
     label(args)

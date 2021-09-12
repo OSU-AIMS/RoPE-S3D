@@ -40,7 +40,10 @@ class SyntheticPredictor():
         return selection
 
 
-    def run_batch(self, number):
+    def run_batch(self, number:int, file:str = 'synth_test'):
+
+        if not file.endswith('.npy'):
+            file += '.npy'
 
         # Actual, Predicted
         results = np.zeros((2,number,6))
@@ -48,7 +51,7 @@ class SyntheticPredictor():
         for i in tqdm(range(number)):
             results[0,i], results[1,i] = self.run()
             if i % 250 == 0:
-                np.save('synth_test.npy',results)
+                np.save(file,results)
 
-        np.save('synth_test.npy',results)
+        np.save(file,results)
             

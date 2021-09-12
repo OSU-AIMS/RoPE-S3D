@@ -1,14 +1,23 @@
-from robotpose.simulation.render import DatasetRenderer
-import robotpose
-import numpy as np
-from robotpose import Dataset, Grapher
-import cv2
-from robotpose.prediction.analysis import JointDistance
-import PySimpleGUI as sg
+# Software License Agreement (Apache 2.0 License)
+#
+# Copyright (c) 2021, The Ohio State University
+# Center for Design and Manufacturing Excellence (CDME)
+# The Artificially Intelligent Manufacturing Systems Lab (AIMS)
+# All rights reserved.
+#
+# Author: Adam Exley
+
+import argparse
+import logging
+import os
 import re
 
+import numpy as np
 
-import logging, os
+from robotpose import Dataset, Grapher
+from robotpose.prediction.analysis import JointDistance
+from robotpose.utils import str_to_arr
+
 # Disable OpenGL and Tensorflow info messages (get annoying)
 logging.getLogger("OpenGL.arrays.arraydatatype").setLevel(logging.WARNING)
 logging.getLogger("OpenGL.acceleratesupport").setLevel(logging.WARNING)
@@ -16,69 +25,49 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # or any {'0', '1', '2'}
 import tensorflow as tf
 
 
-#file = sg.PopupGetFile('Select Prediction File','Prediction File Selection',file_types=(("NPY Files", "*.npy"), ),initial_folder=os.getcwd())
-file = 'synth_test_clean.npy'
+def run(args):
+    file = args.file
 
-results = np.load(file)
 
-print(results.shape[0])
+    if not file.endswith('.npy'):
+        file+='.npy'
 
-if results.shape[0] == 2:
-    angles = results[0]
-    preds = results[1]
-else:
-    name = re.search(r'_set.+_',file)
-    if name is not None:
-        dataset = name.group(0)[1:][:-1]
+    results = np.load(file)
+
+    if results.shape[0] == 2:
+        angles = results[0]
+        preds = results[1]
     else:
-        name = re.search(r'_set.+\.npy',file)
-        dataset = name.group(0)[1:][:-4]
+        name = re.search(r'_set.+_',file)
+        if name is not None:
+            dataset = name.group(0)[1:][:-1]
+        else:
+            name = re.search(r'_set.+\.npy',file)
+            dataset = name.group(0)[1:][:-4]
 
-    print(dataset)
-    ds = Dataset(dataset)
-
-    preds = results
-    angles = np.copy(ds.angles)
-
-
-
-IDX_TO_USE = 2
-PERCENTILE_TO_SHOW = 99
+        ds = Dataset(dataset)
+        preds = results
+        angles = np.copy(ds.angles)
 
 
-indicies = np.argsort(angles[...,IDX_TO_USE])
-
-out = np.sort(indicies)
-# print(out)
-
-g = Grapher('SLU',preds[indicies],angles[indicies])
-g.plot(20)
-
-diff = np.abs(preds - angles)
-
-j = JointDistance()
-j.plot(preds[indicies],angles[indicies],.25)
+    idx_to_sort = np.where(str_to_arr(args.sort_by))[0][0]
+    idx_to_sort = 0
+    indicies = np.argsort(angles[...,idx_to_sort])
 
 
-#print(diff)
+    g = Grapher(args.angs,preds[indicies],angles[indicies])
+    g.plot(20)
 
-#print((diff[:,0] > np.percentile(diff[:,IDX_TO_USE],PERCENTILE_TO_SHOW)))
+    j = JointDistance()
+    j.plot(preds[indicies],angles[indicies],.25)
 
 
-# idxs = np.where(diff[:,IDX_TO_USE] > np.percentile(diff[:,IDX_TO_USE],PERCENTILE_TO_SHOW))
-# imgs = np.copy(ds.og_img[idxs])
-# preds, diff = preds[idxs], diff[idxs]
 
-# r = DatasetRenderer(dataset)
-# r.setMaxParts(6)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('file', type=str, help="The file to view.")
+    parser.add_argument('-sort_by', type=str, default='S', help="Joint to sort by.")
+    parser.add_argument('-angs', type=str, default='SLU',help="The joints to predict.")
 
-# for idx in range(len(imgs)):
-#     r.setJointAngles(preds[idx])
-#     c,d = r.render()
-#     out = cv2.addWeighted(imgs[idx],.5,c,.5,0)
-#     print("")
-#     print(idxs[idx])
-#     print([f"{x:0.3f}" for x in (ds.angles[idx] *180 / np.pi)])
-#     print([f"{x:0.3f}" for x in (preds[idx] *180 / np.pi)])
-#     cv2.imshow("",out)
-#     cv2.waitKey(0)
+    args = parser.parse_args()
+    run(args)
