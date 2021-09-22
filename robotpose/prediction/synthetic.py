@@ -1,34 +1,39 @@
-from os import truncate
-from robotpose import prediction
-from robotpose.utils import str_to_arr
-from robotpose.urdf import URDFReader
-from robotpose.projection import Intrinsics
+from ..simulation.noise import NoiseMaker
+from ..utils import str_to_arr,color_array
+from ..urdf import URDFReader
 from .predict import Predictor
 from ..simulation.render import Renderer
 import numpy as np
 from tqdm import tqdm
+import cv2
 
 
 class SyntheticPredictor():
-    def __init__(self, camera_pose, base_intrin, ds_factor, do_angles):
+    def __init__(self, camera_pose, base_intrin, ds_factor, do_angles, noise):
         self.renderer = Renderer(camera_pose=camera_pose, camera_intrin=base_intrin)
         self.predictor = Predictor(camera_pose, ds_factor,
             do_angles=do_angles, base_intrin=base_intrin,
             color_dict=self.renderer.color_dict)
         self.urdf_reader = URDFReader()
         self.do_angles = do_angles
+        self.noise = NoiseMaker()
+        self.do_noise = noise
 
 
-    def run(self):
-        pose = self._generatePose()
+    def run(self, pose = None):
+        if pose is None:
+            pose = self._generatePose()
 
         self.renderer.setJointAngles(pose)
         color, depth = self.renderer.render()
 
-        # Add gaussian noise
-        # depth[depth!=0] += np.random.normal(loc=.3,scale = 1,size = depth[depth!=0].shape)
-
+        # Add noise to depth
+        if self.do_noise:
+            depth = self.noise.holes(depth,)
+        
         predicted = self.predictor.run(color, depth)
+        cv2.imshow("Simulated Depth",color_array(depth))
+        cv2.waitKey(1)
 
         return pose, predicted
 
@@ -39,7 +44,10 @@ class SyntheticPredictor():
         return selection
 
 
-    def run_batch(self, number):
+    def run_batch(self, number:int, file:str = 'synth_test'):
+
+        if not file.endswith('.npy'):
+            file += '.npy'
 
         # Actual, Predicted
         results = np.zeros((2,number,6))
@@ -47,7 +55,22 @@ class SyntheticPredictor():
         for i in tqdm(range(number)):
             results[0,i], results[1,i] = self.run()
             if i % 250 == 0:
-                np.save('synth_test.npy',results)
+                np.save(file,results)
 
-        np.save('synth_test.npy',results)
+        np.save(file,results)
+
+    def run_batch_poses(self, poses:np.ndarray, file:str = 'synth_test'):
+
+        if not file.endswith('.npy'):
+            file += '.npy'
+
+        # Actual, Predicted
+        results = np.zeros((2,len(poses),6))
+
+        for i in tqdm(range(len(poses))):
+            results[0,i], results[1,i] = self.run(poses[i])
+            if i % 250 == 0:
+                np.save(file,results)
+
+        np.save(file,results)
             

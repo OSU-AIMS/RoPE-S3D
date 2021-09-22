@@ -39,7 +39,7 @@ pip install --upgrade -r requirements.txt
 
 # Collect Data
 
-**When collecting data it is highly recommended to obtain a rough idea of the camera's position relative to the robot's origin.**
+**When collecting data, it is recommended to obtain a rough idea of the camera's position relative to the robot's origin.**
 
 ## Expectations
 
@@ -54,6 +54,16 @@ The format for the ```.json``` info file can be found in [examples/dataset_json_
 Collection can be done in numerous ways depending on your specific setup.
 
 A starting point for collection can be obtained from our [RoPE Capture Tool](https://github.com/OSU-AIMS/RoPE-Capture-Tool), which is used to collect data from anInterl Realsense 435i and a Yaskawa MH5L on ROS Melodic.
+
+### Pose Planner
+
+In order to cover the entire state space of the robot uniformly, it is recommended to generate poses using a grid sampling method with or without noise.
+
+A pose generator is included in this repo and operates on the actiove URDF, although it may not be suitable for all collection uses. It generates a ```.npy``` file of SLURBT poses to collect.
+
+```bash
+python collection_planner.py [-num MAX_POSES] [-file FILE_NAME] [-angs JOINTS] [-noise POSE_NOISE]
+```
 
 ## Ingest
 
@@ -94,7 +104,7 @@ The GUI allows for input of a pose (6-element list) and instructions for using t
 
 # Verify Poses
 
-This allows for improperly-recorded poses to be removed from the dataset.
+This allows for improperly recorded poses to be removed from the dataset.
 
 To do this, run ```python wizard.py```. Select the desired dataset. Click **Verify**.
 
@@ -135,7 +145,7 @@ Using -cont_from can be used to build a model off of a model from another datase
 
 # Prediction
 
-**For more thorough
+**Please read [PREDICTION.md](PREDICTION.md) for specific instructions and details**
 
 Prediction settings are more complex than other settings in this repo.
 

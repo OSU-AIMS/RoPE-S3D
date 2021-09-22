@@ -42,12 +42,14 @@ def general_plot(joints, unit, given_err = None, actual = None, predicted = None
     # Plot errors
     for joint, idx in zip(joints,range(len(joints))):
 
+        idx2 = idx
         idx = idx if given_err is not None else (idx, 1)
+        
 
         axs[idx].set_title(f'{joint} Error')
         axs[idx].set_ylabel(f'({unit})')
         axs[idx].plot(zeros_err)
-        axs[idx].plot(err[:,idx],color='purple')
+        axs[idx].plot(err[:,idx2],color='purple')
         if y_lim is not None:
             axs[idx].set_ylim(y_lim)
 
@@ -91,7 +93,6 @@ class Grapher():
     def _b_correction(self):
         if 'B' not in self.joints:
             return
-
         offsets = [-360, -180, 0, 180, 360]
         
         for idx in range(len(self.predictions)):
@@ -137,3 +138,7 @@ class JointDistance(ForwardKinematics):
     def plot(self,predicted: np.ndarray, actual: np.ndarray, y_lim = None):
         err = self.distance(predicted,actual)
         general_plot(self.joints,'cm',given_err=err[:,str_to_arr(self.joints_str)]*100, y_lim=[0,y_lim*100])
+
+    def single(self, predicted, actual, joint = 'T'):
+        err = self.distance(predicted,actual)
+        return err[...,str_to_arr(joint)]

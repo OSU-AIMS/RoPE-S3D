@@ -119,7 +119,7 @@ Synthetic predcition is run with ```python synth.py```, and will save results to
 
 Parameters must be changed system-wide for prediction stages, and in [synth.py](synth.py) for camera position/scaling options.
 
-## Viewing Pesults
+## Viewing Results
 
 To view results, run ```python plot_errors.py```. Make sure the hardcoded `file` variable in [plot_errors.py](plot_errors.py) matches the npy you wish to view.
 

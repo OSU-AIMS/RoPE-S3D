@@ -98,4 +98,4 @@ class Extractor():
 
 
 if __name__ == "__main__":
-    a = Extractor('set63',90)
+    a = Extractor('set91',51)

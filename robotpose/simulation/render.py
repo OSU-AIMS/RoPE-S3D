@@ -16,7 +16,7 @@ import pyrender
 import PySimpleGUI as sg
 
 from ..constants import DEFAULT_RENDER_COLORS
-from ..data import Dataset
+from ..data import Dataset, DatasetInfo
 from ..projection import Intrinsics
 from .kinematics import ForwardKinematics
 from .render_utils import MeshLoader, makePose, setPoses
@@ -423,7 +423,8 @@ class AlignerGUI():
 
         self.layout = [[sg.Text("Currently Editing:"), sg.Text(size=(40,1), key='editing')],
                         [sg.Input(size=(5,1),key='num_input'),sg.Button('Go To',key='num_goto'), sg.Button('New Section',key='new_section')],
-                        [sg.Text("Manual Pose:"), sg.Input(size=(20,1),key='pose_entry')],
+                        [sg.Text("Manual Pose:"), sg.Input(size=(20,1),key='pose_entry'), sg.Button('Enter',k='manual')],
+                        [sg.Text("Copy Pose From:"), sg.Input(size=(20,1),key='ds_entry'), sg.Button('Copy',k='copy')],
                         [sg.Text("Zoom:"),sg.Slider((.5,4),1,key='zoom',orientation='h', resolution=0.1)],
                         [sg.Text("",key='warn',text_color="red", size=(22,1))],
                         [sg.Table([[["Sections:"]],[[1,1]]], key='sections'),sg.Text(control_str)],
@@ -431,6 +432,8 @@ class AlignerGUI():
 
         self.window = sg.Window('Aligner Controls', self.layout, return_keyboard_events = True, use_default_focus=False)
         self.past_zoom = 1
+
+        self.ds_info = DatasetInfo()
 
     def update(self, section_starts: List[int], section_idx: int):
         """Update the GUI, returning an evenmt if applicable"""
@@ -470,14 +473,25 @@ class AlignerGUI():
             self.close()
             return ['quit',None]
 
-        try:
-            # If there is an entry in the manual pose section, try to parse and apply it
-            entry = values['pose_entry'].replace('[','').replace(']','').replace(',',' ')
-            entry = np.fromstring(entry,np.float,sep=' ')
-            if entry.shape == (6,):
-                return ['pose_entry',entry]
-        except ValueError:
-            pass
+        if event == 'manual':
+            try:
+                # If there is an entry in the manual pose section, try to parse and apply it
+                entry = values['pose_entry'].replace('[','').replace(']','').replace(',',' ')
+                entry = np.fromstring(entry,np.float,sep=' ')
+                if entry.shape == (6,):
+                    return ['pose_entry',entry]
+            except ValueError:
+                pass
+
+        elif event == 'copy':
+            try:
+                # Try to copy pose from another ds
+                if values['ds_entry'] in self.ds_info.compiled_sets:
+                    ds = Dataset(values['ds_entry'])
+                    return ['pose_entry',ds.camera_pose[0]]
+            except ValueError:
+                pass
+
 
         return [None,None]
 
