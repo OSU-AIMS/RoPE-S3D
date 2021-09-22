@@ -73,4 +73,4 @@ Some constants only change visual appearance of some functions whereas others ca
 
 # License
 
-Released under a Apache 2.0 License. See [LICENSE](https://github.com/jgraving/deepposekit/blob/master/LICENSE) for details.
+Released under an Apache 2.0 License. See [LICENSE](https://github.com/jgraving/deepposekit/blob/master/LICENSE) for details.

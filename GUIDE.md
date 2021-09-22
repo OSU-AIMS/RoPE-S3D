@@ -39,7 +39,7 @@ pip install --upgrade -r requirements.txt
 
 # Collect Data
 
-**When collecting data it is highly recommended to obtain a rough idea of the camera's position relative to the robot's origin.**
+**When collecting data, it is recommended to obtain a rough idea of the camera's position relative to the robot's origin.**
 
 ## Expectations
 
@@ -104,7 +104,7 @@ The GUI allows for input of a pose (6-element list) and instructions for using t
 
 # Verify Poses
 
-This allows for improperly-recorded poses to be removed from the dataset.
+This allows for improperly recorded poses to be removed from the dataset.
 
 To do this, run ```python wizard.py```. Select the desired dataset. Click **Verify**.
 
