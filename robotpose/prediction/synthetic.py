@@ -1,10 +1,11 @@
 from ..simulation.noise import NoiseMaker
-from ..utils import str_to_arr
+from ..utils import str_to_arr,color_array
 from ..urdf import URDFReader
 from .predict import Predictor
 from ..simulation.render import Renderer
 import numpy as np
 from tqdm import tqdm
+import cv2
 
 
 class SyntheticPredictor():
@@ -19,8 +20,9 @@ class SyntheticPredictor():
         self.do_noise = noise
 
 
-    def run(self):
-        pose = self._generatePose()
+    def run(self, pose = None):
+        if pose is None:
+            pose = self._generatePose()
 
         self.renderer.setJointAngles(pose)
         color, depth = self.renderer.render()
@@ -30,6 +32,8 @@ class SyntheticPredictor():
             depth = self.noise.holes(depth,)
         
         predicted = self.predictor.run(color, depth)
+        cv2.imshow("Simulated Depth",color_array(depth))
+        cv2.waitKey(1)
 
         return pose, predicted
 
@@ -50,6 +54,21 @@ class SyntheticPredictor():
 
         for i in tqdm(range(number)):
             results[0,i], results[1,i] = self.run()
+            if i % 250 == 0:
+                np.save(file,results)
+
+        np.save(file,results)
+
+    def run_batch_poses(self, poses:np.ndarray, file:str = 'synth_test'):
+
+        if not file.endswith('.npy'):
+            file += '.npy'
+
+        # Actual, Predicted
+        results = np.zeros((2,len(poses),6))
+
+        for i in tqdm(range(len(poses))):
+            results[0,i], results[1,i] = self.run(poses[i])
             if i % 250 == 0:
                 np.save(file,results)
 

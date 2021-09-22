@@ -11,10 +11,18 @@ import argparse
 
 from robotpose import Dataset, SyntheticPredictor
 
+from robotpose.training.planning import Planner
+
+
 def run(args):
+    p = Planner()
+
+
     ds = Dataset(args.dataset)
     synth = SyntheticPredictor(ds.camera_pose[0],args.intrinsics,args.ds_factor,args.angs,noise=args.noise)
     synth.run_batch(args.num,args.file)
+
+    # synth.run_batch_poses(p.basicGrid('SLU',1001), args.file)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
