@@ -7,6 +7,8 @@
 #
 # Author: Adam Exley
 
+
+import argparse
 import logging
 import os
 import re
@@ -15,6 +17,8 @@ import numpy as np
 
 from robotpose import Dataset, Grapher
 from robotpose.prediction.analysis import JointDistance
+from robotpose.utils import str_to_arr
+
 
 # Disable OpenGL and Tensorflow info messages (get annoying)
 logging.getLogger("OpenGL.arrays.arraydatatype").setLevel(logging.WARNING)
@@ -22,45 +26,48 @@ logging.getLogger("OpenGL.acceleratesupport").setLevel(logging.WARNING)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'  # or any {'0', '1', '2'}
 import tensorflow as tf
 
-file = 'synth_test.npy'
 
-results = np.load(file)
+def run(args):
+    file = args.file
 
-print(results.shape[0])
+    if not file.endswith('.npy'):
+        file+='.npy'
 
-if results.shape[0] == 2:
-    angles = results[0]
-    preds = results[1]
-else:
-    name = re.search(r'_set.+_',file)
-    if name is not None:
-        dataset = name.group(0)[1:][:-1]
+    results = np.load(file)
+
+    if results.shape[0] == 2:
+        angles = results[0]
+        preds = results[1]
     else:
-        name = re.search(r'_set.+\.npy',file)
-        dataset = name.group(0)[1:][:-4]
+        name = re.search(r'_set.+_',file)
+        if name is not None:
+            dataset = name.group(0)[1:][:-1]
+        else:
+            name = re.search(r'_set.+\.npy',file)
+            dataset = name.group(0)[1:][:-4]
 
-    print(dataset)
-    ds = Dataset(dataset)
+        ds = Dataset(dataset)
+        preds = results
+        angles = np.copy(ds.angles)
 
-    preds = results
-    angles = np.copy(ds.angles)
+    idx_to_sort = np.where(str_to_arr(args.sort_by))[0][0]
+    idx_to_sort = 0
+    indicies = np.argsort(angles[...,idx_to_sort])
 
 
+    g = Grapher(args.angs,preds[indicies],angles[indicies])
+    g.plot(20)
 
-IDX_TO_USE = 0
-PERCENTILE_TO_SHOW = 99
+    j = JointDistance()
+    j.plot(preds[indicies],angles[indicies],.25)
 
-# Sort by angle
-indicies = np.argsort(angles[...,IDX_TO_USE])
 
-out = np.sort(indicies)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('file', type=str, help="The file to view.")
+    parser.add_argument('-sort_by', type=str, default='S', help="Joint to sort by.")
+    parser.add_argument('-angs', type=str, default='SLU',help="The joints to predict.")
 
-# Graph angle offsets
-g = Grapher('SLU',preds[indicies],angles[indicies])
-g.plot(20)
+    args = parser.parse_args()
+    run(args)
 
-diff = np.abs(preds - angles)
-
-# Graph joint offsets
-j = JointDistance()
-j.plot(preds[indicies],angles[indicies],.25)

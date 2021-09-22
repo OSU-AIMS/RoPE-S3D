@@ -1,0 +1,12 @@
+{
+    "id": "HSNN",
+    "dataset": "hybrid",
+    "dataset_size": 1693,
+    "train_size": 1439,
+    "valid_size": 253,
+    "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+    "epochs_trained": 0,
+    "date_trained": "2021-09-08 21:56:22.111653",
+    "benchmarks": [],
+    "train_ratio": 0.84997
+}

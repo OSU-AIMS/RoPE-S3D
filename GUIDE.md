@@ -55,6 +55,16 @@ Collection can be done in numerous ways depending on your specific setup.
 
 A starting point for collection can be obtained from our [RoPE Capture Tool](https://github.com/OSU-AIMS/RoPE-Capture-Tool), which is used to collect data from anInterl Realsense 435i and a Yaskawa MH5L on ROS Melodic.
 
+### Pose Planner
+
+In order to cover the entire state space of the robot uniformly, it is recommended to generate poses using a grid sampling method with or without noise.
+
+A pose generator is included in this repo and operates on the actiove URDF, although it may not be suitable for all collection uses. It generates a ```.npy``` file of SLURBT poses to collect.
+
+```bash
+python collection_planner.py [-num MAX_POSES] [-file FILE_NAME] [-angs JOINTS] [-noise POSE_NOISE]
+```
+
 ## Ingest
 
 To load data into the repo, first collect all data into a ```.zip``` file. This should then be plased in [data/raw/](data/raw/).
@@ -135,7 +145,7 @@ Using -cont_from can be used to build a model off of a model from another datase
 
 # Prediction
 
-**For more thorough
+**Please read [PREDICTION.md](PREDICTION.md) for specific instructions and details**
 
 Prediction settings are more complex than other settings in this repo.
 
