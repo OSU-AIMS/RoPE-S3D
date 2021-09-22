@@ -9,8 +9,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument('path', type=str)
 args = parser.parse_args()
 
-
-
 cap = cv2.VideoCapture(args.path)
 
 
@@ -28,7 +26,7 @@ rev.reverse()
 full = frames + rev
 full = np.asarray(full)
 
-imageio.mimsave('assets/a.gif', full, duration = .033)
+imageio.mimsave('assets/a.gif', full, duration = .02)
 print("Done")
 
 

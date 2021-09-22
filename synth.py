@@ -7,6 +7,7 @@
 #
 # Author: Adam Exley
 
+
 import argparse
 
 from robotpose import Dataset, SyntheticPredictor
@@ -24,6 +25,7 @@ def run(args):
 
     # synth.run_batch_poses(p.basicGrid('SLU',1001), args.file)
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset', type=str, help="The dataset pose to use. Can be a partial name.")
@@ -36,3 +38,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     run(args)
+

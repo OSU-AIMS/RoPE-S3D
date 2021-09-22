@@ -7,6 +7,7 @@
 #
 # Author: Adam Exley
 
+
 import argparse
 import logging
 import os
@@ -18,6 +19,7 @@ from robotpose import Dataset, Grapher
 from robotpose.prediction.analysis import JointDistance
 from robotpose.utils import str_to_arr
 
+
 # Disable OpenGL and Tensorflow info messages (get annoying)
 logging.getLogger("OpenGL.arrays.arraydatatype").setLevel(logging.WARNING)
 logging.getLogger("OpenGL.acceleratesupport").setLevel(logging.WARNING)
@@ -27,7 +29,6 @@ import tensorflow as tf
 
 def run(args):
     file = args.file
-
 
     if not file.endswith('.npy'):
         file+='.npy'
@@ -49,7 +50,6 @@ def run(args):
         preds = results
         angles = np.copy(ds.angles)
 
-
     idx_to_sort = np.where(str_to_arr(args.sort_by))[0][0]
     idx_to_sort = 0
     indicies = np.argsort(angles[...,idx_to_sort])
@@ -62,7 +62,6 @@ def run(args):
     j.plot(preds[indicies],angles[indicies],.25)
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str, help="The file to view.")
@@ -71,3 +70,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     run(args)
+
