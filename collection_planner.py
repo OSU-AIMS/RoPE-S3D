@@ -37,4 +37,4 @@ if __name__ == "__main__":
     parser.add_argument('-noise', type=float, default=0 ,help="Noise to add in radians.")
 
     args = parser.parse_args()
-    run(args.ang, args.file, args.num + 1, args.noise)
+    run(args.angs, args.file, args.num + 1, args.noise)

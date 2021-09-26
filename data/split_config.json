@@ -11,5 +11,6 @@
     "set70": { "train": 0.9, "validate": 0.1, "ignore": -2.77556e-17 },
     "set80": { "train": 0.9, "validate": 0.1, "ignore": -2.77556e-17 },
     "set90": { "train": 0.9, "validate": 0.1, "ignore": -2.77556e-17 },
-    "set91": { "train": 0.85, "validate": 0.15, "ignore": 2.77556e-17 }
+    "set91": { "train": 0.85, "validate": 0.15, "ignore": 2.77556e-17 },
+    "set100": { "train": 0.85, "validate": 0.15, "ignore": 2.77556e-17 }
 }

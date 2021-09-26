@@ -179,5 +179,5 @@ class Live():
 
 
 if __name__ == "__main__":
-    a = Live('1280_720_color','set91','SLU',8)
+    a = Live('1280_720_color','set100','SLU',8)
     a.run()

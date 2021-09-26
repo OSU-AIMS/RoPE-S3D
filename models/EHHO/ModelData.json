@@ -1,0 +1,12 @@
+{
+    "id": "EHHO",
+    "dataset": "set100",
+    "dataset_size": 931,
+    "train_size": 791,
+    "valid_size": 139,
+    "classes": ["base_link", "link_1_s", "link_2_l", "link_3_u", "link_4_r", "link_5_b"],
+    "epochs_trained": 0,
+    "date_trained": "2021-09-26 14:44:31.835409",
+    "benchmarks": [],
+    "train_ratio": 0.849624
+}
